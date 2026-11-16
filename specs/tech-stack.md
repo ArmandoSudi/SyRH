@@ -6,6 +6,10 @@ SyRH is developed in-house by the ARPTC and hosted on ARPTC servers (`NF-04`). I
 application reached from a browser on every ARPTC site, with no installation on the workstation
 (`NF-10`, `NF-11`).
 
+It is a **single-page application** built with Vue.js, so that it feels native to the user:
+the page loads once, navigation between screens is instant, and only data travels to and from
+the server.
+
 ## Overview
 
 | Layer | Choice | Status |
@@ -17,6 +21,7 @@ application reached from a browser on every ARPTC site, with no installation on 
 | Database driver | psycopg 3 | In place |
 | Configuration | django-environ, `.env` file | In place |
 | Python tooling | uv (dependencies), Ruff (lint and format) | In place |
+| Frontend architecture | Single-page application (SPA) | In place |
 | Frontend framework | Vue 3 with `<script setup>` and TypeScript | In place |
 | Build tool | Vite 8 | In place |
 | Routing and state | Vue Router 5, Pinia 4 | In place |
@@ -86,6 +91,20 @@ features freely rather than writing for the lowest common denominator.
 
 ## Frontend
 
+- **Single-page application.** Django never renders HR screens; it serves JSON, and Vue renders
+  everything in the browser. This is what makes the app feel native:
+  - **Client-side routing** with Vue Router in history mode: moving between screens never
+    reloads the page, and every screen has its own URL that can be bookmarked or shared.
+  - **No full-page form posts**: forms submit through the API and the screen updates in place,
+    with field-level errors.
+  - **Immediate feedback**: every action shows a loading state, then a success or error
+    message; nothing leaves the user waiting on a blank page.
+  - **Lazy-loaded routes**: each module's screens are loaded on first visit, so the first load
+    stays fast as the application grows.
+  - **State survives navigation**: filters, search terms and the current user are kept in
+    Pinia while the user moves around.
+  - In production the server returns `index.html` for any non-API path, so a refresh or a
+    deep link lands on the right screen.
 - **Vue 3 Composition API** with `<script setup lang="ts">`. No Options API.
 - **PrimeVue** for tables, forms, date pickers, dialogs and file upload, with the French locale.
   Do not mix in a second component library.
