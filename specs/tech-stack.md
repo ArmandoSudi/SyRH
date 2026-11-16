@@ -25,7 +25,10 @@ the server.
 | Frontend framework | Vue 3 with `<script setup>` and TypeScript | In place |
 | Build tool | Vite 8 | In place |
 | Routing and state | Vue Router 5, Pinia 4 | In place |
-| UI components | PrimeVue | To add in the first UI phase |
+| UI components | PrimeVue 4 (MIT), PrimeIcons, French locale via primelocale | In place |
+| Design system | Custom tokens and PrimeVue preset, light and dark themes; see [`design.md`](design.md) | In place |
+| Font | Plus Jakarta Sans, self-hosted | In place |
+| Charts | Apache ECharts with `vue-echarts` | To add in the dashboard phase |
 | Frontend tooling | ESLint, Oxlint, Prettier, vue-tsc | In place |
 | Tests | Django test runner (backend), Vitest + Vue Test Utils (frontend) | In place |
 | Authentication | Django session cookie + CSRF | To build |
@@ -106,8 +109,26 @@ features freely rather than writing for the lowest common denominator.
   - In production the server returns `index.html` for any non-API path, so a refresh or a
     deep link lands on the right screen.
 - **Vue 3 Composition API** with `<script setup lang="ts">`. No Options API.
-- **PrimeVue** for tables, forms, date pickers, dialogs and file upload, with the French locale.
-  Do not mix in a second component library.
+- **PrimeVue 4** for tables, forms, date pickers, dialogs and file upload, with the French
+  locale. Do not mix in a second component library.
+  - **Stay on version 4.** PrimeVue 5 moved to the commercial PrimeUI licence, whose free tier
+    is limited to organisations with fewer than 10 employees; the ARPTC does not qualify.
+    Version 4 is MIT-licensed. The version is pinned exactly in `package.json`; do not upgrade
+    to 5 without buying licences.
+- **Design system**: colours, type, shape and components are defined in
+  [`design.md`](design.md). Components read CSS tokens (`--sy-*`) and never hard-code a colour.
+  Light and dark themes are both supported; every screen is checked in both.
+- **Charts: Apache ECharts** (Apache-2.0) through the `vue-echarts` wrapper (MIT). Chosen
+  because rounded bars, rounded donut segments and hatch patterns ("decal") are built in, which
+  matches the design system, and because it covers every chart the dashboard and reports need.
+  - Import only the chart types and components a screen uses, never the whole library, and keep
+    charts in lazy-loaded routes.
+  - ECharts draws on a canvas and cannot read CSS variables. Chart colours come from one shared
+    helper that reads the `--sy-*` tokens and redraws when the theme changes; no chart
+    hard-codes a colour.
+  - Wrap charts in components under `src/components/ui/` so screens never configure ECharts
+    directly. The small CSS and SVG charts already there stay until a screen needs axes,
+    tooltips or time series.
 - **Pinia** for state shared across pages (current user, permissions, reference data). Local
   component state stays local.
 - **API access** only through typed functions in `src/api/`; components do not call `fetch`

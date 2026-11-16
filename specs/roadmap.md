@@ -17,8 +17,9 @@ Tick a phase when it is merged.
 - [x] **0.1 Scaffold** — Django + DRF, Vue + Vite, PostgreSQL, health check, initial commit.
 - [ ] **0.2 Login** — session login, logout and "current user" endpoints with CSRF; login page;
   route guard that redirects anonymous users.
-- [ ] **0.3 App shell** — add PrimeVue with the French locale; layout with header, side menu and
-  empty home page.
+- [x] **0.3 App shell and design system** — PrimeVue with the French locale; light and dark
+  themes; layout with side menu and top bar; demo dashboard and design guide page
+  (see [`design.md`](design.md)).
 - [ ] **0.4 Roles** — one group per profile of section 3 of the spec; permissions exposed to the
   frontend; menu filtered by role.
 - [ ] **0.5 Base models** — abstract base with created/updated timestamps and author, shared by

@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 
-import HomeView from '../HomeView.vue'
+import SystemView from '../SystemView.vue'
 
 afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('HomeView', () => {
+describe('SystemView', () => {
   it('shows the database reported by the API', async () => {
     vi.stubGlobal(
       'fetch',
@@ -20,7 +20,7 @@ describe('HomeView', () => {
       }),
     )
 
-    const wrapper = mount(HomeView)
+    const wrapper = mount(SystemView)
     await flushPromises()
 
     expect(wrapper.get('[data-test="health"]').text()).toContain('postgresql 17.10')
@@ -29,7 +29,7 @@ describe('HomeView', () => {
   it('shows an error when the API is unreachable', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 502 }))
 
-    const wrapper = mount(HomeView)
+    const wrapper = mount(SystemView)
     await flushPromises()
 
     expect(wrapper.get('[data-test="error"]').text()).toContain('HTTP 502')

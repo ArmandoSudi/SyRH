@@ -1,23 +1,4 @@
-:root {
-  --bg: #ffffff;
-  --text: #1c2430;
-  --muted: #5b6675;
-  --border: #d9dee5;
-  --ok: #1a7f37;
-  --ko: #b42318;
-  color-scheme: light dark;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #14181d;
-    --text: #e6e9ee;
-    --muted: #9aa5b4;
-    --border: #2c343f;
-    --ok: #4ac26b;
-    --ko: #ff7b72;
-  }
-}
+@import './tokens.css';
 
 *,
 *::before,
@@ -25,15 +6,114 @@
   box-sizing: border-box;
 }
 
+html {
+  font-size: 15px;
+}
+
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
+  background: var(--sy-bg);
+  color: var(--sy-text);
+  font-family: var(--sy-font);
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--sy-text);
+  outline-offset: 2px;
+}
+
+/* --- Shared building blocks ------------------------------------------- */
+
+.sy-card {
+  background: var(--sy-surface);
+  border: 1px solid var(--sy-border);
+  border-radius: var(--sy-radius-xl);
+  box-shadow: var(--sy-shadow);
+  padding: var(--sy-space-5);
+  min-width: 0;
+}
+
+.sy-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sy-space-3);
+  margin-bottom: var(--sy-space-4);
+}
+
+.sy-card-title {
+  display: flex;
+  align-items: center;
+  gap: var(--sy-space-3);
+  font-size: 1.05rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Round icon badge used in card headers and stat cards */
+.sy-icon {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: var(--sy-surface-3);
+  color: var(--sy-text);
+  font-size: 0.95rem;
+}
+
+.sy-muted {
+  color: var(--sy-muted);
+}
+
+.sy-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Diagonal hatching: the "not yet / remaining / forecast" texture */
+.sy-hatch {
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, currentColor 38%, transparent) 0 2px,
+    transparent 2px 6px
+  );
+}
+
+.sy-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sy-space-2) var(--sy-space-4);
+  font-size: 0.82rem;
+  color: var(--sy-muted);
+}
+
+.sy-legend span::before {
+  content: '';
+  display: inline-block;
+  width: 0.6rem;
+  height: 0.6rem;
+  margin-right: 0.4rem;
+  border-radius: 50%;
+  background: var(--dot, var(--sy-muted));
 }

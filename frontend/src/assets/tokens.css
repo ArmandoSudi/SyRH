@@ -1,0 +1,65 @@
+/*
+ * SyRH design tokens.
+ *
+ * Every colour is declared once with light-dark(); the active scheme follows
+ * `color-scheme`, which the theme store switches by toggling `html.dark`.
+ * See specs/design.md.
+ */
+:root {
+  color-scheme: light;
+
+  /* Surfaces */
+  --sy-bg: light-dark(#f1f2ec, #121311);
+  --sy-surface: light-dark(#ffffff, #1e1f1c);
+  --sy-surface-2: light-dark(#f6f7f2, #272824);
+  --sy-surface-3: light-dark(#eeefe8, #32342e);
+  --sy-border: light-dark(#e2e4da, #32342e);
+
+  /* Text */
+  --sy-text: light-dark(#14160f, #f2f3ee);
+  --sy-muted: light-dark(#5d6154, #a3a798);
+
+  /* Brand and accents */
+  --sy-lime: light-dark(#c6f04d, #d2f65a);
+  --sy-on-lime: #14160f;
+  --sy-violet: light-dark(#8b7cf6, #9d90fa);
+  --sy-on-violet: #14160f;
+  --sy-orange: light-dark(#ff8a3d, #ff9a57);
+  --sy-on-orange: #14160f;
+
+  /* Inverse: black pills on light, lime pills on dark */
+  --sy-inverse: light-dark(#14160f, #d2f65a);
+  --sy-on-inverse: light-dark(#ffffff, #14160f);
+
+  /* Status */
+  --sy-success: light-dark(#1f7a44, #5bd68a);
+  --sy-success-soft: light-dark(#dff5e6, #1d3326);
+  --sy-warning: light-dark(#a85a00, #ffb066);
+  --sy-warning-soft: light-dark(#ffecd9, #3a2a1a);
+  --sy-danger: light-dark(#b42318, #ff8d85);
+  --sy-danger-soft: light-dark(#fde4e1, #3b1f1d);
+
+  /* Shape */
+  --sy-radius-sm: 10px;
+  --sy-radius-md: 14px;
+  --sy-radius-lg: 20px;
+  --sy-radius-xl: 24px;
+  --sy-radius-pill: 999px;
+
+  /* Elevation: cards are flat in dark mode, softly lifted in light mode */
+  --sy-shadow: light-dark(0 1px 2px rgb(20 22 15 / 4%), none);
+
+  /* Spacing scale */
+  --sy-space-1: 0.25rem;
+  --sy-space-2: 0.5rem;
+  --sy-space-3: 0.75rem;
+  --sy-space-4: 1rem;
+  --sy-space-5: 1.5rem;
+  --sy-space-6: 2rem;
+
+  --sy-font: 'Plus Jakarta Sans Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+html.dark {
+  color-scheme: dark;
+}
