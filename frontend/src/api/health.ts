@@ -1,3 +1,5 @@
+import { request } from './http'
+
 export interface Health {
   status: string
   database: {
@@ -7,10 +9,6 @@ export interface Health {
   }
 }
 
-export async function fetchHealth(): Promise<Health> {
-  const response = await fetch('/api/health/')
-  if (!response.ok) {
-    throw new Error(`API responded with HTTP ${response.status}`)
-  }
-  return response.json()
+export function fetchHealth(): Promise<Health> {
+  return request<Health>('/api/health/')
 }

@@ -15,7 +15,7 @@ Tick a phase when it is merged.
 ## Milestone 0 — Foundations
 
 - [x] **0.1 Scaffold** — Django + DRF, Vue + Vite, PostgreSQL, health check, initial commit.
-- [ ] **0.2 Login** — session login, logout and "current user" endpoints with CSRF; login page;
+- [x] **0.2 Login** — session login, logout and "current user" endpoints with CSRF; login page;
   route guard that redirects anonymous users.
 - [x] **0.3 App shell and design system** — PrimeVue with the French locale; light and dark
   themes; layout with side menu and top bar; demo dashboard and design guide page

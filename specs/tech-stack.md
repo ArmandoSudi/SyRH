@@ -31,7 +31,7 @@ the server.
 | Charts | Apache ECharts with `vue-echarts` | To add in the dashboard phase |
 | Frontend tooling | ESLint, Oxlint, Prettier, vue-tsc | In place |
 | Tests | Django test runner (backend), Vitest + Vue Test Utils (frontend) | In place |
-| Authentication | Django session cookie + CSRF | To build |
+| Authentication | Django session cookie + CSRF | In place |
 | Version control | Git | In place |
 
 ## Repository layout
@@ -85,9 +85,15 @@ features freely rather than writing for the lowest common denominator.
 
 - JSON over HTTP under `/api/`.
 - **Locked by default**: every endpoint requires an authenticated session. A view opts out
-  explicitly (only `/api/health/` does today).
+  explicitly (`/api/health/`, `/api/auth/csrf/` and `/api/auth/login/` do today).
 - **Authentication**: Django session cookie with CSRF protection. No tokens stored in the
   browser. The frontend and API are served from the same origin, so no CORS setup is needed.
+  The endpoints live under `/api/auth/` (`csrf`, `login`, `logout`, `me`, `password`).
+- **401 or 403**: an anonymous request gets `401` ("sign in again"), an authenticated request
+  without the right gets `403` ("not allowed"). This comes from
+  `apps.accounts.authentication.SessionAuthentication`; do not swap it for DRF's stock class.
+- **Messages are in French**, whatever language the browser asks for: there is no
+  `LocaleMiddleware`.
 - **Authorisation**: role-based, built on Django groups and permissions, enforced in the API and
   mirrored (never replaced) in the UI.
 - Validation errors are returned per field so forms can display them next to the input.
@@ -132,9 +138,14 @@ features freely rather than writing for the lowest common denominator.
 - **Pinia** for state shared across pages (current user, permissions, reference data). Local
   component state stays local.
 - **API access** only through typed functions in `src/api/`; components do not call `fetch`
-  directly.
+  directly. Those functions all go through `request()` in `src/api/http.ts`, which sends the
+  CSRF token, raises a typed `ApiError` with per-field messages, and reports a lost session.
 - **Vite dev proxy** forwards `/api`, `/admin` and `/static` to Django, so development matches
-  the single-origin production setup.
+  the single-origin production setup. It keeps the browser's `Host` header (object form in
+  `vite.config.ts`); Django's CSRF origin check depends on it.
+- **Routes are protected by default.** The router guard sends anonymous visitors to
+  `/connexion`; a route opts out with `meta.public`. This is a convenience, not a security
+  boundary: the API enforces access.
 - Interface text in French.
 
 ## Files and documents

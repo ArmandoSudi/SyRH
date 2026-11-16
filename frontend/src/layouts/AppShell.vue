@@ -4,6 +4,7 @@ import { RouterLink, RouterView, useRoute } from 'vue-router'
 import InputText from 'primevue/inputtext'
 
 import ThemeToggle from '@/components/ui/ThemeToggle.vue'
+import UserMenu from '@/components/UserMenu.vue'
 
 interface NavItem {
   to: string
@@ -64,7 +65,7 @@ const title = computed(() => (route.meta.title as string | undefined) ?? 'SyRH')
         <button type="button" class="round" aria-label="Notifications" title="Notifications">
           <i class="pi pi-bell" aria-hidden="true" />
         </button>
-        <span class="avatar" title="Utilisateur" aria-label="Utilisateur">RH</span>
+        <UserMenu />
       </header>
 
       <RouterView />
@@ -198,17 +199,13 @@ nav a.router-link-exact-active {
   border-radius: var(--sy-radius-pill);
 }
 
-.round,
-.avatar {
+.round {
   display: grid;
   place-items: center;
   flex: none;
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 50%;
-}
-
-.round {
   border: 1px solid var(--sy-border);
   background: var(--sy-surface);
   color: var(--sy-text);
@@ -217,13 +214,6 @@ nav a.router-link-exact-active {
 
 .round:hover {
   background: var(--sy-surface-2);
-}
-
-.avatar {
-  background: var(--sy-violet);
-  color: var(--sy-on-violet);
-  font-size: 0.8rem;
-  font-weight: 700;
 }
 
 /* --- Narrow screens: the sidebar becomes an icon rail ------------------ */

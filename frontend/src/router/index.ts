@@ -2,12 +2,20 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import AppShell from '@/layouts/AppShell.vue'
 
+import { installAuthGuards, LOGIN_PATH } from './guards'
+
 // Screens are lazy-loaded so the first load stays small as modules are added.
 const placeholder = () => import('@/views/PlaceholderView.vue')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    {
+      path: LOGIN_PATH,
+      name: 'login',
+      component: () => import('@/views/LoginView.vue'),
+      meta: { title: 'Connexion', public: true },
+    },
     {
       path: '/',
       component: AppShell,
@@ -52,10 +60,18 @@ const router = createRouter({
           component: () => import('@/views/DesignView.vue'),
           meta: { title: 'Système de design' },
         },
+        {
+          path: 'compte/mot-de-passe',
+          name: 'password',
+          component: () => import('@/views/PasswordView.vue'),
+          meta: { title: 'Mot de passe' },
+        },
       ],
     },
   ],
 })
+
+installAuthGuards(router)
 
 router.afterEach((to) => {
   const title = to.meta.title as string | undefined

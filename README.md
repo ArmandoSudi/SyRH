@@ -51,8 +51,9 @@ cd frontend && npm run dev
 ```
 
 Open <http://localhost:5173>. Vite proxies `/api`, `/admin` and `/static` to Django on
-port 8000, so the browser only talks to one origin. The home page calls
-`/api/health/` and shows the database it reached.
+port 8000, so the browser only talks to one origin. Sign in at `/connexion` with the
+account created by `createsuperuser`; further accounts are created in Django admin
+(`/admin/`).
 
 ## Checks
 
@@ -60,6 +61,7 @@ port 8000, so the browser only talks to one origin. The home page calls
 | --- | --- |
 | Backend tests | `cd backend && uv run python manage.py test` |
 | Backend lint and format | `cd backend && uv run ruff check . && uv run ruff format --check .` |
+| No missing migration | `cd backend && uv run python manage.py makemigrations --check` |
 | Frontend tests | `cd frontend && npx vitest run` |
 | Frontend lint | `cd frontend && npm run lint` |
 | Frontend type-check and build | `cd frontend && npm run build` |
@@ -70,3 +72,7 @@ port 8000, so the browser only talks to one origin. The home page calls
   `settings.AUTH_USER_MODEL` or `get_user_model()`.
 - Business apps live in `backend/apps/`.
 - API endpoints require an authenticated session by default; opt out per view.
+- An anonymous API call gets `401`, a forbidden one `403`. Frontend routes are protected
+  by default too; a route opts out with `meta.public`.
+- The frontend calls the API only through `request()` in `frontend/src/api/http.ts`,
+  which handles CSRF and errors.
