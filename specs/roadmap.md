@@ -61,7 +61,7 @@ The MVP goal: one reliable, historised agent record.
 - [ ] **2.10 Agent summary page** — identity, current position, computed age and seniority,
   full timeline (`SOC-05`, `SOC-07`).
 - [ ] **2.11 Validation workflow** — draft, submitted, validated, rejected with reason; the
-  author cannot validate (`TRA-01`).
+  author cannot validate (`TRA-01`). Settle `Q20` to `Q26` (approval circuits) first.
 - [ ] **2.12 Wife** — recorded on a marriage certificate; refused for a female agent's husband
   (`ADM-12`).
 - [ ] **2.13 Children** — recorded on a birth certificate, with the configurable maximum

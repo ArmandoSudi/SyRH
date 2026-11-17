@@ -1,6 +1,6 @@
 # Questions ouvertes — SIRH ARPTC
 
-État au 16 novembre 2026. Ces questions n'ont pas encore de réponse ; elles complètent le
+État au 17 novembre 2026. Ces questions n'ont pas encore de réponse ; elles complètent le
 [cahier des charges](cahier-des-charges-sirh-arptc.md) (section 13). Cocher une question et noter la
 réponse sous elle quand elle est tranchée, puis reporter la règle dans le cahier des charges.
 
@@ -73,7 +73,87 @@ En attendant, le MVP traite chaque point comme un **paramètre** ou applique l'h
 - [ ] **Q16 — Modèle du fichier Excel de virement.** Quelles colonnes chaque banque attend-elle ?
   - Concerne : REM-20, REM-28.
 
-## 6. Points rédigés sans confirmation
+## 6. Circuits de validation
+
+À trancher avant la phase 2.11 de la feuille de route (circuit de validation). Le principe retenu :
+chaque service saisit, son chef de service valide, et la Direction RH n'approuve que les décisions
+qui engagent l'ARPTC (argent, droit, carrière) ; pour le reste, elle supervise l'avancement et les
+exceptions.
+
+Proposition de circuits, à confirmer avec les questions ci-dessous. La Direction RH approuve les
+**décisions** (engager, promouvoir, sanctionner, clôturer la paie, adopter un plan, payer une
+facture importante) et supervise les **opérations** (congés, absences, bons, inscriptions).
+
+| Processus | Saisie | Validation | Approbation de la Direction RH | Suivi par la Direction RH |
+| --- | --- | --- | --- | --- |
+| **Congé annuel** | Administration du personnel | Chef de service | Non, sauf hors règle (au-delà du solde, période interdite) | Soldes de congés, taux d'absentéisme |
+| **Congé de maladie** | Administration du personnel, avec le certificat médical | Chef de service | Non | Absences longues ou répétées (alerte) |
+| **Heures supplémentaires** | Administration du personnel, avec l'autorisation préalable | Chef de service | Seulement au-delà d'un plafond mensuel ou du budget | Coût des heures supplémentaires par service |
+| **Ajout d'un enfant à charge** | Administration du personnel, avec l'acte de naissance | Chef de service | Non : la règle est objective | Dossiers sans pièce justificative |
+| **Engagement** | Gestion de carrière (dossier et contrat) | Chef de service | **Oui** : engage le budget et crée un lien juridique | Effectif par rapport au budget |
+| **Promotion, changement de grade** | Gestion de carrière | Chef de service | **Oui** : décision formelle avec effet sur la paie | Promotions par année, équité entre services |
+| **Sanction disciplinaire** | Gestion de carrière | Chef de service | **Oui**, souvent avec une commission | Nombre et nature des dossiers |
+| **Paie mensuelle** | Rémunération calcule à partir des données validées | Chef de service Rémunération, sur l'état de contrôle | **Oui, la clôture** : une approbation pour toute la paie, pas bulletin par bulletin | Masse salariale, écarts inexpliqués (REM-12 à REM-17) |
+| **Bons de soins** | Social | Chef de service Social | Non, bon par bon | Dépenses médicales, anomalies de facture |
+| **Facture hospitalière** | Social, rapprochée des bons et de la grille tarifaire | Chef de service Social | **Oui**, si le montant à payer dépasse un seuil ou est contesté | Dépenses médicales mensuelles |
+| **Plan de formation** | Formation | Chef de service Formation | **Oui**, une fois par an : c'est un budget | Budget consommé, sessions réalisées |
+| **Inscription à une formation** | Formation | Chef de service Formation | Non, si elle figure au plan approuvé | — |
+| **Sortie (démission, retraite, décès)** | Gestion de carrière | Chef de service | **Oui** : met fin au contrat et déclenche le décompte final | Départs à la retraite prévus (CAR-14) |
+
+Dans un établissement public comme l'ARPTC, certaines de ces décisions sont en outre signées
+au-dessus de la Direction RH, souvent par le Directeur général (voir Q22).
+
+Conséquences attendues pour le SIRH :
+
+- l'approbation est une règle **par type d'opération**, pas une relecture systématique ;
+- les seuils (plafond d'heures supplémentaires, montant de facture) sont des **paramètres** ;
+- la Direction RH a besoin d'une **vue des processus** (ce qui attend, où, depuis quand, les rejets
+  et les exceptions), pas seulement des dossiers ;
+- l'approbation de la paie repose sur l'**état de contrôle** : la Direction RH approuve les totaux
+  et les exceptions, sans revoir chaque bulletin.
+
+Questions à trancher :
+
+- [ ] **Q20 — Opérations soumises à l'approbation de la Direction RH.** Pour quels types
+  d'opération le circuit s'arrête-t-il au chef de service, et pour lesquels faut-il en plus
+  l'approbation de la Direction RH ?
+  - Concerne : TRA-01, TRA-02, section 3.
+  - Hypothèse MVP : validation par le chef de service pour toutes les saisies ; approbation de la
+    Direction RH en plus pour l'engagement, la promotion et le changement de grade, la sanction, la
+    sortie, la clôture de la paie et le plan de formation. Les congés, absences, heures
+    supplémentaires, dépendants, bons de soins et inscriptions à une formation prévue s'arrêtent au
+    chef de service.
+- [ ] **Q21 — Seuils de remontée à la Direction RH.** Au-delà de quels seuils une opération
+  courante doit-elle être approuvée par la Direction RH : plafond mensuel d'heures supplémentaires
+  par agent ou par service, montant d'une facture hospitalière, congé au-delà du solde, autres ?
+  - Concerne : ADM-09, ADM-10, SOC-M-15, SOC-M-16.
+  - Hypothèse MVP : seuils paramétrables, vides au départ (aucune remontée).
+- [ ] **Q22 — Décisions signées hors du SIRH.** Quelles décisions relèvent du Directeur général ou
+  d'une commission (engagement, promotion, sanction, révocation) ? Le SIRH doit-il faire circuler la
+  demande jusqu'à la signature, ou seulement enregistrer la décision signée ?
+  - Concerne : CAR-01, CAR-06, CAR-11, CAR-16.
+  - Hypothèse MVP : le SIRH enregistre la décision signée (référence, date, signataire) avec sa
+    pièce justificative.
+- [ ] **Q23 — Saisie faite par un chef de service.** Qui valide une saisie faite par le chef de
+  service lui-même, puisque l'auteur ne peut pas valider ?
+  - Concerne : TRA-01, section 3 (séparation des tâches).
+  - Hypothèse MVP : la Direction RH.
+- [ ] **Q24 — Suppléants et délais.** Qui valide en l'absence du chef de service ? Au bout de
+  combien de jours une saisie en attente doit-elle être signalée, ou passer au suppléant ?
+  - Concerne : TRA-02, TRA-04.
+  - Hypothèse MVP : suppléant désigné par paramétrage ; alerte après un délai paramétrable.
+- [ ] **Q25 — Rejet et correction.** Après un rejet motivé, l'auteur corrige-t-il la même saisie et
+  la soumet-il à nouveau, ou en crée-t-il une nouvelle ? La saisie rejetée reste-t-elle consultable ?
+  - Concerne : TRA-01, TRA-10.
+  - Hypothèse MVP : l'auteur corrige et soumet à nouveau la même saisie ; chaque rejet et son motif
+    restent dans l'historique.
+- [ ] **Q26 — Suivi des processus par la Direction RH.** Quelles vues attend-elle pour superviser
+  sans tout revoir : saisies en attente par étape et par service, ancienneté des attentes, rejets et
+  leurs motifs, exceptions (pièces manquantes, échéances dépassées, écarts de paie inexpliqués) ?
+  - Concerne : TRA-08, REM-12 à REM-17.
+  - Hypothèse MVP : un tableau des saisies en attente par étape et par service, avec leur ancienneté.
+
+## 7. Points rédigés sans confirmation
 
 Ces éléments du cahier des charges sont des propositions, non des réponses de l'ARPTC.
 
@@ -106,3 +186,5 @@ Pour mémoire, ces points ont reçu une réponse et sont intégrés au cahier de
 | Hébergement | Serveurs de l'ARPTC |
 | Portail agent | Versions ultérieures |
 | Réalisation | Développement interne |
+| Accès de l'Auditeur | Ne consulte ni la paie ni le détail des soins (17 novembre 2026) |
+| Accès de la Direction RH | Consulte tous les modules RH, détail des soins compris (17 novembre 2026) |
