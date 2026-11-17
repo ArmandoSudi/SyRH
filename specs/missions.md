@@ -64,7 +64,9 @@ These decide trade-offs when the spec is silent.
 8. **Nothing is physically deleted.** Agents who leave are deactivated and archived (`CAR-19`,
    `NF-13`).
 9. **Least privilege.** A user sees only what their role needs. Salaries are visible to
-   Rémunération and HR management only; care details to Social only (`SOC-M-20`).
+   Rémunération and HR management only; care details to Social and HR management only
+   (`SOC-M-20`, extended to HR management by the stakeholders on 2026-11-17). Internal audit
+   reads neither.
 10. **French first.** Interface, documents and domain vocabulary are in French; code and
     technical documentation are in English.
 

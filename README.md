@@ -31,6 +31,17 @@ uv run python manage.py migrate
 uv run python manage.py createsuperuser
 ```
 
+The superuser is for installation only: it holds every permission, pay included. Sign in to
+`/admin/` with it and create named accounts in the right profile groups (Gestion de carrière,
+Rémunération, Administrateur système, ...). An account needs "Statut équipe" to use `/admin/`.
+
+For development, create one demo account per profile (`demo.remuneration`, `demo.admin`, ...)
+with a password of your choice; the command refuses to run when `DEBUG` is off:
+
+```bash
+cd backend && uv run python manage.py create_demo_users
+```
+
 Install the frontend:
 
 ```bash

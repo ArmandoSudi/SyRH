@@ -21,6 +21,18 @@ export const useAuthStore = defineStore('auth', () => {
     return letters.toUpperCase()
   })
 
+  const permissions = computed(() => new Set(user.value?.permissions ?? []))
+
+  /** Whether the user holds a permission; no permission required means yes. */
+  function can(permission?: string): boolean {
+    return !permission || permissions.value.has(permission)
+  }
+
+  /** At least one profile (group): a user without one can open no module. */
+  const hasProfile = computed(() => (user.value?.groups.length ?? 0) > 0)
+
+  const roleLabel = computed(() => user.value?.groups.join(', ') ?? '')
+
   let initialising: Promise<void> | null = null
 
   /** Asks the server who is signed in. Runs once; later calls share the result. */
@@ -58,5 +70,17 @@ export const useAuthStore = defineStore('auth', () => {
     initialising = Promise.resolve()
   }
 
-  return { user, isAuthenticated, displayName, initials, init, login, logout, clear }
+  return {
+    user,
+    isAuthenticated,
+    displayName,
+    initials,
+    can,
+    hasProfile,
+    roleLabel,
+    init,
+    login,
+    logout,
+    clear,
+  }
 })

@@ -19,15 +19,15 @@ committed on its own.
 
 1. In `roles.py`, describe the thirteen groups and their modules as data: the matrix of
    `requirements.md`, nothing else.
-2. Data migration: call `create_permissions` for the app first (permissions are otherwise only
-   created after all migrations), then `get_or_create` each group and **add** its permissions
-   (D3, D4). Reverse migration: no-op.
+2. `roles.sync_groups()`, connected to `post_migrate`: `get_or_create` each group and **add**
+   its permissions (D4, D23).
 3. Administrateur système also gets `view`, `add` and `change` on `accounts.user` and
    `auth.group`, and no `delete` (D8).
 4. Tests:
    - each group exists with exactly the module permissions of the matrix;
    - Paie is granted only to Rémunération, its chef de service and Direction RH;
-   - Social only to Social and its chef de service;
+   - Social only to Social, its chef de service and Direction RH (D27);
+   - Auditeur has neither Paie nor Social (D26);
    - Administrateur système has no `access_paie` and no `delete_user`;
    - running the group setup twice changes nothing, and keeps a permission added by hand.
 
@@ -56,7 +56,7 @@ committed on its own.
 ## 5. Frontend: permissions in the auth store
 
 1. `User` type: add `groups: string[]` and `permissions: string[]`.
-2. `features/auth/permissions.ts`: the module → permission map (D14).
+2. `shared/utils/modules.ts`: the module → permission map (D14, D24).
 3. Auth store: `can(permission)`, `hasProfile` (at least one group) and `roleLabel` for the user
    menu (D15, D19).
 4. Tests: `can` follows the payload; a user with no group has no profile.

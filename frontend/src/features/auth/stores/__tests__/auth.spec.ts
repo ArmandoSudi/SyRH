@@ -14,6 +14,8 @@ const marie: authApi.User = {
   first_name: 'Marie',
   last_name: 'Kabila',
   email: 'mkabila@example.org',
+  groups: [],
+  permissions: [],
 }
 
 describe('auth store', () => {
@@ -84,5 +86,41 @@ describe('auth store', () => {
 
     expect(auth.displayName).toBe('mkabila')
     expect(auth.initials).toBe('MK')
+  })
+
+  it('answers can() from the permissions of the payload', async () => {
+    vi.mocked(authApi.login).mockResolvedValue({
+      ...marie,
+      groups: ['Rémunération'],
+      permissions: ['accounts.access_agents', 'accounts.access_paie'],
+    })
+    const auth = useAuthStore()
+
+    await auth.login('mkabila', 'secret')
+
+    expect(auth.can('accounts.access_paie')).toBe(true)
+    expect(auth.can('accounts.access_social')).toBe(false)
+    expect(auth.can(undefined)).toBe(true)
+    expect(auth.hasProfile).toBe(true)
+    expect(auth.roleLabel).toBe('Rémunération')
+  })
+
+  it('lists every group in the role label', async () => {
+    vi.mocked(authApi.login).mockResolvedValue({ ...marie, groups: ['Formation', 'Social'] })
+    const auth = useAuthStore()
+
+    await auth.login('mkabila', 'secret')
+
+    expect(auth.roleLabel).toBe('Formation, Social')
+  })
+
+  it('has no profile and no permission without a group', async () => {
+    vi.mocked(authApi.login).mockResolvedValue(marie)
+    const auth = useAuthStore()
+
+    await auth.login('mkabila', 'secret')
+
+    expect(auth.hasProfile).toBe(false)
+    expect(auth.can('accounts.access_agents')).toBe(false)
   })
 })

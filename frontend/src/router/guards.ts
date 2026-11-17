@@ -3,6 +3,17 @@ import type { Router } from 'vue-router'
 import { setUnauthorizedHandler } from '@/shared/utils/http'
 import { useAuthStore } from '@/features/auth/stores/auth'
 
+declare module 'vue-router' {
+  interface RouteMeta {
+    /** Page title, shown in the top bar and the browser tab. */
+    title?: string
+    /** Open to anonymous visitors (the login page). */
+    public?: boolean
+    /** Permission needed to open the screen; see shared/utils/modules.ts. */
+    permission?: string
+  }
+}
+
 export const LOGIN_PATH = '/connexion'
 
 /**

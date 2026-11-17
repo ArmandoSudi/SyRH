@@ -5,30 +5,66 @@ import InputText from 'primevue/inputtext'
 
 import ThemeToggle from '@/shared/ui/ThemeToggle.vue'
 import UserMenu from '@/features/auth/components/UserMenu.vue'
+import { useAuthStore } from '@/features/auth/stores/auth'
+import AccessDenied from '@/shared/layouts/AccessDenied.vue'
+import { MODULE_PERMISSIONS } from '@/shared/utils/modules'
 
 interface NavItem {
   to: string
   label: string
   icon: string
+  /** Permission needed to see the entry; none means every signed-in user. */
+  permission?: string
 }
 
 const mainNav: NavItem[] = [
   { to: '/', label: 'Tableau de bord', icon: 'pi pi-home' },
-  { to: '/agents', label: 'Agents', icon: 'pi pi-users' },
-  { to: '/carriere', label: 'Carrière', icon: 'pi pi-briefcase' },
-  { to: '/personnel', label: 'Présences', icon: 'pi pi-calendar' },
-  { to: '/paie', label: 'Paie', icon: 'pi pi-wallet' },
-  { to: '/social', label: 'Social', icon: 'pi pi-heart' },
-  { to: '/formation', label: 'Formation', icon: 'pi pi-graduation-cap' },
+  { to: '/agents', label: 'Agents', icon: 'pi pi-users', permission: MODULE_PERMISSIONS.agents },
+  {
+    to: '/carriere',
+    label: 'Carrière',
+    icon: 'pi pi-briefcase',
+    permission: MODULE_PERMISSIONS.carriere,
+  },
+  {
+    to: '/personnel',
+    label: 'Présences',
+    icon: 'pi pi-calendar',
+    permission: MODULE_PERMISSIONS.personnel,
+  },
+  { to: '/paie', label: 'Paie', icon: 'pi pi-wallet', permission: MODULE_PERMISSIONS.paie },
+  { to: '/social', label: 'Social', icon: 'pi pi-heart', permission: MODULE_PERMISSIONS.social },
+  {
+    to: '/formation',
+    label: 'Formation',
+    icon: 'pi pi-graduation-cap',
+    permission: MODULE_PERMISSIONS.formation,
+  },
 ]
 
 const adminNav: NavItem[] = [
-  { to: '/referentiels', label: 'Référentiels', icon: 'pi pi-sliders-h' },
-  { to: '/systeme', label: 'Système', icon: 'pi pi-server' },
-  { to: '/design', label: 'Design', icon: 'pi pi-palette' },
+  {
+    to: '/referentiels',
+    label: 'Référentiels',
+    icon: 'pi pi-sliders-h',
+    permission: MODULE_PERMISSIONS.referentiels,
+  },
+  {
+    to: '/systeme',
+    label: 'Système',
+    icon: 'pi pi-server',
+    permission: MODULE_PERMISSIONS.systeme,
+  },
+  { to: '/design', label: 'Design', icon: 'pi pi-palette', permission: MODULE_PERMISSIONS.systeme },
 ]
 
 const route = useRoute()
+const auth = useAuthStore()
+
+// Only the modules the user may open; the API refuses the others on its own.
+const visibleMain = computed(() => mainNav.filter((item) => auth.can(item.permission)))
+const visibleAdmin = computed(() => adminNav.filter((item) => auth.can(item.permission)))
+const allowed = computed(() => auth.can(route.meta.permission))
 const title = computed(() => (route.meta.title as string | undefined) ?? 'SyRH')
 </script>
 
@@ -41,16 +77,18 @@ const title = computed(() => (route.meta.title as string | undefined) ?? 'SyRH')
       </RouterLink>
 
       <nav aria-label="Navigation principale">
-        <RouterLink v-for="item in mainNav" :key="item.to" :to="item.to" :title="item.label">
+        <RouterLink v-for="item in visibleMain" :key="item.to" :to="item.to" :title="item.label">
           <i :class="item.icon" aria-hidden="true" />
           <span>{{ item.label }}</span>
         </RouterLink>
 
-        <p class="group">Administration</p>
-        <RouterLink v-for="item in adminNav" :key="item.to" :to="item.to" :title="item.label">
-          <i :class="item.icon" aria-hidden="true" />
-          <span>{{ item.label }}</span>
-        </RouterLink>
+        <template v-if="visibleAdmin.length">
+          <p class="group">Administration</p>
+          <RouterLink v-for="item in visibleAdmin" :key="item.to" :to="item.to" :title="item.label">
+            <i :class="item.icon" aria-hidden="true" />
+            <span>{{ item.label }}</span>
+          </RouterLink>
+        </template>
       </nav>
     </aside>
 
@@ -68,7 +106,9 @@ const title = computed(() => (route.meta.title as string | undefined) ?? 'SyRH')
         <UserMenu />
       </header>
 
-      <RouterView />
+      <!-- Without the module's permission the URL stays as typed; only the page changes. -->
+      <RouterView v-if="allowed" />
+      <AccessDenied v-else />
     </div>
   </div>
 </template>

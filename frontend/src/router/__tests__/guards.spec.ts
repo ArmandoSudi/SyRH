@@ -18,6 +18,8 @@ const marie: authApi.User = {
   first_name: 'Marie',
   last_name: 'Kabila',
   email: '',
+  groups: [],
+  permissions: [],
 }
 
 const page = { template: '<div />' }

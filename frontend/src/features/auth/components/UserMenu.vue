@@ -42,7 +42,10 @@ const items: MenuItem[] = [
     @click="menu?.toggle($event)"
   >
     <span class="avatar" aria-hidden="true" data-test="initials">{{ auth.initials }}</span>
-    <span class="name" data-test="name">{{ auth.displayName }}</span>
+    <span class="who">
+      <span class="name" data-test="name">{{ auth.displayName }}</span>
+      <span v-if="auth.roleLabel" class="role" data-test="role">{{ auth.roleLabel }}</span>
+    </span>
     <i class="pi pi-chevron-down" aria-hidden="true" />
   </button>
   <Menu id="user-menu" ref="menu" :model="items" popup />
@@ -81,11 +84,26 @@ const items: MenuItem[] = [
   font-weight: 700;
 }
 
-.name {
+.who {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.name,
+.role {
   max-width: 11rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.role {
+  color: var(--sy-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
 .pi {
@@ -99,7 +117,7 @@ const items: MenuItem[] = [
     padding-right: 3px;
   }
 
-  .name,
+  .who,
   .pi {
     display: none;
   }

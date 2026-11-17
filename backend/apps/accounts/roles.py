@@ -1,0 +1,99 @@
+"""SyRH profiles: the modules, the groups, and which group opens which module.
+
+Single source of truth for roles (specs/2026-11-17-roles/requirements.md).
+The ModuleAccess model, the group setup and HasModuleAccess all read it.
+"""
+
+# Module key -> label. Each module gets one permission, accounts.access_<key>.
+MODULES: dict[str, str] = {
+    "agents": "Agents",
+    "carriere": "Carrière",
+    "personnel": "Présences",
+    "paie": "Paie",
+    "social": "Social",
+    "formation": "Formation",
+    "referentiels": "Référentiels",
+    "systeme": "Système",
+}
+
+_SERVICES: dict[str, tuple[str, str]] = {
+    # slug: (group name of the service, its own module)
+    "carriere": ("Gestion de carrière", "carriere"),
+    "personnel": ("Administration du personnel", "personnel"),
+    "remuneration": ("Rémunération", "paie"),
+    "social": ("Social", "social"),
+    "formation": ("Formation", "formation"),
+}
+
+ADMIN_GROUP = "Administrateur système"
+
+# Group name -> (slug for demo accounts, modules it opens). Chefs de service
+# open the same modules as their service; validation rights come in phase 2.11.
+GROUPS: dict[str, tuple[str, tuple[str, ...]]] = {
+    **{
+        name: (slug, ("agents", module, "referentiels"))
+        for slug, (name, module) in _SERVICES.items()
+    },
+    **{
+        f"Chef de service — {name}": (f"chef-{slug}", ("agents", module, "referentiels"))
+        for slug, (name, module) in _SERVICES.items()
+    },
+    # Salaries: Rémunération and Direction RH only. Care details: Social and
+    # Direction RH only, which reads every HR module (stakeholders, 2026-11-17).
+    # The Auditeur reads neither pay nor care details.
+    "Direction RH": (
+        "direction",
+        ("agents", "carriere", "personnel", "paie", "social", "formation", "referentiels"),
+    ),
+    "Auditeur": ("auditeur", ("agents", "carriere", "personnel", "formation", "referentiels")),
+    ADMIN_GROUP: ("admin", ("referentiels", "systeme")),
+}
+
+# Django admin rights of the Administrateur système: manage accounts and
+# profiles, never delete them (an account that leaves is deactivated).
+ADMIN_EXTRA_PERMISSIONS = (
+    "accounts.view_user",
+    "accounts.add_user",
+    "accounts.change_user",
+    "auth.view_group",
+    "auth.add_group",
+    "auth.change_group",
+)
+
+
+def module_permission(module: str) -> str:
+    """Full permission name for a module, as user.has_perm() expects it."""
+    if module not in MODULES:
+        raise ValueError(f"Unknown module: {module!r}")
+    return f"accounts.access_{module}"
+
+
+def group_permissions(name: str) -> list[str]:
+    _, modules = GROUPS[name]
+    names = [module_permission(module) for module in modules]
+    if name == ADMIN_GROUP:
+        names += ADMIN_EXTRA_PERMISSIONS
+    return names
+
+
+def sync_groups() -> None:
+    """Create missing groups and add missing permissions.
+
+    Only ever adds: permissions granted later in Django admin are kept, so
+    "configurable profiles" survive every deployment. Runs after migrate.
+    """
+    from django.contrib.auth.models import Group, Permission
+
+    for name in GROUPS:
+        group, _ = Group.objects.get_or_create(name=name)
+        wanted = group_permissions(name)
+        found = list(
+            Permission.objects.filter(
+                content_type__app_label__in={n.split(".")[0] for n in wanted}
+            ).select_related("content_type")
+        )
+        by_name = {f"{p.content_type.app_label}.{p.codename}": p for p in found}
+        missing = [n for n in wanted if n not in by_name]
+        if missing:
+            raise RuntimeError(f"Permissions not found for {name!r}: {missing}")
+        group.permissions.add(*(by_name[n] for n in wanted))

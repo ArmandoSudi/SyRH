@@ -6,6 +6,10 @@ export interface User {
   first_name: string
   last_name: string
   email: string
+  /** Names of the user's profiles (Django groups), sorted. */
+  groups: string[]
+  /** Every permission the user holds, as "app_label.codename", sorted. */
+  permissions: string[]
 }
 
 export function login(username: string, password: string): Promise<User> {

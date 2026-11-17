@@ -17,6 +17,8 @@ const marie: authApi.User = {
   first_name: 'Marie',
   last_name: 'Kabila',
   email: '',
+  groups: [],
+  permissions: [],
 }
 
 async function mountLogin(url = '/connexion') {

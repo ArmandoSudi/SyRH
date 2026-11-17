@@ -19,3 +19,6 @@ dist/
 .DS_Store
 .idea/
 .vscode/
+
+# Local demo accounts and their password (see create_demo_users)
+demo-users.md

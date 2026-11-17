@@ -4,10 +4,20 @@ from rest_framework import serializers
 
 
 class UserSerializer(serializers.ModelSerializer):
+    groups = serializers.SerializerMethodField()
+    permissions = serializers.SerializerMethodField()
+
     class Meta:
         model = get_user_model()
-        fields = ["id", "username", "first_name", "last_name", "email"]
+        fields = ["id", "username", "first_name", "last_name", "email", "groups", "permissions"]
         read_only_fields = fields
+
+    def get_groups(self, user) -> list[str]:
+        return sorted(user.groups.values_list("name", flat=True))
+
+    def get_permissions(self, user) -> list[str]:
+        # The frontend mirrors these to shape the menu; the API still checks.
+        return sorted(user.get_all_permissions())
 
 
 class LoginSerializer(serializers.Serializer):

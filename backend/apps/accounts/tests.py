@@ -85,6 +85,8 @@ class LoginTests(AuthTestCase):
                 "first_name": "Marie",
                 "last_name": "Kabila",
                 "email": "mkabila@example.org",
+                "groups": [],
+                "permissions": [],
             },
         )
 

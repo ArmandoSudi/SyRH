@@ -5,6 +5,7 @@ import * as dashboard from '@/features/dashboard/routes'
 import * as design from '@/features/design/routes'
 import * as systeme from '@/features/systeme/routes'
 import AppShell from '@/shared/layouts/AppShell.vue'
+import { MODULE_PERMISSIONS } from '@/shared/utils/modules'
 
 import { installAuthGuards } from './guards'
 
@@ -23,7 +24,12 @@ const upcoming: RouteRecordRaw[] = (
     ['formation', 'Formation'],
     ['referentiels', 'Référentiels'],
   ] as const
-).map(([path, title]) => ({ path, name: path, component: placeholder, meta: { title } }))
+).map(([path, title]) => ({
+  path,
+  name: path,
+  component: placeholder,
+  meta: { title, permission: MODULE_PERMISSIONS[path] },
+}))
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),

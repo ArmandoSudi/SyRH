@@ -1,12 +1,17 @@
 <script setup lang="ts">
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
+import Message from 'primevue/message'
 import Tag from 'primevue/tag'
+
+import { useAuthStore } from '@/features/auth/stores/auth'
 
 import DonutChart, { type DonutSegment } from '@/shared/ui/DonutChart.vue'
 import PillBars, { type PillBar } from '@/shared/ui/PillBars.vue'
 import ProgressPill from '@/shared/ui/ProgressPill.vue'
 import StatCard from '@/shared/ui/StatCard.vue'
+
+const auth = useAuthStore()
 
 // Demonstration data only: this screen showcases the design system.
 // It is replaced by API data when the dashboard phase of the roadmap is built.
@@ -90,6 +95,10 @@ const sparkline = [38, 52, 44, 70, 58, 86, 64]
 
 <template>
   <div class="dashboard">
+    <Message v-if="!auth.hasProfile" severity="warn" :closable="false" data-test="no-profile">
+      Aucun profil ne vous est attribué. Contactez l'administrateur du système.
+    </Message>
+
     <p class="demo">
       <Tag severity="secondary" value="Données de démonstration" />
     </p>

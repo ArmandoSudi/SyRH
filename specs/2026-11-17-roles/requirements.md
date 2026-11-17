@@ -15,7 +15,8 @@ Branch: `feature/roles`. Plan: [`plan.md`](plan.md). Merge criteria: [`validatio
   nine profiles are concerned here.
 - Common rules of section 3 that this phase starts to apply:
   - **Least privilege**: a profile sees only what its work needs. Salaries are visible to
-    Rémunération and Direction RH only. Care details are visible to Social only (`SOC-M-20`).
+    Rémunération and Direction RH only. Care details are visible to Social only (`SOC-M-20`);
+    the stakeholders extended this to Direction RH on 2026-11-17 (D27).
   - **Configurable profiles**: the administrator can create profiles and adjust rights without
     development.
   - **Separation of duties**: whoever enters data does not validate it. This is enforced by the
@@ -76,6 +77,8 @@ cahier des charges.
 | D8 | **Administrateur système** gets the Django admin permissions to view, add and change users and groups, but **not to delete** them. An account that leaves is deactivated. | `missions.md`, principle 8: nothing is physically deleted. |
 | D9 | Group membership does not grant Django admin access by itself: the account also needs "Statut équipe" (`is_staff`), ticked by whoever creates it. | `is_staff` is a per-user flag in Django; keeping it explicit avoids surprise admin access. |
 | D10 | **Superuser accounts are for installation only.** A superuser has every permission, pay included, which contradicts the Administrateur système profile. After installation, the first superuser creates named accounts in the right groups. | Section 3: the system administrator has no access to pay amounts. Documented in the README; not enforced in code in this phase. |
+| D26 | **The Auditeur reads neither Paie nor Social.** Confirmed by the stakeholders on 2026-11-17. | Section 3 limits salaries to Rémunération and Direction RH, and care details to Social; internal audit is not an exception. |
+| D27 | **Direction RH can read every HR module, Social included.** Decided by the stakeholders on 2026-11-17. When fine-grained permissions arrive, Direction RH gets the *view* permission on every business table, and write or approval rights only where its own role needs them. | Direction RH supervises all HR services and approves pay and career decisions (section 3). This widens `SOC-M-20` to Direction RH; `missions.md`, principle 9, is updated to match. |
 
 ### Module access matrix
 
@@ -94,7 +97,7 @@ service in this phase; their validation rights come with phase 2.11.
 | Chef de service — Rémunération | ✓ | | | ✓ | | | ✓ | |
 | Chef de service — Social | ✓ | | | | ✓ | | ✓ | |
 | Chef de service — Formation | ✓ | | | | | ✓ | ✓ | |
-| Direction RH | ✓ | ✓ | ✓ | ✓ | | ✓ | ✓ | |
+| Direction RH | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | |
 | Auditeur | ✓ | ✓ | ✓ | | | ✓ | ✓ | |
 | Administrateur système | | | | | | | ✓ | ✓ |
 
@@ -103,8 +106,11 @@ How the matrix was derived:
 - **Agents** is open to every HR profile: the agent record is shared by all five services
   (MVP goal). The Administrateur système does not manage HR data.
 - **Paie** follows "salaries are visible to Rémunération and Direction RH only".
-- **Social** follows `SOC-M-20`: care details are limited to the Social service. Direction RH
-  sees medical spend through the dashboard (phase 9.3), not the care detail.
+- **Social** follows `SOC-M-20`: care details are limited to the Social service, and to Direction
+  RH by stakeholder decision (D27).
+- **Direction RH** reads every HR module (D27). Système is not HR data: it stays with the
+  Administrateur système.
+- **Auditeur** reads every HR module except Paie and Social (D26).
 - **Rémunération** reads variable items (absences, overtime) inside Paie, where phase 6.9 brings
   them, so it does not need Présences.
 - **Référentiels** is open to everyone who maintains or reads reference data: rules are parameters
@@ -141,9 +147,19 @@ How the matrix was derived:
 | D21 | `manage.py create_demo_users` creates or updates one account per group (`demo.carriere`, `demo.chef-carriere`, ..., `demo.admin`), with a password given on the command line or prompted. **(asked)** | Lets anyone walk through the app as each role, in this phase and every later one. |
 | D22 | The command **refuses to run when `DEBUG` is off**. The demo Administrateur système account gets `is_staff`; no demo account is a superuser. | Demo accounts must never reach production. |
 
+### Found during implementation
+
+| # | Decision | Reason |
+| --- | --- | --- |
+| D23 | Replaces D3: the groups are set up by a **`post_migrate` handler** (`roles.sync_groups()`), not a data migration. It runs after every `migrate`, in every environment, tests included. | A data migration would import today's matrix into a frozen migration, and the permissions a later phase adds would not exist yet at that point of a fresh install. After `migrate`, every permission exists. D4 (only adds) still holds. |
+| D24 | The module → permission map (D14) lives in `src/shared/utils/modules.ts`, not in `features/auth/`. | The shell and the routes of several features read it; `shared/` must not import from a feature. |
+| D25 | The role label is shown inside the user-menu button, under the name, and hidden with the name on narrow screens. | Visible without opening the menu. |
+
 ## Open points
 
-| Point | MVP choice | To confirm with |
-| --- | --- | --- |
-| The Auditeur checks operations, but section 3 limits salaries to Rémunération and Direction RH and care details to Social. Should the auditor read Paie and Social? | No: the stricter rule wins until stakeholders decide. Granting it later is one change in Django admin. | Direction RH and internal audit |
-| Should Direction RH read care details? | No (`SOC-M-20`). | Direction RH and Social |
+None. The two points raised with the stakeholders were settled on 2026-11-17:
+
+| Point | Decision |
+| --- | --- |
+| Should the Auditeur read Paie and Social? | No (D26). |
+| Should Direction RH read care details? | Yes: Direction RH can read every HR module (D27). |

@@ -93,6 +93,14 @@ features freely rather than writing for the lowest common denominator.
   `LocaleMiddleware`.
 - **Authorisation**: role-based, built on Django groups and permissions, enforced in the API and
   mirrored (never replaced) in the UI.
+  - **Profiles are groups.** The groups, the modules and which group opens which module are
+    declared once in `apps/accounts/roles.py`. After every `migrate`, missing groups and
+    permissions are added; nothing an administrator granted in Django admin is removed.
+  - **One access permission per module** (`accounts.access_paie`, ...). A module endpoint uses
+    `permission_classes = [HasModuleAccess("paie")]` from `apps/accounts/permissions.py`, which
+    answers `403` without the permission. Finer permissions (per table, sensitive data) are
+    added to the groups by the phase that creates each module's tables.
+  - **Superusers are for installation only**: they hold every permission, pay included.
 - Validation errors are returned per field so forms can display them next to the input.
 
 ## Frontend
@@ -143,6 +151,9 @@ features freely rather than writing for the lowest common denominator.
 - **Vite dev proxy** forwards `/api`, `/admin` and `/static` to Django, so development matches
   the single-origin production setup. It keeps the browser's `Host` header (object form in
   `vite.config.ts`); Django's CSRF origin check depends on it.
+- **Routes declare their permission** in `meta.permission`, taken from
+  `src/shared/utils/modules.ts`, the same map the side menu uses. Without it, the shell shows
+  "Accès refusé" in place of the page and keeps the URL; the menu hides the entry.
 - **Routes are protected by default.** The router guard sends anonymous visitors to
   `/connexion`; a route opts out with `meta.public`. This is a convenience, not a security
   boundary: the API enforces access.

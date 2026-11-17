@@ -19,8 +19,9 @@ All six, from [`tech-stack.md`](../tech-stack.md), green on the branch tip:
 | Frontend lint | `cd frontend && npm run lint` |
 | Frontend type-check and build | `cd frontend && npm run build` |
 
-This phase adds two migrations in `accounts`: the `ModuleAccess` permissions (no table) and the
-groups. Both must apply on an empty database and on the current development database.
+This phase adds one migration in `accounts`, for the `ModuleAccess` permissions (no table); the
+groups are set up after every `migrate` (D23). Both must work on an empty database and on the
+current development database.
 
 ## 2. Acceptance criteria
 
@@ -33,7 +34,8 @@ Each criterion is covered by at least one automated test.
 | B1 | The eight module access permissions exist, labelled in French; `ModuleAccess` creates no table. | D6, D7 |
 | B2 | The thirteen groups exist after migrating, each with exactly its module permissions from the matrix. | D1, D3 |
 | B3 | `access_paie` belongs only to Rémunération, Chef de service — Rémunération and Direction RH. | Least privilege |
-| B4 | `access_social` belongs only to Social and Chef de service — Social. | `SOC-M-20` |
+| B4 | `access_social` belongs only to Social, Chef de service — Social and Direction RH. | `SOC-M-20`, D27 |
+| B4b | The Auditeur has neither `access_paie` nor `access_social`. | D26 |
 | B5 | Administrateur système can view, add and change users and groups, cannot delete them, and has no access to Paie. | D8 |
 | B6 | Setting up the groups again keeps a permission added by an administrator and creates no duplicate. | D4 |
 | B7 | `me` and the login response include sorted `groups` and `permissions`; a user in two groups gets the union; a user in none gets empty lists. | D5, D11 |
@@ -67,7 +69,7 @@ Do the whole list once in the **light** theme and once in the **dark** theme.
 2. Type `/social` in the address bar. "Accès refusé" appears inside the shell, the address stays
    `/social`, and the link goes back to the dashboard.
 3. Sign out; sign in as `demo.social`. Paie is absent from the menu; Social is present.
-4. Sign in as `demo.direction`. Every module except Social and Système is in the menu.
+4. Sign in as `demo.direction`. Every module except Système is in the menu, Social included.
 5. Sign in as `demo.auditeur`. Paie and Social are absent.
 6. Sign in as `demo.admin`. The menu shows Tableau de bord, Référentiels, Système and Design.
    Open `/admin/`: users and groups can be viewed and edited; there is no delete action. The

@@ -21,6 +21,8 @@ async function mountMenu() {
     first_name: 'Marie',
     last_name: 'Kabila',
     email: '',
+    groups: ['Gestion de carrière'],
+    permissions: [],
   })
   await useAuthStore().login('mkabila', 'secret')
 
@@ -55,6 +57,7 @@ describe('UserMenu', () => {
 
     expect(wrapper.get('[data-test="name"]').text()).toBe('Marie Kabila')
     expect(wrapper.get('[data-test="initials"]').text()).toBe('MK')
+    expect(wrapper.get('[data-test="role"]').text()).toBe('Gestion de carrière')
   })
 
   it('signs out and goes to the login page', async () => {
