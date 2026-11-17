@@ -8,7 +8,13 @@ the work is merged.
 - Frontend reorganised by feature: each business area (`auth`, `dashboard`, `systeme`, ...) has
   its own folder with its screens, state, API calls and routes; common code lives in `shared/`.
 - This changelog, kept up to date with the `/changelog` skill before each merge.
-<!-- commits: 962c423 2ab2964 -->
+- Roles: thirteen profile groups, one access permission per module, a side menu that shows only
+  the modules a user may open, and an "Accès refusé" page for the others (roadmap 0.4).
+  Salaries are visible to Rémunération and Direction RH only; care details to Social and
+  Direction RH only.
+- `create_demo_users` creates one demo account per profile for development. Superusers are for
+  installation only: create named accounts in the right groups instead.
+<!-- commits: 962c423 2ab2964 a2634c4 12c13de -->
 
 ## 2026-11-16
 
