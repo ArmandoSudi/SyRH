@@ -14,7 +14,9 @@ the work is merged.
   Direction RH only.
 - `create_demo_users` creates one demo account per profile for development. Superusers are for
   installation only: create named accounts in the right groups instead.
-<!-- commits: 962c423 2ab2964 a2634c4 12c13de -->
+- Open questions on approval circuits (`Q20` to `Q26` in `docs/questions-ouvertes.md`), with a
+  proposed circuit for 13 HR processes; to settle with the stakeholders before roadmap 2.11.
+<!-- commits: 962c423 2ab2964 a2634c4 12c13de 1968090 -->
 
 ## 2026-11-16
 
