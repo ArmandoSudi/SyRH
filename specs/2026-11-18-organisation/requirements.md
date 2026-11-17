@@ -135,6 +135,17 @@ charges.
 | --- | --- | --- |
 | D30 | `tech-stack.md`: `referentiels` moves from the planned apps to the repository layout; the Database section names exclusion constraints on date ranges as the way to keep dated rows from overlapping, with `btree_gist`. | `tech-stack.md` changes in the same commit as the stack. |
 
+### Found during implementation
+
+| # | Decision | Reason |
+| --- | --- | --- |
+| D31 | The group setup now runs once per `migrate`, on the signal of the last installed app, instead of after `accounts`. | Django creates each app's permissions on its own signal; after `accounts`, the `referentiels` permissions did not exist yet, and the setup failed on a fresh database. |
+| D32 | `django.contrib.postgres` is added to `INSTALLED_APPS`. | Range lookups and the validation of the exclusion constraint in forms come from it. |
+| D33 | Database constraint messages (code overlap, direction without parent) appear at the top of the admin form, in French; the rules of D14 appear next to their field. | Django reports constraint violations as form-wide errors; the field-level rules cover the common mistakes. |
+| D34 | D11 is one rule in each direction: a unit closes no later than its site, and a site cannot close while a unit stays open after that date. | Covers a unit created at a closed site and a site closed under an open unit with the same check. |
+| D35 | Text buttons use the `secondary` severity and the active tab keeps the text colour; the audit screen's "Effacer les filtres" button is fixed the same way. | `design.md`, principle 2: lime is a fill, never text. Found in the walkthrough. |
+| D36 | `localDate()` moves from the audit store to `shared/utils/dates.ts`, with `formatDate()`. | Both the audit and Référentiels screens need it; a feature does not import another's store for a helper. |
+
 ## Open points
 
 | Point | Assumption until answered |

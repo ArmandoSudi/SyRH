@@ -113,5 +113,11 @@ export const SyRHPreset = definePreset(Aura, {
         borderRadius: '2rem',
       },
     },
+    // The active tab keeps the text colour; lime only fills its underline.
+    tabs: {
+      tab: {
+        activeColor: '{text.color}',
+      },
+    },
   },
 })

@@ -44,6 +44,7 @@ backend/            Django project
     accounts/       custom User model
     core/           shared base models, health check
     audit/          audit log: entries, capture service, read-only API
+    referentiels/   reference data: sites and organisation units (then grades, fonctions, ...)
 frontend/           Vue application, organised by feature (see "Frontend folder layout")
 docs/               stakeholder input (French)
 specs/              this constitution
@@ -53,9 +54,9 @@ specs/              this constitution
 
 - **Django + DRF.** Django gives us the ORM, migrations, admin, auth and permissions that an HR
   back office needs. DRF exposes the JSON API consumed by the Vue app.
-- **One app per domain**, under `backend/apps/`: `accounts`, `core`, `audit`, then
-  `referentiels`, `agents`, `carriere`, `personnel`, `paie`, `social`, `formation` as the roadmap
-  reaches them.
+- **One app per domain**, under `backend/apps/`: `accounts`, `core`, `audit`, `referentiels`,
+  then `agents`, `carriere`, `personnel`, `paie`, `social`, `formation` as the roadmap reaches
+  them.
   An app owns its tables; other apps reference them by foreign key and never duplicate them.
 - **Custom user model** `accounts.User`, referenced through `settings.AUTH_USER_MODEL` or
   `get_user_model()`.
@@ -91,6 +92,13 @@ features freely rather than writing for the lowest common denominator.
 - **Integrity lives in the database**: foreign keys with explicit `on_delete`, `NOT NULL`,
   `UniqueConstraint`, `CheckConstraint`, and exclusion constraints for non-overlapping date
   ranges where history must not overlap.
+  - **Exclusion constraints** (`django.contrib.postgres`) compare a key with `=` and a
+    `daterange(debut, fin, '[)')` with `&&`; the `btree_gist` extension, installed by the first
+    `referentiels` migration, lets the key share the GiST index. An end date is the first day
+    the row no longer applies, so a successor can start on that same day.
+  - **Rules that read other rows** (a parent's level, a parent's dates) live in one model method
+    called from both `clean()` (forms, admin) and `save()` (scripts), with French messages per
+    field.
 - **Deletion**: business rows are never hard-deleted. Use `on_delete=PROTECT` by default and a
   status or end date to retire a row.
 - **History**: evolving facts are rows with `date_effet` (and an end date where relevant), not
@@ -123,7 +131,9 @@ features freely rather than writing for the lowest common denominator.
   - **One access permission per module** (`accounts.access_paie`, ...). A module endpoint uses
     `permission_classes = [HasModuleAccess("paie")]` from `apps/accounts/permissions.py`, which
     answers `403` without the permission. Finer permissions (per table, sensitive data) are
-    added to the groups by the phase that creates each module's tables.
+    added to the groups by the phase that creates each module's tables, in `EXTRA_PERMISSIONS`
+    of `roles.py`. The group setup runs once per `migrate`, after every app's permissions
+    exist.
   - **Superusers are for installation only**: they hold every permission, pay included.
 - **Business endpoints** are viewsets with `apps.core.mixins.AuthorMixin`, which stamps the
   signed-in user as author, and serializers extending `apps.core.serializers.BaseModelSerializer`,
@@ -205,14 +215,15 @@ frontend/src/
 │   ├── dashboard/
 │   ├── systeme/                 # system status (health check)
 │   ├── audit/                   # audit log screen (read-only)
+│   ├── referentiels/            # reference data: organisation tree, sites (read-only)
 │   ├── design/                  # design guide page
 │   ├── agents/                  # then one folder per module as the roadmap reaches it:
-│   └── ...                      # referentiels, carriere, personnel, paie, social, formation
+│   └── ...                      # carriere, personnel, paie, social, formation
 ├── shared/
 │   ├── ui/                      # generic components: StatCard, DonutChart, ThemeToggle, ...
 │   ├── layouts/                 # AppShell.vue: side menu and top bar
 │   ├── theme/                   # tokens.css, main.css, preset.ts, store.ts (light/dark)
-│   └── utils/                   # http.ts (request(), ApiError), formatters
+│   └── utils/                   # http.ts (request(), ApiError), dates.ts, formatters
 ├── router/                      # index.ts assembles the features' routes; guards.ts;
 │                                # PlaceholderView.vue for modules not built yet
 ├── App.vue                      # root component

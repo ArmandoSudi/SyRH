@@ -1,0 +1,81 @@
+import type { TreeNode } from 'primevue/treenode'
+
+import type { TypeUnite, Unite } from '@/features/referentiels/api/referentiels'
+
+export const NIVEAUX: Record<TypeUnite, number> = {
+  direction: 1,
+  departement: 2,
+  service: 3,
+  bureau: 4,
+}
+
+export const TYPE_SEVERITY: Record<TypeUnite, 'primary' | 'info' | 'success' | 'secondary'> = {
+  direction: 'primary',
+  departement: 'info',
+  service: 'success',
+  bureau: 'secondary',
+}
+
+export interface UniteNode extends TreeNode {
+  key: string
+  data: Unite
+  children: UniteNode[]
+}
+
+function bySiblingOrder(a: UniteNode, b: UniteNode): number {
+  return NIVEAUX[a.data.type] - NIVEAUX[b.data.type] || a.data.code.localeCompare(b.data.code)
+}
+
+/**
+ * The flat list from the API as a tree. A unit whose parent is not in the list
+ * is shown at the root rather than lost.
+ */
+export function buildTree(unites: Unite[]): UniteNode[] {
+  const nodes = new Map<number, UniteNode>(
+    unites.map((unite) => [unite.id, { key: String(unite.id), data: unite, children: [] }]),
+  )
+  const roots: UniteNode[] = []
+  for (const node of nodes.values()) {
+    const parent = node.data.parent === null ? undefined : nodes.get(node.data.parent)
+    if (parent) parent.children.push(node)
+    else roots.push(node)
+  }
+  const sort = (list: UniteNode[]) => {
+    list.sort(bySiblingOrder)
+    list.forEach((node) => sort(node.children))
+  }
+  sort(roots)
+  return roots
+}
+
+/** Lower case, without accents, so "departement" finds "Département". */
+function normalise(text: string): string {
+  return text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
+}
+
+/** Units whose code or name contains the text, with their ancestors. */
+export function filterTree(nodes: UniteNode[], text: string): UniteNode[] {
+  const wanted = normalise(text.trim())
+  if (!wanted) return nodes
+  const keep = (node: UniteNode): UniteNode | null => {
+    const children = node.children.map(keep).filter((child): child is UniteNode => !!child)
+    const matches = normalise(`${node.data.code} ${node.data.nom}`).includes(wanted)
+    return matches || children.length ? { ...node, children } : null
+  }
+  return nodes.map(keep).filter((node): node is UniteNode => !!node)
+}
+
+/** Every key that has children, for "expand all". */
+export function expandedKeys(nodes: UniteNode[]): Record<string, boolean> {
+  const keys: Record<string, boolean> = {}
+  const walk = (list: UniteNode[]) => {
+    for (const node of list) {
+      if (node.children.length) {
+        keys[node.key] = true
+        walk(node.children)
+      }
+    }
+  }
+  walk(nodes)
+  return keys
+}

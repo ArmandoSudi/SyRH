@@ -66,7 +66,7 @@ GROUPS: dict[str, tuple[str, tuple[str, ...]]] = {
 
 # Django admin rights of the Administrateur système: manage accounts and
 # profiles, never delete them (an account that leaves is deactivated).
-ADMIN_EXTRA_PERMISSIONS = (
+ACCOUNT_ADMIN_PERMISSIONS = (
     "accounts.view_user",
     "accounts.add_user",
     "accounts.change_user",
@@ -74,6 +74,22 @@ ADMIN_EXTRA_PERMISSIONS = (
     "auth.add_group",
     "auth.change_group",
 )
+
+# Editing the organisation in Django admin: sites and units, never deleted
+# (organisation phase D16).
+ORGANISATION_EDIT_PERMISSIONS = tuple(
+    f"referentiels.{action}_{model}"
+    for model in ("site", "uniteorganisationnelle")
+    for action in ("view", "add", "change")
+)
+
+# Group name -> Django permissions beyond module access. These groups work in
+# Django admin, so their demo accounts get "Statut équipe".
+EXTRA_PERMISSIONS: dict[str, tuple[str, ...]] = {
+    ADMIN_GROUP: ACCOUNT_ADMIN_PERMISSIONS + ORGANISATION_EDIT_PERMISSIONS,
+    "Gestion de carrière": ORGANISATION_EDIT_PERMISSIONS,
+    "Chef de service — Gestion de carrière": ORGANISATION_EDIT_PERMISSIONS,
+}
 
 
 def module_permission(module: str) -> str:
@@ -85,10 +101,7 @@ def module_permission(module: str) -> str:
 
 def group_permissions(name: str) -> list[str]:
     _, modules = GROUPS[name]
-    names = [module_permission(module) for module in modules]
-    if name == ADMIN_GROUP:
-        names += ADMIN_EXTRA_PERMISSIONS
-    return names
+    return [module_permission(module) for module in modules] + list(EXTRA_PERMISSIONS.get(name, ()))
 
 
 def sync_groups() -> None:

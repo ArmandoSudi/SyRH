@@ -72,6 +72,14 @@ En attendant, le MVP traite chaque point comme un **paramètre** ou applique l'h
   - Concerne : NF-08, NF-09.
 - [ ] **Q16 — Modèle du fichier Excel de virement.** Quelles colonnes chaque banque attend-elle ?
   - Concerne : REM-20, REM-28.
+- [ ] **Q27 — Organigramme de l'ARPTC.** Quelles sont les directions, départements, services et
+  bureaux, avec leur sigle, et quels sont les sites (siège et représentations provinciales) ?
+  Existe-t-il un niveau entre la direction et le département (division) ? La Direction générale
+  est-elle au-dessus des directions, ou à leur niveau ?
+  - Concerne : section 4.1 (structure organisationnelle), NF-11, roadmap 1.1.
+  - Hypothèse en attendant : quatre niveaux ; la Direction générale et chaque représentation
+    provinciale sont enregistrées comme des directions. Les RH saisissent la structure réelle
+    dans l'administration.
 
 ## 6. Circuits de validation
 

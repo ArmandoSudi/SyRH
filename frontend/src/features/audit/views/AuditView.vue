@@ -177,6 +177,7 @@ const first = computed(() => (store.page - 1) * PAGE_SIZE)
         label="Effacer les filtres"
         icon="pi pi-filter-slash"
         text
+        severity="secondary"
         @click="store.reset()"
       />
     </form>

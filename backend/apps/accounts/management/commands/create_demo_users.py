@@ -6,7 +6,7 @@ from django.contrib.auth.models import Group
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from apps.accounts.roles import ADMIN_GROUP, GROUPS, sync_groups
+from apps.accounts.roles import EXTRA_PERMISSIONS, GROUPS, sync_groups
 
 
 class Command(BaseCommand):
@@ -41,7 +41,8 @@ class Command(BaseCommand):
                 user.first_name = "Démo"
                 user.last_name = name
                 user.is_active = True
-                user.is_staff = name == ADMIN_GROUP
+                # Profiles that work in Django admin (roles D9, organisation D17).
+                user.is_staff = name in EXTRA_PERMISSIONS
                 user.is_superuser = False
                 user.set_password(password)
                 user.save()

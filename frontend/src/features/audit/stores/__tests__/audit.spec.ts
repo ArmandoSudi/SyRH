@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 
 import { toQueryString } from '@/features/audit/api/audit'
 
-import { localDate, useAuditStore } from '../audit'
+import { useAuditStore } from '../audit'
 
 describe('audit store', () => {
   beforeEach(() => {
@@ -44,9 +44,5 @@ describe('audit store', () => {
     again.reset()
     expect(again.module).toBeNull()
     expect(again.page).toBe(1)
-  })
-
-  it('formats dates in local time', () => {
-    expect(localDate(new Date(2026, 0, 5, 23, 30))).toBe('2026-01-05')
   })
 })

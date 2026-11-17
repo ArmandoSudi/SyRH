@@ -2,13 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 
 import type { AuditAction, AuditQuery } from '@/features/audit/api/audit'
-
-/** YYYY-MM-DD in local time (toISOString would shift to UTC). */
-export function localDate(date: Date): string {
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${date.getFullYear()}-${month}-${day}`
-}
+import { localDate } from '@/shared/utils/dates'
 
 /**
  * Filters and page of the audit log. Kept in Pinia so they survive leaving

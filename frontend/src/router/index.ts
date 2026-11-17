@@ -4,6 +4,7 @@ import * as audit from '@/features/audit/routes'
 import * as auth from '@/features/auth/routes'
 import * as dashboard from '@/features/dashboard/routes'
 import * as design from '@/features/design/routes'
+import * as referentiels from '@/features/referentiels/routes'
 import * as systeme from '@/features/systeme/routes'
 import AppShell from '@/shared/layouts/AppShell.vue'
 import { MODULE_PERMISSIONS } from '@/shared/utils/modules'
@@ -23,7 +24,6 @@ const upcoming: RouteRecordRaw[] = (
     ['paie', 'Paie'],
     ['social', 'Social'],
     ['formation', 'Formation'],
-    ['referentiels', 'Référentiels'],
   ] as const
 ).map(([path, title]) => ({
   path,
@@ -42,6 +42,7 @@ const router = createRouter({
       children: [
         ...dashboard.routes,
         ...upcoming,
+        ...referentiels.routes,
         ...audit.routes,
         ...systeme.routes,
         ...design.routes,

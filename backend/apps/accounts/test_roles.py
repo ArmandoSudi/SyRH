@@ -12,7 +12,7 @@ from rest_framework.test import APIClient
 
 from .models import ModuleAccess
 from .permissions import HasModuleAccess
-from .roles import ADMIN_GROUP, GROUPS, MODULES, sync_groups
+from .roles import ADMIN_GROUP, EXTRA_PERMISSIONS, GROUPS, MODULES, sync_groups
 
 
 def perms_of(group_name):
@@ -203,7 +203,7 @@ class DemoUsersCommandTests(TestCase):
             self.assertEqual(list(user.groups.values_list("name", flat=True)), [name])
             self.assertTrue(user.check_password("demo-pass-2026"))
             self.assertFalse(user.is_superuser)
-            self.assertEqual(user.is_staff, name == ADMIN_GROUP)
+            self.assertEqual(user.is_staff, name in EXTRA_PERMISSIONS)
 
     @override_settings(DEBUG=True)
     def test_rerunning_updates_rather_than_duplicates(self):
