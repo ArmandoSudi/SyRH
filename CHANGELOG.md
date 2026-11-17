@@ -3,6 +3,16 @@
 All notable changes to SyRH, newest first. Each section is written from the git history before
 the work is merged.
 
+## 2026-11-18
+
+- Organisation (roadmap 1.1): sites and a dated tree of directions, départements, services and
+  bureaux. A restructuring closes units and opens new ones, so the tree can be read at any date.
+  Administrateur système and Gestion de carrière edit it in Django admin (their accounts need
+  "Statut équipe"); everyone with Référentiels sees it on the new read-only Référentiels screen.
+  Run `migrate` (installs the `btree_gist` extension); `create_demo_organisation` loads demo
+  data in development. The real organigramme is open question `Q27`.
+<!-- commits: bcbedcb 1bba339 -->
+
 ## 2026-11-17
 
 - Frontend reorganised by feature: each business area (`auth`, `dashboard`, `systeme`, ...) has
