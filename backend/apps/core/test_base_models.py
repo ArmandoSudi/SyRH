@@ -2,70 +2,15 @@ from datetime import timedelta
 
 from django.contrib import admin
 from django.contrib.auth import get_user_model
-from django.db import connection, models
+from django.db import connection
 from django.db.migrations.loader import MigrationLoader
 from django.db.models import ProtectedError
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory
 from django.utils import timezone
-from rest_framework import viewsets
 from rest_framework.test import APIRequestFactory, force_authenticate
 
-from .admin import BaseModelAdmin
-from .mixins import AuthorMixin
 from .models import BASE_FIELDS, BaseModel
-from .serializers import BaseModelSerializer
-
-
-class Probe(BaseModel):
-    """Test-only concrete model: no migration, table created by the tests."""
-
-    nom = models.CharField(max_length=50)
-
-    class Meta:
-        app_label = "core"
-        managed = False
-        db_table = "core_test_probe"
-
-    def __str__(self):
-        return self.nom
-
-
-class ProbeSerializer(BaseModelSerializer):
-    class Meta:
-        model = Probe
-        fields = ["id", "nom", *BASE_FIELDS]
-
-
-class ProbeViewSet(AuthorMixin, viewsets.ModelViewSet):
-    queryset = Probe.objects.all()
-    serializer_class = ProbeSerializer
-
-
-class ProbeAdmin(BaseModelAdmin, admin.ModelAdmin):
-    readonly_fields = ["nom"]
-
-
-class ProbeTestCase(TestCase):
-    """Creates the Probe table inside the class transaction, rolled back after."""
-
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        with connection.schema_editor() as editor:
-            editor.create_model(Probe)
-
-    @classmethod
-    def setUpTestData(cls):
-        User = get_user_model()
-        cls.alice = User.objects.create_user("alice", password="x")
-        cls.bruno = User.objects.create_user("bruno", password="x")
-
-    def make_old(self, probe):
-        """Push date_modification into the past, so a later save visibly moves it."""
-        old = timezone.now() - timedelta(days=1)
-        Probe.objects.filter(pk=probe.pk).update(date_modification=old)
-        probe.refresh_from_db()
-        return old
+from .probe import Probe, ProbeAdmin, ProbeTestCase, ProbeViewSet
 
 
 class BaseModelTests(ProbeTestCase):
@@ -135,7 +80,8 @@ class BaseModelTests(ProbeTestCase):
             if rel.is_relation and rel.auto_created and rel.related_model is Probe
         ]
 
-        self.assertEqual(len(relations), 2)
+        # cree_par, modifie_par and Probe's own responsable: all without accessor.
+        self.assertEqual(len(relations), 3)
         self.assertTrue(all(rel.hidden for rel in relations))
 
     def test_probe_is_in_no_migration(self):

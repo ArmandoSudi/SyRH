@@ -24,7 +24,7 @@ Tick a phase when it is merged.
   frontend; menu filtered by role.
 - [x] **0.5 Base models** — abstract base with created/updated timestamps and author, shared by
   all business models.
-- [ ] **0.6 Audit log** — record author, time, old and new value on every write; read-only screen
+- [x] **0.6 Audit log** — record author, time, old and new value on every write; read-only screen
   for auditors (`TRA-10`).
 
 ## Milestone 1 — Reference data

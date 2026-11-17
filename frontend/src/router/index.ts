@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
+import * as audit from '@/features/audit/routes'
 import * as auth from '@/features/auth/routes'
 import * as dashboard from '@/features/dashboard/routes'
 import * as design from '@/features/design/routes'
@@ -41,6 +42,7 @@ const router = createRouter({
       children: [
         ...dashboard.routes,
         ...upcoming,
+        ...audit.routes,
         ...systeme.routes,
         ...design.routes,
         ...auth.routes,

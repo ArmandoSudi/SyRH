@@ -32,6 +32,7 @@ the server.
 | Frontend tooling | ESLint, Oxlint, Prettier, vue-tsc | In place |
 | Tests | Django test runner (backend), Vitest + Vue Test Utils (frontend) | In place |
 | Authentication | Django session cookie + CSRF | In place |
+| Audit log | Custom, in `apps.audit`; append-only table guarded by a PostgreSQL trigger | In place |
 | Version control | Git | In place |
 
 ## Repository layout
@@ -42,6 +43,7 @@ backend/            Django project
   apps/             one Django app per business domain
     accounts/       custom User model
     core/           shared base models, health check
+    audit/          audit log: entries, capture service, read-only API
 frontend/           Vue application, organised by feature (see "Frontend folder layout")
 docs/               stakeholder input (French)
 specs/              this constitution
@@ -51,8 +53,9 @@ specs/              this constitution
 
 - **Django + DRF.** Django gives us the ORM, migrations, admin, auth and permissions that an HR
   back office needs. DRF exposes the JSON API consumed by the Vue app.
-- **One app per domain**, under `backend/apps/`: `accounts`, `core`, then `referentiels`,
-  `agents`, `carriere`, `personnel`, `paie`, `social`, `formation` as the roadmap reaches them.
+- **One app per domain**, under `backend/apps/`: `accounts`, `core`, `audit`, then
+  `referentiels`, `agents`, `carriere`, `personnel`, `paie`, `social`, `formation` as the roadmap
+  reaches them.
   An app owns its tables; other apps reference them by foreign key and never duplicate them.
 - **Custom user model** `accounts.User`, referenced through `settings.AUTH_USER_MODEL` or
   `get_user_model()`.
@@ -69,9 +72,22 @@ features freely rather than writing for the lowest common denominator.
 - **Every business model inherits `apps.core.models.BaseModel`**, which adds `date_creation`,
   `date_modification`, `cree_par` and `modifie_par`. The authors are filled explicitly, never by
   middleware or signals: by `AuthorMixin` in the API, `BaseModelAdmin` in Django admin, and by
-  hand (or left empty) in scripts and imports. `QuerySet.update()` and `bulk_update()` bypass
-  `save()`, so their callers set `date_modification` themselves. This is not the audit log: only
-  the latest change is kept.
+  hand (or left empty) in scripts and imports, which pass `auteur=` to `delete()`.
+- **Every write to a business table is audited** (`TRA-10`). `BaseModel.save()` and `delete()`
+  write an `audit.EntreeAudit` in the same transaction: author, time, action, the row's label and
+  the old and new value of each changed field. The same user that fills `cree_par` /
+  `modifie_par` is the entry's author. On `BaseModel` tables, `QuerySet.update()` and
+  `QuerySet.delete()` raise `UnauditedWriteError`: use `update_audited(auteur, **values)` or work
+  row by row. `bulk_create()` and `bulk_update()` bypass `save()`; their callers write entries
+  with `apps.audit.service.record()`.
+- **Each business model declares its module**, a class attribute such as
+  `module = "referentiels"` (a key of `apps/accounts/roles.py`). A reader of the audit log sees
+  an entry only if they open its module; a system check (`core.E001`) refuses a model without
+  one. Account administration (users, groups, permissions) is audited too, under the scope
+  `comptes`, from the user and group admins, the own-password endpoint and the group setup.
+- **The audit log cannot be modified**: a trigger refuses `UPDATE` and `DELETE` on
+  `audit_entreeaudit`, and nothing is purged. Passwords are logged as masked changes, never
+  hashed values.
 - **Integrity lives in the database**: foreign keys with explicit `on_delete`, `NOT NULL`,
   `UniqueConstraint`, `CheckConstraint`, and exclusion constraints for non-overlapping date
   ranges where history must not overlap.
@@ -188,6 +204,7 @@ frontend/src/
 │   │   └── routes.ts            # this feature's routes, lazy-loaded
 │   ├── dashboard/
 │   ├── systeme/                 # system status (health check)
+│   ├── audit/                   # audit log screen (read-only)
 │   ├── design/                  # design guide page
 │   ├── agents/                  # then one folder per module as the roadmap reaches it:
 │   └── ...                      # referentiels, carriere, personnel, paie, social, formation
@@ -261,7 +278,6 @@ Decide these when the roadmap reaches them, then record the choice above.
 
 | Topic | Needed for |
 | --- | --- |
-| Audit log implementation (library or custom) | Phase 2 of the roadmap |
 | PDF generation for payslips and certificates | Payslip and document phases |
 | Excel export library | Bank transfer file, reports |
 | Background jobs and scheduled alerts | Alerts phase |

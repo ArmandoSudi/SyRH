@@ -14,6 +14,7 @@ MODULES: dict[str, str] = {
     "formation": "Formation",
     "referentiels": "Référentiels",
     "systeme": "Système",
+    "audit": "Journal d'audit",
 }
 
 _SERVICES: dict[str, tuple[str, str]] = {
@@ -43,10 +44,24 @@ GROUPS: dict[str, tuple[str, tuple[str, ...]]] = {
     # The Auditeur reads neither pay nor care details.
     "Direction RH": (
         "direction",
-        ("agents", "carriere", "personnel", "paie", "social", "formation", "referentiels"),
+        (
+            "agents",
+            "carriere",
+            "personnel",
+            "paie",
+            "social",
+            "formation",
+            "referentiels",
+            "audit",
+        ),
     ),
-    "Auditeur": ("auditeur", ("agents", "carriere", "personnel", "formation", "referentiels")),
-    ADMIN_GROUP: ("admin", ("referentiels", "systeme")),
+    "Auditeur": (
+        "auditeur",
+        ("agents", "carriere", "personnel", "formation", "referentiels", "audit"),
+    ),
+    # The audit log shows each reader only the modules they open (audit phase
+    # D21): for the administrator, account changes and Référentiels.
+    ADMIN_GROUP: ("admin", ("referentiels", "systeme", "audit")),
 }
 
 # Django admin rights of the Administrateur système: manage accounts and
@@ -81,11 +96,15 @@ def sync_groups() -> None:
 
     Only ever adds: permissions granted later in Django admin are kept, so
     "configurable profiles" survive every deployment. Runs after migrate.
+    What it creates or adds is written to the audit log, with no author.
     """
     from django.contrib.auth.models import Group, Permission
 
+    from apps.audit import service
+    from apps.audit.models import COMPTES
+
     for name in GROUPS:
-        group, _ = Group.objects.get_or_create(name=name)
+        group, created = Group.objects.get_or_create(name=name)
         wanted = group_permissions(name)
         found = list(
             Permission.objects.filter(
@@ -96,4 +115,15 @@ def sync_groups() -> None:
         missing = [n for n in wanted if n not in by_name]
         if missing:
             raise RuntimeError(f"Permissions not found for {name!r}: {missing}")
+
+        before = service.m2m_snapshot(group, ["permissions"])
         group.permissions.add(*(by_name[n] for n in wanted))
+        changes = service.m2m_changes(Group, before, service.m2m_snapshot(group, ["permissions"]))
+        if created:
+            changes = service.changes(Group, {}, service.snapshot(group)) + changes
+        service.record(
+            group,
+            service.Action.CREATION if created else service.Action.MODIFICATION,
+            changes,
+            module=COMPTES,
+        )

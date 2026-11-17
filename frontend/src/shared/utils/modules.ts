@@ -14,6 +14,7 @@ export const MODULE_PERMISSIONS = {
   formation: 'accounts.access_formation',
   referentiels: 'accounts.access_referentiels',
   systeme: 'accounts.access_systeme',
+  audit: 'accounts.access_audit',
 } as const
 
 export type ModuleKey = keyof typeof MODULE_PERMISSIONS

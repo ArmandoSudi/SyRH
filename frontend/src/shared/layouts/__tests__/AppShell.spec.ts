@@ -77,6 +77,15 @@ describe('AppShell', () => {
     expect(menu(wrapper)).toEqual(['/', '/referentiels', '/systeme', '/design'])
   })
 
+  it('shows the audit log to its readers only', async () => {
+    const reader = await mountAs([MODULE_PERMISSIONS.agents, MODULE_PERMISSIONS.audit])
+    expect(menu(reader.wrapper)).toEqual(['/', '/agents', '/audit'])
+
+    setActivePinia(createPinia())
+    const other = await mountAs([MODULE_PERMISSIONS.agents, MODULE_PERMISSIONS.carriere])
+    expect(menu(other.wrapper)).not.toContain('/audit')
+  })
+
   it('hides the Administration heading when it would be empty', async () => {
     const { wrapper } = await mountAs([])
 

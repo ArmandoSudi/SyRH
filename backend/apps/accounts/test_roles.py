@@ -63,9 +63,10 @@ class GroupTests(TestCase):
             "social",
             "formation",
             "referentiels",
+            "audit",
         },
-        "Auditeur": {"agents", "carriere", "personnel", "formation", "referentiels"},
-        "Administrateur système": {"referentiels", "systeme"},
+        "Auditeur": {"agents", "carriere", "personnel", "formation", "referentiels", "audit"},
+        "Administrateur système": {"referentiels", "systeme", "audit"},
     }
 
     def test_groups_match_the_matrix(self):

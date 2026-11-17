@@ -7,6 +7,8 @@ def request_author(request):
 class AuthorMixin:
     """DRF viewset mixin that stamps BaseModel rows with the signed-in user.
 
+    The same user becomes the author of the audit entry, deletion included.
+
     Usage: class SiteViewSet(AuthorMixin, viewsets.ModelViewSet). It grants no
     access: the view keeps its own permission classes.
     """
@@ -17,3 +19,6 @@ class AuthorMixin:
 
     def perform_update(self, serializer):
         serializer.save(modifie_par=request_author(self.request))
+
+    def perform_destroy(self, instance):
+        instance.delete(auteur=request_author(self.request))

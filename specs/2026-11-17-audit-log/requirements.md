@@ -126,6 +126,18 @@ charges.
 | --- | --- | --- |
 | D33 | `tech-stack.md`: the audit log is **custom** (`apps.audit`), removed from "Decisions not yet taken", and `audit` is added to the list of apps. | `tech-stack.md` changes in the same commit as the stack. |
 
+### Found during implementation
+
+| # | Decision | Reason |
+| --- | --- | --- |
+| D34 | Datetimes are stored in local (Kinshasa) time, to the second, and two values that render the same are not a change. | Django admin forms post `date_joined` without microseconds and in local time: every user save looked like a date change. |
+| D35 | On an existing database, the group setup logs only what it adds (on the development database: `access_audit` for three groups). On a fresh database it logs the creation of each group with its permissions. | D15 applied to both cases; what already existed before the log is not invented. |
+| D36 | The account admin mixin carries its "before" snapshot on the object being saved, not on the `ModelAdmin`. | A `ModelAdmin` instance is shared by every request. |
+| D37 | `EntreeAudit` has no default Django permissions; reading goes through `access_audit` only. | Nothing else should grant access to the log. |
+| D38 | The test-only `Probe` model moved to `apps/core/probe.py` (with `module`, a decimal, a date and a foreign key) so that the `core` and `audit` tests share it. Its content type is created in each test class's transaction. A test that deletes a user must be a `ProbeTestCase`, because Django checks every model pointing to users. | Replaces the test model of phase 0.5 D16, which only `core` used. |
+| D39 | The audit screen's formatters live in `features/audit/components/format.ts`. | The feature folder layout allows only `api/`, `components/`, `composables/`, `stores/` and `views/`. |
+| D40 | The table scrolls horizontally inside its card on narrow screens, and the filters stack below 640 px. | Found in the walkthrough: at 590 px the columns were cut off. |
+
 ## Open points
 
 | Point | Assumption until answered |

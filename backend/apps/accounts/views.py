@@ -1,12 +1,16 @@
 from django.contrib.auth import authenticate, update_session_auth_hash
 from django.contrib.auth import login as auth_login
 from django.contrib.auth import logout as auth_logout
+from django.db import transaction
 from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+
+from apps.audit import service
+from apps.audit.models import COMPTES
 
 from .authentication import SessionAuthentication
 from .serializers import LoginSerializer, PasswordChangeSerializer, UserSerializer
@@ -58,8 +62,18 @@ def change_password(request):
     serializer = PasswordChangeSerializer(data=request.data, context={"request": request})
     serializer.is_valid(raise_exception=True)
 
-    request.user.set_password(serializer.validated_data["new_password"])
-    request.user.save(update_fields=["password"])
+    user = request.user
+    with transaction.atomic():
+        before = service.snapshot(user, ["password"])
+        user.set_password(serializer.validated_data["new_password"])
+        user.save(update_fields=["password"])
+        service.record(
+            user,
+            service.Action.MODIFICATION,
+            service.changes(user._meta.model, before, service.snapshot(user, ["password"])),
+            module=COMPTES,
+            auteur=user,
+        )
     # Keeps this session valid; the user's other sessions stop authenticating.
     update_session_auth_hash(request, request.user)
     return Response(status=status.HTTP_204_NO_CONTENT)

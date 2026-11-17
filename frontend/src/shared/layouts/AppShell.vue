@@ -50,6 +50,12 @@ const adminNav: NavItem[] = [
     permission: MODULE_PERMISSIONS.referentiels,
   },
   {
+    to: '/audit',
+    label: "Journal d'audit",
+    icon: 'pi pi-history',
+    permission: MODULE_PERMISSIONS.audit,
+  },
+  {
     to: '/systeme',
     label: 'Système',
     icon: 'pi pi-server',
