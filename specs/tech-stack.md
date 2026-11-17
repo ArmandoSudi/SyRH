@@ -42,10 +42,7 @@ backend/            Django project
   apps/             one Django app per business domain
     accounts/       custom User model
     core/           shared base models, health check
-frontend/           Vue application
-  src/api/          typed functions that call the API
-  src/views/        routed pages
-  src/stores/       Pinia stores
+frontend/           Vue application, organised by feature (see "Frontend folder layout")
 docs/               stakeholder input (French)
 specs/              this constitution
 ```
@@ -114,6 +111,8 @@ features freely rather than writing for the lowest common denominator.
     Pinia while the user moves around.
   - In production the server returns `index.html` for any non-API path, so a refresh or a
     deep link lands on the right screen.
+- **Feature-based folders**: code is grouped by business feature, not by technical type. See
+  [Frontend folder layout](#frontend-folder-layout) below.
 - **Vue 3 Composition API** with `<script setup lang="ts">`. No Options API.
 - **PrimeVue 4** for tables, forms, date pickers, dialogs and file upload, with the French
   locale. Do not mix in a second component library.
@@ -132,14 +131,15 @@ features freely rather than writing for the lowest common denominator.
   - ECharts draws on a canvas and cannot read CSS variables. Chart colours come from one shared
     helper that reads the `--sy-*` tokens and redraws when the theme changes; no chart
     hard-codes a colour.
-  - Wrap charts in components under `src/components/ui/` so screens never configure ECharts
+  - Wrap charts in components under `src/shared/ui/` so screens never configure ECharts
     directly. The small CSS and SVG charts already there stay until a screen needs axes,
     tooltips or time series.
 - **Pinia** for state shared across pages (current user, permissions, reference data). Local
   component state stays local.
-- **API access** only through typed functions in `src/api/`; components do not call `fetch`
-  directly. Those functions all go through `request()` in `src/api/http.ts`, which sends the
-  CSRF token, raises a typed `ApiError` with per-field messages, and reports a lost session.
+- **API access** only through the typed functions in each feature's `api/` folder; components
+  do not call `fetch` directly. Those functions all go through `request()` in
+  `src/shared/utils/http.ts`, which sends the CSRF token, raises a typed `ApiError` with
+  per-field messages, and reports a lost session.
 - **Vite dev proxy** forwards `/api`, `/admin` and `/static` to Django, so development matches
   the single-origin production setup. It keeps the browser's `Host` header (object form in
   `vite.config.ts`); Django's CSRF origin check depends on it.
@@ -147,6 +147,60 @@ features freely rather than writing for the lowest common denominator.
   `/connexion`; a route opts out with `meta.public`. This is a convenience, not a security
   boundary: the API enforces access.
 - Interface text in French.
+
+### Frontend folder layout
+
+Code is grouped by **feature**: everything one business area needs (screens, components, state,
+API calls) lives in one folder. Code used by several features lives in `shared/`. A feature
+folder can be read, changed or removed without searching the whole tree.
+
+```
+frontend/src/
+├── features/
+│   ├── auth/                    # sign-in, sign-out, current user, own password
+│   │   ├── api/                 # auth.ts: login(), logout(), fetchMe(), changePassword()
+│   │   ├── components/          # UserMenu.vue
+│   │   ├── composables/         # useX.ts: reusable logic with no state shared across pages
+│   │   ├── stores/              # auth.ts: Pinia store for the current user
+│   │   ├── views/               # LoginView.vue, PasswordView.vue
+│   │   └── routes.ts            # this feature's routes, lazy-loaded
+│   ├── dashboard/
+│   ├── systeme/                 # system status (health check)
+│   ├── design/                  # design guide page
+│   ├── agents/                  # then one folder per module as the roadmap reaches it:
+│   └── ...                      # referentiels, carriere, personnel, paie, social, formation
+├── shared/
+│   ├── ui/                      # generic components: StatCard, DonutChart, ThemeToggle, ...
+│   ├── layouts/                 # AppShell.vue: side menu and top bar
+│   ├── theme/                   # tokens.css, main.css, preset.ts, store.ts (light/dark)
+│   └── utils/                   # http.ts (request(), ApiError), formatters
+├── router/                      # index.ts assembles the features' routes; guards.ts;
+│                                # PlaceholderView.vue for modules not built yet
+├── App.vue                      # root component
+└── main.ts                      # application entry point
+```
+
+Rules:
+
+- **Feature names follow the backend.** A feature folder matches the Django app or module it
+  talks to (`agents`, `carriere`, `paie`, ...), so the same word finds the code on both sides.
+  `auth` matches `apps.accounts`.
+- **A feature only has the subfolders it needs.** The full set is `api/`, `components/`,
+  `composables/`, `stores/` and `views/`, plus a `routes.ts`.
+- **`views/` holds routed pages; `components/` holds the pieces they are built from.** A
+  component used by one feature stays in that feature, even if it looks generic. It moves to
+  `shared/ui/` when a second feature needs it.
+- **Imports go one way**: `features/` may import from `shared/`. `shared/` never imports from
+  `features/`. The `auth` store is the one exception, read by `shared/layouts/` and
+  `router/` because every screen depends on the current user.
+- **Features import one another sparingly**, and only through stores, composables or `api/`
+  functions, never another feature's components or views. If two features need the same
+  component, it belongs in `shared/ui/`.
+- **Routes are declared by their feature.** Each `routes.ts` exports its routes with lazy
+  `() => import(...)` components; `router/index.ts` only assembles them and installs the guards.
+- **Tests sit next to the code** in a `__tests__/` folder (`features/auth/stores/__tests__/`).
+- **Import with the `@/` alias** (`@/shared/ui/StatCard.vue`, `@/features/auth/stores/auth`),
+  never with long relative paths across folders.
 
 ## Files and documents
 

@@ -1,7 +1,7 @@
 import type { Router } from 'vue-router'
 
-import { setUnauthorizedHandler } from '@/api/http'
-import { useAuthStore } from '@/stores/auth'
+import { setUnauthorizedHandler } from '@/shared/utils/http'
+import { useAuthStore } from '@/features/auth/stores/auth'
 
 export const LOGIN_PATH = '/connexion'
 

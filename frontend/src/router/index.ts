@@ -1,71 +1,43 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
-import AppShell from '@/layouts/AppShell.vue'
+import * as auth from '@/features/auth/routes'
+import * as dashboard from '@/features/dashboard/routes'
+import * as design from '@/features/design/routes'
+import * as systeme from '@/features/systeme/routes'
+import AppShell from '@/shared/layouts/AppShell.vue'
 
-import { installAuthGuards, LOGIN_PATH } from './guards'
+import { installAuthGuards } from './guards'
 
-// Screens are lazy-loaded so the first load stays small as modules are added.
-const placeholder = () => import('@/views/PlaceholderView.vue')
+// Each feature declares its own lazy-loaded routes; this file only assembles them.
+
+// Stand-ins for modules the roadmap has not reached yet. Each one moves to its
+// feature's routes.ts when that feature is built.
+const placeholder = () => import('./PlaceholderView.vue')
+const upcoming: RouteRecordRaw[] = (
+  [
+    ['agents', 'Agents'],
+    ['carriere', 'Carrière'],
+    ['personnel', 'Présences et absences'],
+    ['paie', 'Paie'],
+    ['social', 'Social'],
+    ['formation', 'Formation'],
+    ['referentiels', 'Référentiels'],
+  ] as const
+).map(([path, title]) => ({ path, name: path, component: placeholder, meta: { title } }))
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    {
-      path: LOGIN_PATH,
-      name: 'login',
-      component: () => import('@/views/LoginView.vue'),
-      meta: { title: 'Connexion', public: true },
-    },
+    ...auth.publicRoutes,
     {
       path: '/',
       component: AppShell,
       children: [
-        {
-          path: '',
-          name: 'dashboard',
-          component: () => import('@/views/DashboardView.vue'),
-          meta: { title: 'Tableau de bord' },
-        },
-        { path: 'agents', name: 'agents', component: placeholder, meta: { title: 'Agents' } },
-        { path: 'carriere', name: 'carriere', component: placeholder, meta: { title: 'Carrière' } },
-        {
-          path: 'personnel',
-          name: 'personnel',
-          component: placeholder,
-          meta: { title: 'Présences et absences' },
-        },
-        { path: 'paie', name: 'paie', component: placeholder, meta: { title: 'Paie' } },
-        { path: 'social', name: 'social', component: placeholder, meta: { title: 'Social' } },
-        {
-          path: 'formation',
-          name: 'formation',
-          component: placeholder,
-          meta: { title: 'Formation' },
-        },
-        {
-          path: 'referentiels',
-          name: 'referentiels',
-          component: placeholder,
-          meta: { title: 'Référentiels' },
-        },
-        {
-          path: 'systeme',
-          name: 'systeme',
-          component: () => import('@/views/SystemView.vue'),
-          meta: { title: 'Système' },
-        },
-        {
-          path: 'design',
-          name: 'design',
-          component: () => import('@/views/DesignView.vue'),
-          meta: { title: 'Système de design' },
-        },
-        {
-          path: 'compte/mot-de-passe',
-          name: 'password',
-          component: () => import('@/views/PasswordView.vue'),
-          meta: { title: 'Mot de passe' },
-        },
+        ...dashboard.routes,
+        ...upcoming,
+        ...systeme.routes,
+        ...design.routes,
+        ...auth.routes,
       ],
     },
   ],

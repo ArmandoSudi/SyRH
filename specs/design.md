@@ -1,8 +1,8 @@
 # Design system
 
 How SyRH looks and why. The live reference is the **Design** page of the app (`/design`); the
-tokens are in [`frontend/src/assets/tokens.css`](../frontend/src/assets/tokens.css) and the
-PrimeVue preset in [`frontend/src/theme/preset.ts`](../frontend/src/theme/preset.ts).
+tokens are in [`frontend/src/shared/theme/tokens.css`](../frontend/src/shared/theme/tokens.css) and the
+PrimeVue preset in [`frontend/src/shared/theme/preset.ts`](../frontend/src/shared/theme/preset.ts).
 
 ## Where it comes from
 
@@ -40,7 +40,7 @@ dropped what is specific to one of them.
 
 Three modes: light, dark, and system (default). The choice is stored in `localStorage` under
 `syrh-theme` and applied before first paint by an inline script in `index.html`, so there is no
-flash. The theme store (`src/stores/theme.ts`) toggles `html.dark`.
+flash. The theme store (`src/shared/theme/store.ts`) toggles `html.dark`.
 
 Each colour is declared **once** with the CSS `light-dark()` function, and `color-scheme`
 switches with `html.dark`. Components never contain theme-specific rules; they only read tokens.

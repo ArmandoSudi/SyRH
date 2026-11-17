@@ -70,9 +70,10 @@ account created by `createsuperuser`; further accounts are created in Django adm
 
 - `accounts.User` is the custom user model; always reference it through
   `settings.AUTH_USER_MODEL` or `get_user_model()`.
-- Business apps live in `backend/apps/`.
+- Business apps live in `backend/apps/`; the matching frontend code lives in
+  `frontend/src/features/`, shared code in `frontend/src/shared/` (see `specs/tech-stack.md`).
 - API endpoints require an authenticated session by default; opt out per view.
 - An anonymous API call gets `401`, a forbidden one `403`. Frontend routes are protected
   by default too; a route opts out with `meta.public`.
-- The frontend calls the API only through `request()` in `frontend/src/api/http.ts`,
+- The frontend calls the API only through `request()` in `frontend/src/shared/utils/http.ts`,
   which handles CSRF and errors.

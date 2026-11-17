@@ -1,6 +1,6 @@
 import '@fontsource-variable/plus-jakarta-sans'
 import 'primeicons/primeicons.css'
-import './assets/main.css'
+import './shared/theme/main.css'
 
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
@@ -10,7 +10,7 @@ import { fr } from 'primelocale/js/fr.js'
 
 import App from './App.vue'
 import router from './router'
-import { SyRHPreset } from './theme/preset'
+import { SyRHPreset } from './shared/theme/preset'
 
 const app = createApp(App)
 

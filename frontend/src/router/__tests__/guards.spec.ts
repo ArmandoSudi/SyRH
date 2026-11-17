@@ -2,13 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-import * as authApi from '@/api/auth'
-import { ApiError, request } from '@/api/http'
-import { useAuthStore } from '@/stores/auth'
+import * as authApi from '@/features/auth/api/auth'
+import { ApiError, request } from '@/shared/utils/http'
+import { useAuthStore } from '@/features/auth/stores/auth'
 
 import { installAuthGuards, safeRedirect } from '../guards'
 
-vi.mock('@/api/auth')
+vi.mock('@/features/auth/api/auth')
 
 type FetchMock = (url: string, init?: RequestInit) => Promise<unknown>
 
