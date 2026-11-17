@@ -57,13 +57,21 @@ specs/              this constitution
 - **Custom user model** `accounts.User`, referenced through `settings.AUTH_USER_MODEL` or
   `get_user_model()`.
 - **Django admin** is a tool for administrators and for early data entry of reference tables. It
-  is not the HR user interface.
+  is not the HR user interface. Admin classes of business models use
+  `apps.core.admin.BaseModelAdmin`, which records the admin user as author and shows the dates
+  and authors read-only.
 
 ## Database
 
 PostgreSQL is the only supported database, in development, test and production. We use its
 features freely rather than writing for the lowest common denominator.
 
+- **Every business model inherits `apps.core.models.BaseModel`**, which adds `date_creation`,
+  `date_modification`, `cree_par` and `modifie_par`. The authors are filled explicitly, never by
+  middleware or signals: by `AuthorMixin` in the API, `BaseModelAdmin` in Django admin, and by
+  hand (or left empty) in scripts and imports. `QuerySet.update()` and `bulk_update()` bypass
+  `save()`, so their callers set `date_modification` themselves. This is not the audit log: only
+  the latest change is kept.
 - **Integrity lives in the database**: foreign keys with explicit `on_delete`, `NOT NULL`,
   `UniqueConstraint`, `CheckConstraint`, and exclusion constraints for non-overlapping date
   ranges where history must not overlap.
@@ -101,6 +109,9 @@ features freely rather than writing for the lowest common denominator.
     answers `403` without the permission. Finer permissions (per table, sensitive data) are
     added to the groups by the phase that creates each module's tables.
   - **Superusers are for installation only**: they hold every permission, pay included.
+- **Business endpoints** are viewsets with `apps.core.mixins.AuthorMixin`, which stamps the
+  signed-in user as author, and serializers extending `apps.core.serializers.BaseModelSerializer`,
+  which keeps the dates and authors read-only (authors are returned as user ids).
 - Validation errors are returned per field so forms can display them next to the input.
 
 ## Frontend

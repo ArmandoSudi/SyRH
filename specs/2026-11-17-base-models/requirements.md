@@ -85,6 +85,14 @@ from [`missions.md`](../missions.md) and [`tech-stack.md`](../tech-stack.md).
 | D14 | Tests use a **test-only concrete model** declared inside the test module with `isolate_apps`, its table created and dropped with the schema editor. It has no migration and is not in `INSTALLED_APPS`. | No real table exists yet, and a test model must never reach a migration or production. |
 | D15 | Validation is **automated tests and the quality gates only**; no manual walkthrough. **(asked)** | Nothing visible changes in this phase. |
 
+### Found during implementation
+
+| # | Decision | Reason |
+| --- | --- | --- |
+| D16 | Replaces the `isolate_apps` part of D14: the test model `Probe` is declared at module level in `apps/core/test_base_models.py`, with `managed = False`. Each test class creates its table with the schema editor inside the class transaction, which rolls it back. | An isolated app registry cannot resolve the inherited foreign keys to `accounts.User`. The test module is never imported by `makemigrations`, and a test checks that no `core` migration knows the model. |
+| D17 | Both mixins treat an anonymous request as "no author" (`None`) instead of failing. | Endpoints are authenticated by default, but a view that opts out must not crash on save. |
+| D18 | `BASE_FIELDS` in `apps/core/models.py` lists the four fields once; the serializer, the admin mixin and the tests read it. | One source of truth for the field list. |
+
 ## Open points
 
 None.
