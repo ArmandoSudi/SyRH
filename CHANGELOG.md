@@ -16,7 +16,10 @@ the work is merged.
   installation only: create named accounts in the right groups instead.
 - Open questions on approval circuits (`Q20` to `Q26` in `docs/questions-ouvertes.md`), with a
   proposed circuit for 13 HR processes; to settle with the stakeholders before roadmap 2.11.
-<!-- commits: 962c423 2ab2964 a2634c4 12c13de 1968090 -->
+- Base models: every business model will inherit `BaseModel`, which records when each row was
+  created and last changed, and by whom (roadmap 0.5). New endpoints use `AuthorMixin` and
+  `BaseModelSerializer`, new admin classes `BaseModelAdmin`.
+<!-- commits: 962c423 2ab2964 a2634c4 12c13de 1968090 3f13781 4f4fa9d -->
 
 ## 2026-11-16
 
