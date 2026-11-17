@@ -19,7 +19,13 @@ the work is merged.
 - Base models: every business model will inherit `BaseModel`, which records when each row was
   created and last changed, and by whom (roadmap 0.5). New endpoints use `AuthorMixin` and
   `BaseModelSerializer`, new admin classes `BaseModelAdmin`.
-<!-- commits: 962c423 2ab2964 a2634c4 12c13de 1968090 3f13781 4f4fa9d -->
+- Audit log: every write to a business table, and every change to users, groups and
+  permissions, records its author, time and old and new values; the database refuses to change
+  an entry (roadmap 0.6). New "Journal d'audit" screen for Auditeur, Direction RH and
+  Administrateur système, each seeing only the modules they may open. Run `migrate`. New
+  business models must declare `module`; `QuerySet.update()` and `delete()` now raise on them
+  (use `update_audited()`).
+<!-- commits: 962c423 2ab2964 a2634c4 12c13de 1968090 3f13781 4f4fa9d e7af37a 88de707 -->
 
 ## 2026-11-16
 
