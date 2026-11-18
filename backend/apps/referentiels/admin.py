@@ -3,7 +3,7 @@ from django.utils import timezone
 
 from apps.core.admin import BaseModelAdmin
 
-from .models import Site, UniteOrganisationnelle
+from .models import Categorie, Echelon, Grade, Site, UniteOrganisationnelle
 
 
 class OuvertFilter(admin.SimpleListFilter):
@@ -19,10 +19,10 @@ class OuvertFilter(admin.SimpleListFilter):
         if self.value() not in ("ouvert", "ferme"):
             return queryset
         today = timezone.localdate()
-        if queryset.model is UniteOrganisationnelle:
-            opened = queryset.ouvertes(today)
-        else:
+        if queryset.model is Site:
             opened = queryset.ouverts(today)
+        else:
+            opened = queryset.ouvertes(today)
         if self.value() == "ouvert":
             return opened
         return queryset.exclude(pk__in=opened.values("pk"))
@@ -51,3 +51,44 @@ class UniteOrganisationnelleAdmin(BaseModelAdmin, admin.ModelAdmin):
             return readonly
         # A restructuring closes the unit and opens a new one (D8).
         return (*UniteOrganisationnelle.FIXED, *readonly)
+
+
+class ClassificationAdmin(BaseModelAdmin, admin.ModelAdmin):
+    """Catégories, grades and échelons. No inlines: BaseModelAdmin stamps the
+    author on the main row only (classification D22)."""
+
+    def get_readonly_fields(self, request, obj=None):
+        readonly = super().get_readonly_fields(request, obj)
+        parent = self.model.PARENT
+        if obj is None or parent is None:
+            return readonly
+        # A reform closes the row and opens a new one (D11).
+        return (parent, *readonly)
+
+
+@admin.register(Categorie)
+class CategorieAdmin(ClassificationAdmin):
+    list_display = ["code", "nom", "rang", "date_ouverture", "date_fermeture"]
+    list_filter = [OuvertFilter]
+    search_fields = ["code", "nom"]
+    fields = ["code", "nom", "rang", "date_ouverture", "date_fermeture"]
+
+
+@admin.register(Grade)
+class GradeAdmin(ClassificationAdmin):
+    list_display = ["code", "nom", "categorie", "rang", "date_ouverture", "date_fermeture"]
+    list_filter = ["categorie", OuvertFilter]
+    search_fields = ["code", "nom"]
+    autocomplete_fields = ["categorie"]
+    list_select_related = ["categorie"]
+    fields = ["categorie", "code", "nom", "rang", "date_ouverture", "date_fermeture"]
+
+
+@admin.register(Echelon)
+class EchelonAdmin(ClassificationAdmin):
+    list_display = ["grade", "numero", "date_ouverture", "date_fermeture"]
+    list_filter = [("grade__categorie", admin.RelatedOnlyFieldListFilter), OuvertFilter]
+    search_fields = ["grade__code", "grade__nom"]
+    autocomplete_fields = ["grade"]
+    list_select_related = ["grade", "grade__categorie"]
+    fields = ["grade", "numero", "date_ouverture", "date_fermeture"]

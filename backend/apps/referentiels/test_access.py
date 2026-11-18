@@ -10,10 +10,15 @@ from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.accounts.roles import GROUPS, ORGANISATION_EDIT_PERMISSIONS, sync_groups
+from apps.accounts.roles import (
+    CLASSIFICATION_EDIT_PERMISSIONS,
+    GROUPS,
+    ORGANISATION_EDIT_PERMISSIONS,
+    sync_groups,
+)
 from apps.audit.models import EntreeAudit
 
-from .models import Site, UniteOrganisationnelle
+from .models import Categorie, Echelon, Grade, Site, UniteOrganisationnelle
 
 T = UniteOrganisationnelle.Type
 Unite = UniteOrganisationnelle
@@ -48,6 +53,20 @@ class PermissionTests(TestCase):
         for permission in ORGANISATION_EDIT_PERMISSIONS:
             with self.subTest(permission):
                 self.assertEqual(self.holders(permission), EDITORS)
+
+    def test_editors_hold_view_add_change_on_the_classification(self):
+        self.assertEqual(len(CLASSIFICATION_EDIT_PERMISSIONS), 9)
+        for permission in CLASSIFICATION_EDIT_PERMISSIONS:
+            with self.subTest(permission):
+                self.assertEqual(self.holders(permission), EDITORS)
+
+    def test_group_setup_grants_missing_classification_permissions(self):
+        group = Group.objects.get(name="Gestion de carrière")
+        group.permissions.remove(*Permission.objects.filter(codename__endswith="_grade"))
+
+        sync_groups()
+
+        self.assertEqual(self.holders("referentiels.change_grade"), EDITORS)
 
     def test_nobody_can_delete(self):
         self.assertFalse(
@@ -140,6 +159,119 @@ class AdminTests(TestCase):
 
         response = self.client.get("/admin/referentiels/uniteorganisationnelle/")
         self.assertEqual(response.status_code, 403)
+
+
+class ClassificationAdminTests(TestCase):
+    """Catégories, grades and échelons in Django admin (classification D18, D21, D22)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.carriere = member("carriere", "Gestion de carrière", is_staff=True)
+        cls.remuneration = member("remuneration", "Rémunération", is_staff=True)
+        cls.cd = Categorie.objects.create(code="CD", nom="Cadres", rang=4, date_ouverture=D2015)
+        cls.am = Categorie.objects.create(code="AM", nom="Maîtrise", rang=2, date_ouverture=D2015)
+        cls.a1 = Grade.objects.create(
+            code="A1", nom="Attaché", categorie=cls.cd, rang=1, date_ouverture=D2015
+        )
+
+    def setUp(self):
+        self.client.force_login(self.carriere)
+
+    def url(self, model, obj=None, action="add"):
+        base = f"/admin/referentiels/{model}/"
+        return f"{base}add/" if obj is None else f"{base}{obj.pk}/{action}/"
+
+    def test_editor_adds_a_grade_and_its_echelons(self):
+        response = self.client.post(
+            self.url("grade"),
+            {"categorie": self.cd.pk, "code": "a2", "nom": "Attaché 2", "rang": 2,
+             "date_ouverture": "2020-01-01", "date_fermeture": ""},
+        )  # fmt: skip
+        self.assertEqual(response.status_code, 302)
+        a2 = Grade.objects.get(code="A2")
+        self.assertEqual((a2.cree_par, a2.modifie_par), (self.carriere, self.carriere))
+
+        for numero in (1, 2, 4):  # a gap is accepted (D5)
+            response = self.client.post(
+                self.url("echelon"),
+                {"grade": a2.pk, "numero": numero, "date_ouverture": "2020-01-01",
+                 "date_fermeture": ""},
+            )  # fmt: skip
+            self.assertEqual(response.status_code, 302)
+        self.assertEqual(list(a2.echelons.values_list("numero", flat=True)), [1, 2, 4])
+        entry = EntreeAudit.objects.get(table__model="echelon", objet_libelle="A2 — Échelon 4")
+        self.assertEqual(entry.auteur, self.carriere)
+
+    def test_add_pages_and_parent_autocomplete_open(self):
+        for model in ("categorie", "grade", "echelon"):
+            with self.subTest(model):
+                self.assertEqual(self.client.get(self.url(model)).status_code, 200)
+
+        for model, field, code in (("grade", "categorie", "CD"), ("echelon", "grade", "A1")):
+            with self.subTest(field):
+                response = self.client.get(
+                    "/admin/autocomplete/",
+                    {"app_label": "referentiels", "model_name": model, "field_name": field,
+                     "term": code},
+                )  # fmt: skip
+                self.assertEqual(response.status_code, 200)
+                self.assertIn(code, [r["text"][:2] for r in response.json()["results"]])
+
+    def test_editor_corrects_a_grade_but_not_its_categorie(self):
+        url = self.url("grade", self.a1, "change")
+        page = self.client.get(url).content.decode()
+        self.assertNotIn('name="categorie"', page)  # read-only (D11)
+
+        response = self.client.post(
+            url, {"code": "A1", "nom": "Attaché corrigé", "rang": 1, "date_ouverture": "2015-01-01"}
+        )
+        self.assertEqual(response.status_code, 302)
+        self.a1.refresh_from_db()
+        self.assertEqual((self.a1.nom, self.a1.categorie), ("Attaché corrigé", self.cd))
+        entry = EntreeAudit.objects.get(objet_id=self.a1.pk, action="modification")
+        self.assertEqual(entry.auteur, self.carriere)
+
+    def test_echelon_grade_is_read_only_on_change(self):
+        step = Echelon.objects.create(grade=self.a1, numero=1, date_ouverture=D2015)
+        page = self.client.get(self.url("echelon", step, "change")).content.decode()
+        self.assertNotIn('name="grade"', page)
+        self.assertIn('name="numero"', page)
+
+    def test_rule_errors_show_next_to_the_field(self):
+        response = self.client.post(
+            self.url("echelon"),
+            {"grade": self.a1.pk, "numero": 1, "date_ouverture": "2010-01-01",
+             "date_fermeture": ""},
+        )  # fmt: skip
+
+        self.assertEqual(response.status_code, 200)
+        errors = response.context["adminform"].form.errors
+        self.assertIn("ne peut pas ouvrir avant son grade", errors["date_ouverture"][0])
+
+    def test_constraint_errors_show_at_the_top(self):
+        response = self.client.post(
+            self.url("grade"),
+            {"categorie": self.am.pk, "code": "a1", "nom": "Doublon", "rang": 1,
+             "date_ouverture": "2020-01-01", "date_fermeture": ""},
+        )  # fmt: skip
+
+        self.assertEqual(response.status_code, 200)
+        errors = response.context["adminform"].form.non_field_errors()
+        self.assertIn("Un autre grade porte déjà ce code", errors[0])
+
+    def test_editor_cannot_delete(self):
+        for model, obj in (("categorie", self.cd), ("grade", self.a1)):
+            with self.subTest(model):
+                response = self.client.post(self.url(model, obj, "delete"), {"post": "yes"})
+                self.assertEqual(response.status_code, 403)
+                self.assertTrue(type(obj).objects.filter(pk=obj.pk).exists())
+
+    def test_other_profiles_cannot_open_the_admin_pages(self):
+        self.client.force_login(self.remuneration)
+        for model in ("categorie", "grade", "echelon"):
+            with self.subTest(model):
+                response = self.client.get(f"/admin/referentiels/{model}/")
+                self.assertEqual(response.status_code, 403)
 
 
 class ApiTests(TestCase):
