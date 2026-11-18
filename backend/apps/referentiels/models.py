@@ -313,12 +313,89 @@ def unique_per_period(name: str, *keys: str, message: str) -> ExclusionConstrain
     )
 
 
-class CategorieQuerySet(BaseQuerySet):
+class ClassificationQuerySet(BaseQuerySet):
     def ouvertes(self, day: date):
         return self.filter(date_ouverture__lte=day).filter(open_on(day))
 
 
-class Categorie(BaseModel):
+class ClassificationRules:
+    """Rules shared by catégories, grades and échelons (classification D11, D13, D16).
+
+    Each model names its parent field and its children's related name, and the
+    French words its messages need. check_rules() is called by clean() (forms,
+    admin) and by save() (scripts), and raises per field.
+    """
+
+    PARENT: str | None = None  # foreign key to the parent row
+    CHILDREN: str | None = None  # related name of the child rows
+    SUBJECT = ""  # "Le grade"
+    PARENT_REF = ""  # "sa catégorie"
+    CHILDREN_REF = ""  # "Des échelons rattachés"
+    REPLACE = ""  # "fermez le grade et ouvrez-en un nouveau"
+
+    def short_label(self) -> str:
+        """How a child row is named in its parent's error messages."""
+        return self.code
+
+    def check_rules(self) -> None:
+        if getattr(self, "code", None):
+            self.code = self.code.strip().upper()
+        errors: dict[str, list[str]] = {}
+
+        if self.PARENT and self.pk is not None:
+            attname = self._meta.get_field(self.PARENT).attname
+            old = type(self)._base_manager.filter(pk=self.pk).values_list(attname, flat=True)
+            if old and old[0] != getattr(self, attname):
+                raise_if({self.PARENT: [f"Ne peut pas être modifié : {self.REPLACE}."]})
+
+        start, end = self.date_ouverture, self.date_fermeture
+        if start is None:
+            raise_if(errors)  # the required field reports itself
+            return
+
+        parent_id = getattr(self, f"{self.PARENT}_id") if self.PARENT else None
+        if parent_id is not None:
+            parent = getattr(self, self.PARENT)
+            if start < parent.date_ouverture:
+                errors.setdefault("date_ouverture", []).append(
+                    f"{self.SUBJECT} ne peut pas ouvrir avant {self.PARENT_REF} "
+                    f"({fr(parent.date_ouverture)})."
+                )
+            if parent.date_fermeture and (end is None or end > parent.date_fermeture):
+                errors.setdefault("date_fermeture", []).append(
+                    f"{self.SUBJECT} doit fermer au plus tard à la fermeture de "
+                    f"{self.PARENT_REF} ({fr(parent.date_fermeture)})."
+                )
+
+        if self.CHILDREN and self.pk is not None:
+            children = getattr(self, self.CHILDREN).all()
+            if end is not None:
+                late = list(children.filter(still_open_after(end))[:5])
+                if late:
+                    names = ", ".join(c.short_label() for c in late)
+                    errors.setdefault("date_fermeture", []).append(
+                        f"{self.CHILDREN_REF} restent ouverts après cette date : {names}. "
+                        "Fermez-les d'abord."
+                    )
+            early = list(children.filter(date_ouverture__lt=start)[:5])
+            if early:
+                names = ", ".join(c.short_label() for c in early)
+                errors.setdefault("date_ouverture", []).append(
+                    f"{self.CHILDREN_REF} ouvrent avant cette date : {names}."
+                )
+
+        raise_if(errors)
+
+    def clean(self):
+        super().clean()
+        self.check_rules()
+
+    def save(self, **kwargs):
+        self.check_rules()
+        super().save(**kwargs)
+
+
+class Categorie(ClassificationRules, BaseModel):
     """A catégorie of the grid, such as Cadres de direction (classification D1, D2, D6).
 
     Open from date_ouverture included to date_fermeture excluded (D9). A higher
@@ -326,6 +403,9 @@ class Categorie(BaseModel):
     """
 
     module = "referentiels"
+    CHILDREN = "grades"
+    SUBJECT = "La catégorie"
+    CHILDREN_REF = "Des grades rattachés"
 
     code = models.CharField("code", max_length=20)
     nom = models.CharField("nom", max_length=150)
@@ -340,7 +420,7 @@ class Categorie(BaseModel):
         help_text="Premier jour où la catégorie n'existe plus.",
     )
 
-    objects = CategorieQuerySet.as_manager()
+    objects = ClassificationQuerySet.as_manager()
 
     class Meta:
         verbose_name = "catégorie"
@@ -369,15 +449,138 @@ class Categorie(BaseModel):
     def __str__(self):
         return f"{self.code} — {self.nom}"
 
-    def check_rules(self) -> None:
-        """Normalise the code. Rules on grades come with the Grade model."""
-        if self.code:
-            self.code = self.code.strip().upper()
 
-    def clean(self):
-        super().clean()
-        self.check_rules()
+class Grade(ClassificationRules, BaseModel):
+    """A grade within one catégorie (classification D1 to D3, D6, D7).
 
-    def save(self, **kwargs):
-        self.check_rules()
-        super().save(**kwargs)
+    Its catégorie never changes (D11). Its code is unique across the whole grid
+    at any date (D3); its rank is unique within its catégorie (D6).
+    """
+
+    module = "referentiels"
+    PARENT = "categorie"
+    CHILDREN = "echelons"
+    SUBJECT = "Le grade"
+    PARENT_REF = "sa catégorie"
+    CHILDREN_REF = "Des échelons rattachés"
+    REPLACE = "fermez le grade et ouvrez-en un nouveau"
+
+    categorie = models.ForeignKey(
+        Categorie, verbose_name="catégorie", on_delete=models.PROTECT, related_name="grades"
+    )
+    code = models.CharField("code", max_length=20)
+    nom = models.CharField("nom", max_length=150)
+    rang = models.PositiveSmallIntegerField(
+        "rang", help_text="Rang dans la catégorie ; un rang plus élevé désigne un grade plus élevé."
+    )
+    date_ouverture = models.DateField("date d'ouverture")
+    date_fermeture = models.DateField(
+        "date de fermeture",
+        null=True,
+        blank=True,
+        help_text="Premier jour où le grade n'existe plus.",
+    )
+
+    objects = ClassificationQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "grade"
+        verbose_name_plural = "grades"
+        ordering = ["-categorie__rang", "-rang", "date_ouverture"]
+        default_permissions = NO_DELETE
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(rang__gt=0),
+                name="grade_rang_positif",
+                violation_error_message="Le rang doit être supérieur à zéro.",
+            ),
+            closing_after_opening("grade_fermeture_apres_ouverture"),
+            unique_per_period(
+                "grade_code_unique_par_periode",
+                "code",
+                message="Un autre grade porte déjà ce code sur une partie de cette période.",
+            ),
+            unique_per_period(
+                "grade_rang_unique_par_periode",
+                "categorie",
+                "rang",
+                message=(
+                    "Un autre grade de cette catégorie a déjà ce rang "
+                    "sur une partie de cette période."
+                ),
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.code} — {self.nom}"
+
+    @property
+    def cle_ordre(self) -> tuple[int, int]:
+        """Sort key: a greater key is a higher grade (D7). Used by promotions (3.1)."""
+        return (self.categorie.rang, self.rang)
+
+
+class Echelon(ClassificationRules, BaseModel):
+    """A step within one grade, known by its number (classification D1, D4, D5, D8).
+
+    Its grade never changes (D11); it opens and closes within its grade (D10).
+    """
+
+    module = "referentiels"
+    PARENT = "grade"
+    SUBJECT = "L'échelon"
+    PARENT_REF = "son grade"
+    REPLACE = "fermez l'échelon et ouvrez-en un nouveau"
+
+    grade = models.ForeignKey(
+        Grade, verbose_name="grade", on_delete=models.PROTECT, related_name="echelons"
+    )
+    numero = models.PositiveSmallIntegerField("numéro")
+    date_ouverture = models.DateField("date d'ouverture")
+    date_fermeture = models.DateField(
+        "date de fermeture",
+        null=True,
+        blank=True,
+        help_text="Premier jour où l'échelon n'existe plus.",
+    )
+
+    objects = ClassificationQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "échelon"
+        verbose_name_plural = "échelons"
+        ordering = [
+            "-grade__categorie__rang",
+            "-grade__rang",
+            "grade__date_ouverture",
+            "numero",
+            "date_ouverture",
+        ]
+        default_permissions = NO_DELETE
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(numero__gt=0),
+                name="echelon_numero_positif",
+                violation_error_message="Le numéro doit être supérieur à zéro.",
+            ),
+            closing_after_opening("echelon_fermeture_apres_ouverture"),
+            unique_per_period(
+                "echelon_numero_unique_par_periode",
+                "grade",
+                "numero",
+                message=(
+                    "Ce grade a déjà un échelon de ce numéro sur une partie de cette période."
+                ),
+            ),
+        ]
+
+    def __str__(self):
+        grade = self.grade.code if self.grade_id else "?"
+        return f"{grade} — Échelon {self.numero}"
+
+    @property
+    def libelle(self) -> str:
+        return str(self)
+
+    def short_label(self) -> str:
+        return f"échelon {self.numero}"
