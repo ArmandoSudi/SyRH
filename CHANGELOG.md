@@ -11,7 +11,12 @@ the work is merged.
   "Statut équipe"); everyone with Référentiels sees it on the new read-only Référentiels screen.
   Run `migrate` (installs the `btree_gist` extension); `create_demo_organisation` loads demo
   data in development. The real organigramme is open question `Q27`.
-<!-- commits: bcbedcb 1bba339 -->
+- Classification (roadmap 1.2): catégories, grades and échelons as dated, ranked reference data,
+  with a reform done by closing a grade and opening its successor. The same profiles edit it in
+  Django admin; a new read-only "Classification" tab shows the grid as a tree at any date. Run
+  `migrate`; `create_demo_classification` loads a demo grid. The real grid is open question `Q28`.
+  On phones, the Référentiels toolbar buttons now wrap instead of overflowing the card.
+<!-- commits: bcbedcb 1bba339 04cd9da e52a536 dd57ad6 02fe759 29f0647 92abaf4 85f9906 5fd4253 -->
 
 ## 2026-11-17
 
