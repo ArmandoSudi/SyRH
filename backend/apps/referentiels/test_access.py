@@ -555,3 +555,61 @@ class DemoOrganisationTests(TestCase):
         self.assertEqual(
             (Site.objects.count(), Unite.objects.count(), EntreeAudit.objects.count()), counts
         )
+
+
+class DemoClassificationTests(TestCase):
+    """create_demo_classification (classification D31, D32)."""
+
+    def run_command(self):
+        out = StringIO()
+        call_command("create_demo_classification", stdout=out)
+        return out.getvalue()
+
+    def counts(self):
+        return (
+            Categorie.objects.count(),
+            Grade.objects.count(),
+            Echelon.objects.count(),
+            EntreeAudit.objects.count(),
+        )
+
+    @override_settings(DEBUG=False)
+    def test_refuses_without_debug(self):
+        with self.assertRaises(CommandError):
+            self.run_command()
+        self.assertFalse(Categorie.objects.exists())
+
+    @override_settings(DEBUG=True)
+    def test_creates_a_valid_grid_once(self):
+        output = self.run_command()
+
+        self.assertIn("54 créés", output)  # 4 catégories, 10 grades, 40 échelons
+        self.assertEqual(
+            list(Categorie.objects.values_list("code", flat=True)), ["CD", "CC", "AM", "AE"]
+        )
+        for model in (Categorie, Grade, Echelon):
+            for obj in model.objects.all():
+                obj.full_clean()  # every rule holds
+        today = timezone.localdate()
+        self.assertEqual(Grade.objects.ouvertes(today).count(), 9)
+        open_grades = Grade.objects.ouvertes(today)
+        for cat in Categorie.objects.all():
+            self.assertIn(open_grades.filter(categorie=cat).count(), (2, 3), cat.code)
+        self.assertTrue(all(3 <= g.echelons.count() <= 5 for g in Grade.objects.all()))
+        self.assertFalse(
+            EntreeAudit.objects.filter(module="referentiels", table__model="grade")
+            .exclude(auteur=None)
+            .exists()
+        )
+
+        # The reformed grade: the old scale until 2025, the new one since, same code.
+        old, new = Grade.objects.filter(code="AT2").order_by("date_ouverture")
+        self.assertEqual((old.date_fermeture, new.date_ouverture), (date(2025, 1, 1),) * 2)
+        self.assertEqual(old.echelons.filter(date_fermeture=date(2025, 1, 1)).count(), 3)
+        self.assertEqual(Grade.objects.ouvertes(date(2024, 12, 31)).get(code="AT2"), old)
+        self.assertEqual(Grade.objects.ouvertes(today).get(code="AT2"), new)
+        self.assertEqual(Echelon.objects.ouvertes(today).filter(grade=new).count(), 5)
+
+        before = self.counts()
+        self.assertIn("0 créés", self.run_command())
+        self.assertEqual(self.counts(), before)
