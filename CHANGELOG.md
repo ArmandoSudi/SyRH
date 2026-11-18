@@ -16,7 +16,10 @@ the work is merged.
   Django admin; a new read-only "Classification" tab shows the grid as a tree at any date. Run
   `migrate`; `create_demo_classification` loads a demo grid. The real grid is open question `Q28`.
   On phones, the Référentiels toolbar buttons now wrap instead of overflowing the card.
-<!-- commits: bcbedcb 1bba339 04cd9da e52a536 dd57ad6 02fe759 29f0647 92abaf4 85f9906 5fd4253 -->
+- User guide for end users in `docs/user-guide.md`, with screenshots of each screen, plus a
+  self-contained `docs/user-guide.html` to email or print. Retake the screenshots with
+  `docs/capture_screenshots.py` and rebuild the HTML with `docs/build_user_guide.py`.
+<!-- commits: bcbedcb 1bba339 04cd9da e52a536 dd57ad6 02fe759 29f0647 92abaf4 85f9906 5fd4253 6e72f82 -->
 
 ## 2026-11-17
 
