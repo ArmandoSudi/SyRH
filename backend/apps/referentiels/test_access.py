@@ -29,6 +29,11 @@ EDITORS = {
 }
 UNITES = "/api/referentiels/unites/"
 SITES = "/api/referentiels/sites/"
+CATEGORIES = "/api/referentiels/categories/"
+GRADES = "/api/referentiels/grades/"
+ECHELONS = "/api/referentiels/echelons/"
+CLASSIFICATION = (CATEGORIES, GRADES, ECHELONS)
+D2020 = date(2020, 1, 1)
 D2015 = date(2015, 1, 1)
 D2025 = date(2025, 7, 1)
 
@@ -384,6 +389,137 @@ class ApiTests(TestCase):
                 date_ouverture=D2015,
             )  # fmt: skip
         self.assertEqual(count(), before)
+
+
+class ClassificationApiTests(TestCase):
+    """GET /api/referentiels/{categories,grades,echelons}/ (classification D24 to D26)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.am = Categorie.objects.create(code="AM", nom="Maîtrise", rang=2, date_ouverture=D2015)
+        cls.cd = Categorie.objects.create(code="CD", nom="Cadres", rang=4, date_ouverture=D2015)
+        cls.m1 = Grade.objects.create(
+            code="M1", nom="Agent de maîtrise", categorie=cls.am, rang=1, date_ouverture=D2015
+        )
+        cls.a2 = Grade.objects.create(
+            code="A2", nom="Attaché 2", categorie=cls.cd, rang=1, date_ouverture=D2015
+        )
+        # A1 reformed on 2020-01-01: the old grade and its échelon close, a successor opens.
+        cls.old = Grade.objects.create(
+            code="A1", nom="Attaché (ancien)", categorie=cls.cd, rang=2,
+            date_ouverture=D2015, date_fermeture=D2020,
+        )  # fmt: skip
+        cls.old_step = Echelon.objects.create(
+            grade=cls.old, numero=1, date_ouverture=D2015, date_fermeture=D2020
+        )
+        cls.new = Grade.objects.create(
+            code="A1", nom="Attaché (réformé)", categorie=cls.cd, rang=2, date_ouverture=D2020
+        )
+        cls.steps = [
+            Echelon.objects.create(grade=g, numero=n, date_ouverture=D2020)
+            for g, n in ((cls.a2, 2), (cls.new, 1), (cls.a2, 1), (cls.m1, 1))
+        ]
+        cls.users = {name: member(slug, name) for name, (slug, _) in GROUPS.items()}
+        cls.nobody = member("personne")
+
+    def get(self, url, user="Auditeur", **params):
+        client = APIClient()
+        if user is not None:
+            client.force_authenticate(self.users.get(user, user))
+        return client.get(url, params)
+
+    def ids(self, url, **params):
+        return [row["id"] for row in self.get(url, **params).json()]
+
+    def test_access(self):
+        for url in CLASSIFICATION:
+            with self.subTest(url):
+                self.assertEqual(self.get(url, None).status_code, 401)
+                self.assertEqual(self.get(url, self.nobody).status_code, 403)
+                for name in self.users:
+                    self.assertEqual(self.get(url, name).status_code, 200, name)
+
+    def test_open_today_by_default_at_a_date_or_all(self):
+        self.assertNotIn(self.old.pk, self.ids(GRADES))
+        self.assertIn(self.new.pk, self.ids(GRADES))
+
+        past = self.ids(GRADES, date="2019-12-31")
+        self.assertIn(self.old.pk, past)
+        self.assertNotIn(self.new.pk, past)
+        self.assertEqual(self.ids(ECHELONS, date="2019-12-31"), [self.old_step.pk])
+
+        everything = self.ids(GRADES, toutes="1")
+        self.assertTrue({self.old.pk, self.new.pk} <= set(everything))
+        self.assertEqual(len(self.ids(ECHELONS, toutes="1")), 5)
+
+    def test_grid_order(self):
+        self.assertEqual(self.ids(CATEGORIES), [self.cd.pk, self.am.pk])
+        self.assertEqual(self.ids(GRADES), [self.new.pk, self.a2.pk, self.m1.pk])
+        self.assertEqual(
+            [row["libelle"] for row in self.get(ECHELONS).json()],
+            ["A1 — Échelon 1", "A2 — Échelon 1", "A2 — Échelon 2", "M1 — Échelon 1"],
+        )
+
+    def test_fields(self):
+        cat = next(r for r in self.get(CATEGORIES).json() if r["id"] == self.cd.pk)
+        self.assertEqual(
+            {k: cat[k] for k in ("code", "nom", "rang", "date_ouverture", "date_fermeture")},
+            {"code": "CD", "nom": "Cadres", "rang": 4, "date_ouverture": "2015-01-01",
+             "date_fermeture": None},
+        )  # fmt: skip
+        self.assertIn("date_modification", cat)
+
+        grade = next(r for r in self.get(GRADES).json() if r["id"] == self.new.pk)
+        self.assertEqual(
+            {k: grade[k] for k in ("categorie", "code", "nom", "rang", "date_ouverture")},
+            {"categorie": self.cd.pk, "code": "A1", "nom": "Attaché (réformé)", "rang": 2,
+             "date_ouverture": "2020-01-01"},
+        )  # fmt: skip
+
+        step = self.get(ECHELONS).json()[0]
+        self.assertEqual(
+            {k: step[k] for k in ("grade", "numero", "libelle", "date_fermeture")},
+            {"grade": self.new.pk, "numero": 1, "libelle": "A1 — Échelon 1",
+             "date_fermeture": None},
+        )  # fmt: skip
+        self.assertIn("cree_par", step)
+
+    def test_invalid_date_is_refused_per_field(self):
+        for url in CLASSIFICATION:
+            with self.subTest(url):
+                response = self.get(url, date="31/12/2025")
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("date", response.json())
+
+    def test_writes_are_refused(self):
+        client = APIClient()
+        client.force_authenticate(self.users["Gestion de carrière"])
+        for url, obj in zip(CLASSIFICATION, (self.cd, self.a2, self.steps[0]), strict=True):
+            detail = f"{url}{obj.pk}/"
+            with self.subTest(url):
+                self.assertEqual(client.post(url, {}).status_code, 405)
+                self.assertEqual(client.put(detail, {}).status_code, 405)
+                self.assertEqual(client.patch(detail, {}).status_code, 405)
+                self.assertEqual(client.delete(detail).status_code, 405)
+
+    def test_query_count_does_not_grow_with_rows(self):
+        def count(url):
+            with CaptureQueriesContext(connection) as queries:
+                self.get(url, toutes="1")
+            return len(queries)
+
+        for url in CLASSIFICATION:
+            count(url)  # the first request also loads the user's permissions
+        before = {url: count(url) for url in CLASSIFICATION}
+
+        for i in range(10):
+            cat = Categorie.objects.create(code=f"C{i}", nom="x", rang=10 + i, date_ouverture=D2015)
+            grade = Grade.objects.create(
+                code=f"G{i}", nom="x", categorie=cat, rang=1, date_ouverture=D2015
+            )
+            Echelon.objects.create(grade=grade, numero=1, date_ouverture=D2015)
+
+        self.assertEqual({url: count(url) for url in CLASSIFICATION}, before)
 
 
 class DemoOrganisationTests(TestCase):

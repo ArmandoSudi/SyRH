@@ -4,7 +4,7 @@ from rest_framework import serializers
 from apps.core.models import BASE_FIELDS
 from apps.core.serializers import BaseModelSerializer
 
-from .models import Site, UniteOrganisationnelle
+from .models import Categorie, Echelon, Grade, Site, UniteOrganisationnelle
 
 
 class SiteSerializer(BaseModelSerializer):
@@ -33,6 +33,43 @@ class UniteOrganisationnelleSerializer(BaseModelSerializer):
             "type_libelle",
             "parent",
             "site",
+            "date_ouverture",
+            "date_fermeture",
+            *BASE_FIELDS,
+        ]
+
+
+class CategorieSerializer(BaseModelSerializer):
+    class Meta:
+        model = Categorie
+        fields = ["id", "code", "nom", "rang", "date_ouverture", "date_fermeture", *BASE_FIELDS]
+
+
+class GradeSerializer(BaseModelSerializer):
+    class Meta:
+        model = Grade
+        fields = [
+            "id",
+            "categorie",
+            "code",
+            "nom",
+            "rang",
+            "date_ouverture",
+            "date_fermeture",
+            *BASE_FIELDS,
+        ]
+
+
+class EchelonSerializer(BaseModelSerializer):
+    libelle = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = Echelon
+        fields = [
+            "id",
+            "grade",
+            "numero",
+            "libelle",
             "date_ouverture",
             "date_fermeture",
             *BASE_FIELDS,

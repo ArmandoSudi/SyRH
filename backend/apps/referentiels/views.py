@@ -2,8 +2,15 @@ from rest_framework import viewsets
 
 from apps.accounts.permissions import HasModuleAccess
 
-from .models import Site, UniteOrganisationnelle
-from .serializers import PeriodeSerializer, SiteSerializer, UniteOrganisationnelleSerializer
+from .models import Categorie, Echelon, Grade, Site, UniteOrganisationnelle
+from .serializers import (
+    CategorieSerializer,
+    EchelonSerializer,
+    GradeSerializer,
+    PeriodeSerializer,
+    SiteSerializer,
+    UniteOrganisationnelleSerializer,
+)
 
 
 class PeriodeMixin:
@@ -39,3 +46,28 @@ class UniteOrganisationnelleViewSet(PeriodeMixin, viewsets.ReadOnlyModelViewSet)
 
     def open_on(self, queryset, day):
         return queryset.ouvertes(day)
+
+
+class ClassificationViewSet(PeriodeMixin, viewsets.ReadOnlyModelViewSet):
+    """Classification rows as flat lists with parent ids, in grid order (classification
+    D24, D25). Read-only: they are edited in Django admin until phase 1.9."""
+
+    permission_classes = [HasModuleAccess("referentiels")]
+
+    def open_on(self, queryset, day):
+        return queryset.ouvertes(day)
+
+
+class CategorieViewSet(ClassificationViewSet):
+    serializer_class = CategorieSerializer
+    queryset = Categorie.objects.all()
+
+
+class GradeViewSet(ClassificationViewSet):
+    serializer_class = GradeSerializer
+    queryset = Grade.objects.all()
+
+
+class EchelonViewSet(ClassificationViewSet):
+    serializer_class = EchelonSerializer
+    queryset = Echelon.objects.select_related("grade")  # the label shows the grade code
