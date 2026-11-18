@@ -50,25 +50,46 @@ export function buildTree(unites: Unite[]): UniteNode[] {
 
 /** Lower case, without accents, so "departement" finds "Département". */
 function normalise(text: string): string {
-  return text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
+  return text
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
 }
 
-/** Units whose code or name contains the text, with their ancestors. */
-export function filterTree(nodes: UniteNode[], text: string): UniteNode[] {
+/** A tree node the filter and "expand all" can walk: the organisation's or the grid's. */
+export interface Branch<N extends TreeNode> extends TreeNode {
+  key: string
+  data: { code: string; nom: string }
+  children: N[]
+}
+
+function codeAndName(node: Branch<TreeNode>): string {
+  return `${node.data.code} ${node.data.nom}`
+}
+
+/**
+ * Nodes whose search text contains the text, with their ancestors. The search
+ * text is the code and name unless the caller says otherwise.
+ */
+export function filterTree<N extends Branch<N>>(
+  nodes: N[],
+  text: string,
+  label: (node: N) => string = codeAndName,
+): N[] {
   const wanted = normalise(text.trim())
   if (!wanted) return nodes
-  const keep = (node: UniteNode): UniteNode | null => {
-    const children = node.children.map(keep).filter((child): child is UniteNode => !!child)
-    const matches = normalise(`${node.data.code} ${node.data.nom}`).includes(wanted)
+  const keep = (node: N): N | null => {
+    const children = node.children.map(keep).filter((child): child is N => !!child)
+    const matches = normalise(label(node)).includes(wanted)
     return matches || children.length ? { ...node, children } : null
   }
-  return nodes.map(keep).filter((node): node is UniteNode => !!node)
+  return nodes.map(keep).filter((node): node is N => !!node)
 }
 
 /** Every key that has children, for "expand all". */
-export function expandedKeys(nodes: UniteNode[]): Record<string, boolean> {
+export function expandedKeys<N extends Branch<N>>(nodes: N[]): Record<string, boolean> {
   const keys: Record<string, boolean> = {}
-  const walk = (list: UniteNode[]) => {
+  const walk = (list: N[]) => {
     for (const node of list) {
       if (node.children.length) {
         keys[node.key] = true

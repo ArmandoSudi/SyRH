@@ -28,6 +28,41 @@ export interface Unite {
   date_fermeture: string | null
 }
 
+/** A row of the grid, open from date_ouverture to date_fermeture excluded. */
+interface Periode {
+  id: number
+  date_ouverture: string
+  /** First day the row no longer exists, YYYY-MM-DD. */
+  date_fermeture: string | null
+}
+
+export interface Categorie extends Periode {
+  code: string
+  nom: string
+  /** A higher rank is a higher catégorie. */
+  rang: number
+}
+
+export interface Grade extends Periode {
+  categorie: number
+  code: string
+  nom: string
+  /** Rank within the catégorie; a higher rank is a higher grade. */
+  rang: number
+}
+
+export interface Echelon extends Periode {
+  grade: number
+  numero: number
+  /** "A1 — Échelon 3" */
+  libelle: string
+}
+
+export interface PeriodeOptions {
+  date?: string
+  toutes?: boolean
+}
+
 function query(params: Record<string, string | undefined>): string {
   const search = new URLSearchParams()
   for (const [key, value] of Object.entries(params)) {
@@ -49,4 +84,23 @@ export function fetchSites(options: { toutes?: boolean } = {}): Promise<Site[]> 
   return request<Site[]>(
     `/api/referentiels/sites/${query({ toutes: options.toutes ? '1' : undefined })}`,
   )
+}
+
+function periode(options: PeriodeOptions): string {
+  return query({ date: options.date, toutes: options.toutes ? '1' : undefined })
+}
+
+/** Catégories open on a date (the API defaults to today), highest first, or all with toutes. */
+export function fetchCategories(options: PeriodeOptions = {}): Promise<Categorie[]> {
+  return request<Categorie[]>(`/api/referentiels/categories/${periode(options)}`)
+}
+
+/** Grades open on a date, in grid order, or all with toutes. */
+export function fetchGrades(options: PeriodeOptions = {}): Promise<Grade[]> {
+  return request<Grade[]>(`/api/referentiels/grades/${periode(options)}`)
+}
+
+/** Échelons open on a date, in grid order, or all with toutes. */
+export function fetchEchelons(options: PeriodeOptions = {}): Promise<Echelon[]> {
+  return request<Echelon[]>(`/api/referentiels/echelons/${periode(options)}`)
 }
