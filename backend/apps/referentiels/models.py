@@ -1,8 +1,11 @@
-"""Reference data (roadmap milestone 1). Organisation: sites and organisation units.
+"""Reference data (roadmap milestone 1).
 
-See specs/2026-11-18-organisation/requirements.md. Rules that only read the
-row itself are database constraints; rules that read other rows (levels,
-periods, fixed fields) live in check_rules(), called by clean() and save().
+Organisation: sites and organisation units (specs/2026-11-18-organisation).
+Classification: catégories, grades, échelons (specs/2026-11-18-classification).
+
+Rules that only read the row itself are database constraints; rules that read
+other rows (levels, periods, fixed fields) live in check_rules(), called by
+clean() and save().
 """
 
 from datetime import date
@@ -274,6 +277,102 @@ class UniteOrganisationnelle(BaseModel):
                 )
 
         raise_if(errors)
+
+    def clean(self):
+        super().clean()
+        self.check_rules()
+
+    def save(self, **kwargs):
+        self.check_rules()
+        super().save(**kwargs)
+
+
+def closing_after_opening(name: str) -> models.CheckConstraint:
+    """A closing date, when set, is after the opening date."""
+    return models.CheckConstraint(
+        condition=Q(date_fermeture__isnull=True) | Q(date_fermeture__gt=F("date_ouverture")),
+        name=name,
+        violation_error_message=(
+            "La date de fermeture doit être postérieure à la date d'ouverture."
+        ),
+    )
+
+
+def unique_per_period(name: str, *keys: str, message: str) -> ExclusionConstraint:
+    """No two rows with the same keys over overlapping periods (classification D12)."""
+    return ExclusionConstraint(
+        name=name,
+        expressions=[
+            *((key, RangeOperators.EQUAL) for key in keys),
+            (
+                DateRange("date_ouverture", "date_fermeture", Value("[)")),
+                RangeOperators.OVERLAPS,
+            ),
+        ],
+        violation_error_message=message,
+    )
+
+
+class CategorieQuerySet(BaseQuerySet):
+    def ouvertes(self, day: date):
+        return self.filter(date_ouverture__lte=day).filter(open_on(day))
+
+
+class Categorie(BaseModel):
+    """A catégorie of the grid, such as Cadres de direction (classification D1, D2, D6).
+
+    Open from date_ouverture included to date_fermeture excluded (D9). A higher
+    rank is a higher position (D7).
+    """
+
+    module = "referentiels"
+
+    code = models.CharField("code", max_length=20)
+    nom = models.CharField("nom", max_length=150)
+    rang = models.PositiveSmallIntegerField(
+        "rang", help_text="Un rang plus élevé désigne une catégorie plus élevée."
+    )
+    date_ouverture = models.DateField("date d'ouverture")
+    date_fermeture = models.DateField(
+        "date de fermeture",
+        null=True,
+        blank=True,
+        help_text="Premier jour où la catégorie n'existe plus.",
+    )
+
+    objects = CategorieQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "catégorie"
+        verbose_name_plural = "catégories"
+        ordering = ["-rang", "date_ouverture"]
+        default_permissions = NO_DELETE
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(rang__gt=0),
+                name="categorie_rang_positif",
+                violation_error_message="Le rang doit être supérieur à zéro.",
+            ),
+            closing_after_opening("categorie_fermeture_apres_ouverture"),
+            unique_per_period(
+                "categorie_code_unique_par_periode",
+                "code",
+                message="Une autre catégorie porte déjà ce code sur une partie de cette période.",
+            ),
+            unique_per_period(
+                "categorie_rang_unique_par_periode",
+                "rang",
+                message="Une autre catégorie a déjà ce rang sur une partie de cette période.",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.code} — {self.nom}"
+
+    def check_rules(self) -> None:
+        """Normalise the code. Rules on grades come with the Grade model."""
+        if self.code:
+            self.code = self.code.strip().upper()
 
     def clean(self):
         super().clean()
