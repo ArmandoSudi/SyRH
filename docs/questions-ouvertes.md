@@ -80,6 +80,14 @@ En attendant, le MVP traite chaque point comme un **paramètre** ou applique l'h
   - Hypothèse en attendant : quatre niveaux ; la Direction générale et chaque représentation
     provinciale sont enregistrées comme des directions. Les RH saisissent la structure réelle
     dans l'administration.
+- [ ] **Q28 — Grille de classification de l'ARPTC.** Quelles sont les catégories et les grades,
+  avec leur sigle et leur ordre, et combien d'échelons compte chaque grade ? Un grade
+  appartient-il toujours à une seule catégorie ? Les échelons sont-ils numérotés à partir de 1
+  dans chaque grade ?
+  - Concerne : section 4.1 (catégories, grades, échelons), CAR-06, REM-24, roadmap 1.2.
+  - Hypothèse en attendant : trois niveaux imbriqués (catégorie, grade, échelon), chaque grade
+    dans une seule catégorie, échelons numérotés par grade. Les RH saisissent la grille réelle
+    dans l'administration.
 
 ## 6. Circuits de validation
 

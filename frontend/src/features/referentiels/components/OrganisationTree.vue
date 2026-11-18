@@ -227,8 +227,11 @@ onMounted(load)
     min-width: 0;
   }
 
+  /* The buttons wrap rather than stick out of the card on a phone. */
   .actions {
+    flex-wrap: wrap;
     margin-left: 0;
+    white-space: normal;
   }
 }
 </style>

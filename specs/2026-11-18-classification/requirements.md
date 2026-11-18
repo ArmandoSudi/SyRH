@@ -156,7 +156,14 @@ and the pattern of phase 1.1.
 
 | # | Decision | Reason |
 | --- | --- | --- |
-| | *(to fill during implementation)* | |
+| D34 | Catégories and grades sort **highest rank first** (`-rang`), not by ascending rank as the plan said. | D7 and the walkthrough put the top of the grid first; the API, admin lists and tree all follow the model's ordering. |
+| D35 | The three models share one `ClassificationRules` class (fixed parent, period within the parent's, children within the row's period), configured per model by its parent field, children and French words. Two constraint helpers, `closing_after_opening()` and `unique_per_period()`, build the check and exclusion constraints. The organisation models are unchanged. | One rule set for three tables instead of three copies; the next dated reference tables can use the helpers. |
+| D36 | The rules also refuse moving a catégorie's or grade's opening date after one of its children's. | The other half of D13, as for organisation units. |
+| D37 | The admin status filter ("Ouvert aujourd'hui / Fermé") is shared by every table: `ouverts()` for sites, `ouvertes()` for the rest. | It tested for the unit model only; the classification querysets use the same method name. |
+| D38 | The editor permission tests live in `referentiels/test_access.py`, beside the organisation's, not in `accounts/test_roles.py` as the plan said. | That is where phase 1.1 put them. |
+| D39 | The tree filter takes an optional search-text function; an échelon is searched by its label (`AT1 — Échelon 2`), so filtering on a grade code keeps its échelons. | Without it, a match on a grade would hide its échelons, which the walkthrough expects to see. |
+| D40 | The classification's date, filter and expanded rows sit in one `classification` object in the store, beside the organisation's fields. | Keeps the two trees apart (D30) without renaming the organisation's fields. |
+| D41 | Below 640 px, the "Tout déplier" and "Tout replier" buttons wrap onto their own lines, in both trees. | Found in the walkthrough: at 375 px the button row kept `white-space: nowrap` and stuck 8 px out of the card. The organisation tree had the same fault since phase 1.1. |
 
 ## Open points
 
