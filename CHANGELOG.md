@@ -12,8 +12,13 @@ the work is merged.
   `create_demo_fonctions` loads a demo list. The real list is open question `Q29`.
 - A closing date before the opening date no longer crashes Django admin on units, catégories,
   grades and échelons: the form shows the message next to "Date de fermeture".
-- The user guide covers the Fonctions tab; its screenshots were retaken.
-<!-- commits: f3da417 f0aacb2 785feed 870644e c2c5bfb 26d8ba0 573c301 -->
+- Contract types (roadmap 1.4): CDI, CDD, stage, journalier as dated reference data, each with
+  two rules for the contract phase, "Durée déterminée" (end date required) and "Période
+  d'essai" (probation allowed). Same editors in Django admin; a new read-only "Types de contrat"
+  tab. Run `migrate`; `create_demo_types_contrat` loads demo types. The real list is open
+  question `Q30`.
+- The user guide covers the Fonctions and Types de contrat tabs; its screenshots were retaken.
+<!-- commits: f3da417 f0aacb2 785feed 870644e c2c5bfb 26d8ba0 573c301 e5031ce 3554bcb 8d0d343 cfe667d ad9b38e 5576e63 8fbb1d5 -->
 
 ## 2026-11-18
 
