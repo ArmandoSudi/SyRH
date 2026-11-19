@@ -44,6 +44,7 @@ GRADES = "/api/referentiels/grades/"
 ECHELONS = "/api/referentiels/echelons/"
 CLASSIFICATION = (CATEGORIES, GRADES, ECHELONS)
 FONCTIONS = "/api/referentiels/fonctions/"
+TYPES_CONTRAT = "/api/referentiels/types-contrat/"
 D2020 = date(2020, 1, 1)
 D2015 = date(2015, 1, 1)
 D2025 = date(2025, 7, 1)
@@ -771,6 +772,73 @@ class FonctionApiTests(TestCase):
         client.force_authenticate(self.users["Gestion de carrière"])
         detail = f"{FONCTIONS}{self.jur.pk}/"
         self.assertEqual(client.post(FONCTIONS, {}).status_code, 405)
+        self.assertEqual(client.put(detail, {}).status_code, 405)
+        self.assertEqual(client.patch(detail, {}).status_code, 405)
+        self.assertEqual(client.delete(detail).status_code, 405)
+
+
+class TypeContratApiTests(TestCase):
+    """GET /api/referentiels/types-contrat/ (contract types D16 to D18)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        def create(code, nom, fixe, essai, fin=None):
+            return TypeContrat.objects.create(
+                code=code, nom=nom, duree_determinee=fixe, periode_essai=essai,
+                date_ouverture=D2015, date_fermeture=fin,
+            )  # fmt: skip
+
+        cls.stg = create("STG", "Stage", True, False)
+        cls.cdi = create("CDI", "Contrat à durée indéterminée", False, True)
+        cls.jrn = create("JRN", "Journalier", False, False)
+        cls.app = create("APP", "Contrat d'apprentissage", True, False, fin=D2020)  # retired
+        cls.users = {name: member(slug, name) for name, (slug, _) in GROUPS.items()}
+        cls.nobody = member("personne")
+
+    def get(self, user="Auditeur", **params):
+        client = APIClient()
+        if user is not None:
+            client.force_authenticate(self.users.get(user, user))
+        return client.get(TYPES_CONTRAT, params)
+
+    def ids(self, **params):
+        return [row["id"] for row in self.get(**params).json()]
+
+    def test_access(self):
+        self.assertEqual(self.get(None).status_code, 401)
+        self.assertEqual(self.get(self.nobody).status_code, 403)
+        for name in self.users:
+            with self.subTest(name):
+                self.assertEqual(self.get(name).status_code, 200)
+
+    def test_open_today_by_default_at_a_date_or_all_by_name(self):
+        self.assertEqual(self.ids(), [self.cdi.pk, self.jrn.pk, self.stg.pk])
+        self.assertEqual(
+            self.ids(date="2019-12-31"), [self.cdi.pk, self.app.pk, self.jrn.pk, self.stg.pk]
+        )
+        self.assertEqual(len(self.ids(toutes="1")), 4)
+
+    def test_fields(self):
+        row = next(r for r in self.get().json() if r["id"] == self.stg.pk)
+        self.assertEqual(
+            {k: row[k] for k in ("code", "nom", "duree_determinee", "periode_essai",
+                                 "date_ouverture", "date_fermeture")},
+            {"code": "STG", "nom": "Stage", "duree_determinee": True, "periode_essai": False,
+             "date_ouverture": "2015-01-01", "date_fermeture": None},
+        )  # fmt: skip
+        self.assertIn("cree_par", row)
+        self.assertIn("date_modification", row)
+
+    def test_invalid_date_is_refused_per_field(self):
+        response = self.get(date="31/12/2025")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("date", response.json())
+
+    def test_writes_are_refused(self):
+        client = APIClient()
+        client.force_authenticate(self.users["Gestion de carrière"])
+        detail = f"{TYPES_CONTRAT}{self.cdi.pk}/"
+        self.assertEqual(client.post(TYPES_CONTRAT, {}).status_code, 405)
         self.assertEqual(client.put(detail, {}).status_code, 405)
         self.assertEqual(client.patch(detail, {}).status_code, 405)
         self.assertEqual(client.delete(detail).status_code, 405)

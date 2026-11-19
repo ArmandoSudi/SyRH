@@ -4,7 +4,15 @@ from rest_framework import serializers
 from apps.core.models import BASE_FIELDS
 from apps.core.serializers import BaseModelSerializer
 
-from .models import Categorie, Echelon, Fonction, Grade, Site, UniteOrganisationnelle
+from .models import (
+    Categorie,
+    Echelon,
+    Fonction,
+    Grade,
+    Site,
+    TypeContrat,
+    UniteOrganisationnelle,
+)
 
 
 class SiteSerializer(BaseModelSerializer):
@@ -89,6 +97,23 @@ class FonctionSerializer(BaseModelSerializer):
             "nom",
             "nature",
             "nature_libelle",
+            "date_ouverture",
+            "date_fermeture",
+            *BASE_FIELDS,
+        ]
+
+
+class TypeContratSerializer(BaseModelSerializer):
+    """A contract type with the two rules phase 2.3 reads (contract types D17)."""
+
+    class Meta:
+        model = TypeContrat
+        fields = [
+            "id",
+            "code",
+            "nom",
+            "duree_determinee",
+            "periode_essai",
             "date_ouverture",
             "date_fermeture",
             *BASE_FIELDS,

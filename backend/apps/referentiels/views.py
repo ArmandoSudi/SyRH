@@ -2,7 +2,15 @@ from rest_framework import viewsets
 
 from apps.accounts.permissions import HasModuleAccess
 
-from .models import Categorie, Echelon, Fonction, Grade, Site, UniteOrganisationnelle
+from .models import (
+    Categorie,
+    Echelon,
+    Fonction,
+    Grade,
+    Site,
+    TypeContrat,
+    UniteOrganisationnelle,
+)
 from .serializers import (
     CategorieSerializer,
     EchelonSerializer,
@@ -10,6 +18,7 @@ from .serializers import (
     GradeSerializer,
     PeriodeSerializer,
     SiteSerializer,
+    TypeContratSerializer,
     UniteOrganisationnelleSerializer,
 )
 
@@ -81,6 +90,18 @@ class FonctionViewSet(PeriodeMixin, viewsets.ReadOnlyModelViewSet):
     permission_classes = [HasModuleAccess("referentiels")]
     serializer_class = FonctionSerializer
     queryset = Fonction.objects.all()
+
+    def open_on(self, queryset, day):
+        return queryset.ouvertes(day)
+
+
+class TypeContratViewSet(PeriodeMixin, viewsets.ReadOnlyModelViewSet):
+    """Contract types by name, with their rules (contract types D16 to D18).
+    Read-only: they are edited in Django admin until phase 1.9."""
+
+    permission_classes = [HasModuleAccess("referentiels")]
+    serializer_class = TypeContratSerializer
+    queryset = TypeContrat.objects.all()
 
     def open_on(self, queryset, day):
         return queryset.ouvertes(day)
