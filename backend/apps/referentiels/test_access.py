@@ -53,6 +53,8 @@ FONCTIONS = "/api/referentiels/fonctions/"
 TYPES_CONTRAT = "/api/referentiels/types-contrat/"
 TYPES_DOCUMENT = "/api/referentiels/types-document/"
 PIECES = "/api/referentiels/pieces-requises/"
+MOTIFS = "/api/referentiels/motifs-sortie/"
+SUSPENSIONS = "/api/referentiels/types-suspension/"
 D2020 = date(2020, 1, 1)
 D2015 = date(2015, 1, 1)
 D2025 = date(2025, 7, 1)
@@ -1206,6 +1208,127 @@ class PiecesApiTests(TestCase):
                 evenement="mariage", type_document=doc, obligatoire=True, date_ouverture=D2015
             )
         self.assertEqual(count(), before)
+
+
+class SortiesApiTests(TestCase):
+    """GET /api/referentiels/motifs-sortie/ and /types-suspension/ (exit reasons D18, D19)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.ldm = TypeDocument.objects.create(
+            code="LDM", nom="Lettre de démission", date_ouverture=D2015
+        )
+        cls.dec = TypeDocument.objects.create(code="DEC", nom="Décision", date_ouverture=D2015)
+
+        def motif(code, nom, **extra):
+            return MotifSortie.objects.create(
+                code=code, nom=nom, type_document=extra.pop("doc", cls.ldm),
+                date_ouverture=extra.pop("debut", D2015), **extra,
+            )  # fmt: skip
+
+        cls.ret = motif("RET", "Retraite pour ancienneté", doc=cls.dec, retraite=True)
+        cls.dem = motif("DEM", "Démission")
+        # Resignation's document changed on 2020-01-01: the old row closes.
+        cls.old = motif("DEMO", "Ancienne démission", date_fermeture=D2020)
+        cls.dispo = TypeSuspension.objects.create(
+            code="DISPO", nom="Mise en disponibilité", type_document=cls.dec,
+            compte_anciennete=False, duree_max_mois=24, renouvellements_max=1,
+            date_ouverture=D2015,
+        )  # fmt: skip
+        cls.deta = TypeSuspension.objects.create(
+            code="DETA", nom="Détachement", type_document=cls.dec, compte_anciennete=True,
+            date_ouverture=D2015,
+        )  # fmt: skip
+        cls.users = {name: member(slug, name) for name, (slug, _) in GROUPS.items()}
+        cls.nobody = member("personne")
+
+    def get(self, url, user="Auditeur", **params):
+        client = APIClient()
+        if user is not None:
+            client.force_authenticate(self.users.get(user, user))
+        return client.get(url, params)
+
+    def ids(self, url, **params):
+        return [row["id"] for row in self.get(url, **params).json()]
+
+    def test_access(self):
+        for url in (MOTIFS, SUSPENSIONS):
+            with self.subTest(url):
+                self.assertEqual(self.get(url, None).status_code, 401)
+                self.assertEqual(self.get(url, self.nobody).status_code, 403)
+                for name in self.users:
+                    self.assertEqual(self.get(url, name).status_code, 200, name)
+
+    def test_open_today_by_default_at_a_date_or_all_by_name(self):
+        self.assertEqual(self.ids(MOTIFS), [self.dem.pk, self.ret.pk])
+        self.assertEqual(
+            self.ids(MOTIFS, date="2019-12-31"), [self.old.pk, self.dem.pk, self.ret.pk]
+        )
+        self.assertEqual(len(self.ids(MOTIFS, toutes="1")), 3)
+        self.assertEqual(self.ids(SUSPENSIONS), [self.deta.pk, self.dispo.pk])
+        self.assertEqual(self.ids(SUSPENSIONS, date="2014-12-31"), [])
+
+    def test_fields(self):
+        row = self.get(MOTIFS).json()[1]
+        self.assertEqual(
+            {k: row[k] for k in ("id", "code", "nom", "type_document", "type_document_libelle",
+                                 "retraite", "deces", "date_ouverture", "date_fermeture")},
+            {"id": self.ret.pk, "code": "RET", "nom": "Retraite pour ancienneté",
+             "type_document": self.dec.pk, "type_document_libelle": "DEC — Décision",
+             "retraite": True, "deces": False, "date_ouverture": "2015-01-01",
+             "date_fermeture": None},
+        )  # fmt: skip
+        self.assertIn("cree_par", row)
+
+        deta, dispo = self.get(SUSPENSIONS).json()
+        keys = ("type_document_libelle", "compte_anciennete", "duree_max_mois",
+                "renouvellements_max")  # fmt: skip
+        self.assertEqual({k: deta[k] for k in keys}, {
+            "type_document_libelle": "DEC — Décision", "compte_anciennete": True,
+            "duree_max_mois": None, "renouvellements_max": None})  # fmt: skip
+        self.assertEqual({k: dispo[k] for k in keys}, {
+            "type_document_libelle": "DEC — Décision", "compte_anciennete": False,
+            "duree_max_mois": 24, "renouvellements_max": 1})  # fmt: skip
+        self.assertIn("date_modification", dispo)
+
+    def test_invalid_date_is_refused_per_field(self):
+        for url in (MOTIFS, SUSPENSIONS):
+            with self.subTest(url):
+                response = self.get(url, date="31/12/2025")
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("date", response.json())
+
+    def test_writes_are_refused(self):
+        client = APIClient()
+        client.force_authenticate(self.users["Gestion de carrière"])
+        for url, obj in ((MOTIFS, self.dem), (SUSPENSIONS, self.deta)):
+            detail = f"{url}{obj.pk}/"
+            with self.subTest(url):
+                self.assertEqual(client.post(url, {}).status_code, 405)
+                self.assertEqual(client.put(detail, {}).status_code, 405)
+                self.assertEqual(client.patch(detail, {}).status_code, 405)
+                self.assertEqual(client.delete(detail).status_code, 405)
+
+    def test_query_count_does_not_grow_with_rows(self):
+        def count(url):
+            with CaptureQueriesContext(connection) as queries:
+                self.get(url, toutes="1")
+            return len(queries)
+
+        for url in (MOTIFS, SUSPENSIONS):
+            count(url)  # the first request also loads the user's permissions
+        before = {url: count(url) for url in (MOTIFS, SUSPENSIONS)}
+
+        for i in range(10):
+            doc = TypeDocument.objects.create(code=f"D{i}", nom="x", date_ouverture=D2015)
+            MotifSortie.objects.create(code=f"M{i}", nom="x", type_document=doc,
+                                       date_ouverture=D2015)  # fmt: skip
+            TypeSuspension.objects.create(
+                code=f"S{i}", nom="x", type_document=doc, compte_anciennete=False,
+                date_ouverture=D2015,
+            )  # fmt: skip
+
+        self.assertEqual({url: count(url) for url in (MOTIFS, SUSPENSIONS)}, before)
 
 
 class DemoOrganisationTests(TestCase):

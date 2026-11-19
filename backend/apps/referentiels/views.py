@@ -7,10 +7,12 @@ from .models import (
     Echelon,
     Fonction,
     Grade,
+    MotifSortie,
     PieceRequise,
     Site,
     TypeContrat,
     TypeDocument,
+    TypeSuspension,
     UniteOrganisationnelle,
 )
 from .serializers import (
@@ -18,11 +20,13 @@ from .serializers import (
     EchelonSerializer,
     FonctionSerializer,
     GradeSerializer,
+    MotifSortieSerializer,
     PeriodeSerializer,
     PieceRequiseSerializer,
     SiteSerializer,
     TypeContratSerializer,
     TypeDocumentSerializer,
+    TypeSuspensionSerializer,
     UniteOrganisationnelleSerializer,
 )
 
@@ -124,3 +128,17 @@ class PieceRequiseViewSet(ClassificationViewSet):
 
     serializer_class = PieceRequiseSerializer
     queryset = PieceRequise.objects.all()
+
+
+class MotifSortieViewSet(ClassificationViewSet):
+    """Exit reasons by name, with their document and flags (exit reasons D18, D19)."""
+
+    serializer_class = MotifSortieSerializer
+    queryset = MotifSortie.objects.select_related("type_document")
+
+
+class TypeSuspensionViewSet(ClassificationViewSet):
+    """Suspension types by name, with their document and rules (exit reasons D18, D19)."""
+
+    serializer_class = TypeSuspensionSerializer
+    queryset = TypeSuspension.objects.select_related("type_document")

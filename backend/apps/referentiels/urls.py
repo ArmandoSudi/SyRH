@@ -5,10 +5,12 @@ from .views import (
     EchelonViewSet,
     FonctionViewSet,
     GradeViewSet,
+    MotifSortieViewSet,
     PieceRequiseViewSet,
     SiteViewSet,
     TypeContratViewSet,
     TypeDocumentViewSet,
+    TypeSuspensionViewSet,
     UniteOrganisationnelleViewSet,
 )
 
@@ -22,5 +24,7 @@ router.register("fonctions", FonctionViewSet, basename="referentiels-fonction")
 router.register("types-contrat", TypeContratViewSet, basename="referentiels-typecontrat")
 router.register("types-document", TypeDocumentViewSet, basename="referentiels-typedocument")
 router.register("pieces-requises", PieceRequiseViewSet, basename="referentiels-piecerequise")
+router.register("motifs-sortie", MotifSortieViewSet, basename="referentiels-motifsortie")
+router.register("types-suspension", TypeSuspensionViewSet, basename="referentiels-typesuspension")
 
 urlpatterns = router.urls

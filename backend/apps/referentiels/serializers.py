@@ -9,10 +9,12 @@ from .models import (
     Echelon,
     Fonction,
     Grade,
+    MotifSortie,
     PieceRequise,
     Site,
     TypeContrat,
     TypeDocument,
+    TypeSuspension,
     UniteOrganisationnelle,
 )
 
@@ -142,6 +144,48 @@ class PieceRequiseSerializer(BaseModelSerializer):
             "evenement_libelle",
             "type_document",
             "obligatoire",
+            "date_ouverture",
+            "date_fermeture",
+            *BASE_FIELDS,
+        ]
+
+
+class DocumentRowSerializer(BaseModelSerializer):
+    """A row that rests on a document type, named so the screen needs no second list
+    (exit reasons D19)."""
+
+    type_document_libelle = serializers.CharField(source="type_document", read_only=True)
+
+
+class MotifSortieSerializer(DocumentRowSerializer):
+    class Meta:
+        model = MotifSortie
+        fields = [
+            "id",
+            "code",
+            "nom",
+            "type_document",
+            "type_document_libelle",
+            "retraite",
+            "deces",
+            "date_ouverture",
+            "date_fermeture",
+            *BASE_FIELDS,
+        ]
+
+
+class TypeSuspensionSerializer(DocumentRowSerializer):
+    class Meta:
+        model = TypeSuspension
+        fields = [
+            "id",
+            "code",
+            "nom",
+            "type_document",
+            "type_document_libelle",
+            "compte_anciennete",
+            "duree_max_mois",
+            "renouvellements_max",
             "date_ouverture",
             "date_fermeture",
             *BASE_FIELDS,
