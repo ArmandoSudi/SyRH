@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import type { Fonction, MotifSortie, TypeContrat } from '@/features/referentiels/api/referentiels'
+import type {
+  Banque,
+  Fonction,
+  MotifSortie,
+  TypeContrat,
+} from '@/features/referentiels/api/referentiels'
 
 import { filterByCodeAndName } from '../lists'
 
@@ -90,5 +95,14 @@ describe('filterByCodeAndName', () => {
     expect(filterByCodeAndName(motifs, 'lettre').map((m) => m.code)).toEqual(['DEM'])
     expect(filterByCodeAndName(motifs, 'adc').map((m) => m.code)).toEqual(['DCD'])
     expect(filterByCodeAndName(motifs, 'deces').map((m) => m.code)).toEqual(['DCD'])
+  })
+
+  it('also matches the SWIFT/BIC of banks', () => {
+    const banques: Banque[] = [
+      { id: 1, code: 'BCF', nom: 'Banque Commerciale du Fleuve', swift: 'BCFLCDKI', ...PERIODE },
+      { id: 2, code: 'TRC', nom: 'Trésor Crédit', swift: '', ...PERIODE },
+    ]
+    expect(filterByCodeAndName(banques, 'bcfl').map((b) => b.code)).toEqual(['BCF'])
+    expect(filterByCodeAndName(banques, 'tresor').map((b) => b.code)).toEqual(['TRC'])
   })
 })

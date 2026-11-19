@@ -5,6 +5,7 @@ import PrimeVue from 'primevue/config'
 
 import * as api from '@/features/referentiels/api/referentiels'
 import type {
+  Banque,
   Categorie,
   Echelon,
   Fonction,
@@ -207,6 +208,19 @@ const SUSPENSIONS: TypeSuspension[] = [
   },
 ]
 
+const BANQUES: Banque[] = [
+  { id: 1, code: 'BCF', nom: 'Banque Commerciale du Fleuve', swift: 'BCFLCDKI', ...PERIODE },
+  { id: 2, code: 'TRC', nom: 'Trésor Crédit', swift: '', ...PERIODE },
+  {
+    id: 3,
+    code: 'UBK',
+    nom: 'Union Bank Kivu-Kasaï',
+    swift: 'UBKKCDKI',
+    date_ouverture: '2022-01-01',
+    date_fermeture: null,
+  },
+]
+
 async function mountView() {
   const wrapper = mount(ReferentielsView, {
     global: { plugins: [PrimeVue], stubs: { teleport: true } },
@@ -263,6 +277,7 @@ describe('ReferentielsView', () => {
     vi.mocked(api.fetchPiecesRequises).mockResolvedValue(PIECES)
     vi.mocked(api.fetchMotifsSortie).mockResolvedValue(MOTIFS)
     vi.mocked(api.fetchTypesSuspension).mockResolvedValue(SUSPENSIONS)
+    vi.mocked(api.fetchBanques).mockResolvedValue(BANQUES)
   })
 
   it('shows the organisation of today as a tree', async () => {
@@ -584,7 +599,7 @@ describe('ReferentielsView', () => {
     it('comes after the contract types tab', async () => {
       const wrapper = await mountView()
       const tabs = wrapper.findAll('[role="tab"]').map((tab) => tab.text())
-      expect(tabs.slice(-3, -1)).toEqual(['Types de contrat', 'Pièces justificatives'])
+      expect(tabs.slice(4, 6)).toEqual(['Types de contrat', 'Pièces justificatives'])
     })
 
     it('lists every event of today with its count, and opens to its documents', async () => {
@@ -663,11 +678,10 @@ describe('ReferentielsView', () => {
       useReferentielsStore().onglet = 'sorties'
     })
 
-    it('comes last, after the documents tab', async () => {
+    it('comes after the documents tab', async () => {
       const wrapper = await mountView()
       const tabs = wrapper.findAll('[role="tab"]').map((tab) => tab.text())
-      expect(tabs).toHaveLength(7)
-      expect(tabs.slice(-2)).toEqual(['Pièces justificatives', 'Sorties et suspensions'])
+      expect(tabs.slice(5, 7)).toEqual(['Pièces justificatives', 'Sorties et suspensions'])
     })
 
     it('lists the reasons and the positions of today with their rules', async () => {
@@ -753,6 +767,73 @@ describe('ReferentielsView', () => {
       const wrapper = await mountView()
       expect(wrapper.get('[data-test="motifs"]').findAll('button')).toHaveLength(0)
       expect(wrapper.get('[data-test="suspensions"]').findAll('button')).toHaveLength(0)
+    })
+  })
+
+  describe('banks tab', () => {
+    function table(wrapper: Awaited<ReturnType<typeof mountView>>) {
+      return wrapper
+        .findAll('[data-test="banques"] tbody tr')
+        .map((tr) => tr.findAll('td').map((td) => td.text()))
+    }
+
+    beforeEach(() => {
+      useReferentielsStore().onglet = 'banques'
+    })
+
+    it('comes last, after the exit and suspension tab', async () => {
+      const wrapper = await mountView()
+      const tabs = wrapper.findAll('[role="tab"]').map((tab) => tab.text())
+      expect(tabs).toHaveLength(8)
+      expect(tabs.slice(-2)).toEqual(['Sorties et suspensions', 'Banques'])
+    })
+
+    it('lists the banks of today with their SWIFT/BIC, or a dash', async () => {
+      const wrapper = await mountView()
+
+      expect(api.fetchBanques).toHaveBeenCalledWith({ date: localDate(new Date()) })
+      expect(table(wrapper)).toEqual([
+        ['BCF', 'Banque Commerciale du Fleuve', 'BCFLCDKI', '01/01/2015', '—'],
+        ['TRC', 'Trésor Crédit', '—', '01/01/2015', '—'],
+        ['UBK', 'Union Bank Kivu-Kasaï', 'UBKKCDKI', '01/01/2022', '—'],
+      ])
+    })
+
+    it('filters on code, name or SWIFT/BIC', async () => {
+      const wrapper = await mountView()
+
+      await wrapper.get('[data-test="banques-search"]').setValue('ubkk')
+      expect(table(wrapper).map((row) => row[0])).toEqual(['UBK'])
+      await wrapper.get('[data-test="banques-search"]').setValue('tresor')
+      expect(table(wrapper).map((row) => row[0])).toEqual(['TRC'])
+      await wrapper.get('[data-test="banques-search"]').setValue('pilote')
+      expect(wrapper.get('[data-test="banques"]').text()).toContain(
+        'Aucune banque ne correspond à cette recherche.',
+      )
+    })
+
+    it('reloads at the chosen date, leaving the other dates alone', async () => {
+      await mountView()
+      const store = useReferentielsStore()
+
+      store.banques.date = new Date(2021, 11, 31)
+      await flushPromises()
+
+      expect(api.fetchBanques).toHaveBeenLastCalledWith({ date: '2021-12-31' })
+      expect(localDate(store.sorties.date)).toBe(localDate(new Date()))
+    })
+
+    it('shows an error when the banks cannot be loaded', async () => {
+      vi.mocked(api.fetchBanques).mockRejectedValue(new Error('HTTP 502'))
+      const wrapper = await mountView()
+
+      expect(wrapper.get('[data-test="banques-error"]').text()).toContain('HTTP 502')
+      expect(table(wrapper)).toEqual([['Aucune banque à cette date.']])
+    })
+
+    it('offers no action that changes data', async () => {
+      const wrapper = await mountView()
+      expect(wrapper.get('[data-test="banques"]').findAll('button')).toHaveLength(0)
     })
   })
 })

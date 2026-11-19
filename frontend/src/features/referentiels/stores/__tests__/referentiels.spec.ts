@@ -121,4 +121,22 @@ describe('referentiels store', () => {
       'décision',
     ])
   })
+
+  it('keeps the banks date and filter apart from the other tabs', () => {
+    const store = useReferentielsStore()
+    expect(localDate(store.banques.date)).toBe(localDate(new Date()))
+    expect(store.banques.texte).toBe('')
+
+    store.onglet = 'banques'
+    store.banques.date = new Date(2021, 11, 31)
+    store.banques.texte = 'fleuve'
+
+    expect(localDate(store.sorties.date)).toBe(localDate(new Date()))
+    const again = useReferentielsStore()
+    expect([again.onglet, localDate(again.banques.date), again.banques.texte]).toEqual([
+      'banques',
+      '2021-12-31',
+      'fleuve',
+    ])
+  })
 })

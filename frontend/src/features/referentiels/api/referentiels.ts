@@ -136,6 +136,13 @@ export interface TypeSuspension extends Periode {
   renouvellements_max: number | null
 }
 
+/** A bank agents are paid through (banks D17); swift is "" when unknown. */
+export interface Banque extends Periode {
+  code: string
+  nom: string
+  swift: string
+}
+
 export interface PeriodeOptions {
   date?: string
   toutes?: boolean
@@ -211,4 +218,9 @@ export function fetchMotifsSortie(options: PeriodeOptions = {}): Promise<MotifSo
 /** Suspension types open on a date, by name, or all with toutes. */
 export function fetchTypesSuspension(options: PeriodeOptions = {}): Promise<TypeSuspension[]> {
   return request<TypeSuspension[]>(`/api/referentiels/types-suspension/${periode(options)}`)
+}
+
+/** Banks open on a date (the API defaults to today), by name, or all with toutes. */
+export function fetchBanques(options: PeriodeOptions = {}): Promise<Banque[]> {
+  return request<Banque[]>(`/api/referentiels/banques/${periode(options)}`)
 }

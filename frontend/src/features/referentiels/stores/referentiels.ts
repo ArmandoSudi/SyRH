@@ -2,13 +2,20 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 
 export type Onglet =
-  'organisation' | 'sites' | 'classification' | 'fonctions' | 'typesContrat' | 'pieces' | 'sorties'
+  | 'organisation'
+  | 'sites'
+  | 'classification'
+  | 'fonctions'
+  | 'typesContrat'
+  | 'pieces'
+  | 'sorties'
+  | 'banques'
 
 /**
  * What the reader chose on the Référentiels screen, kept in Pinia so it
  * survives leaving the screen and coming back (organisation D27,
  * classification D30, fonctions D20, contract types D21, document
- * types D22, exit reasons D22).
+ * types D22, exit reasons D22, banks D20).
  */
 export const useReferentielsStore = defineStore('referentiels', () => {
   const onglet = ref<Onglet>('organisation')
@@ -35,6 +42,8 @@ export const useReferentielsStore = defineStore('referentiels', () => {
   // One date and one filter for both lists of the tab: exit reasons and suspension types.
   const sorties = ref({ date: new Date(), texte: '' })
 
+  const banques = ref({ date: new Date(), texte: '' })
+
   return {
     onglet,
     date,
@@ -46,5 +55,6 @@ export const useReferentielsStore = defineStore('referentiels', () => {
     typesContrat,
     pieces,
     sorties,
+    banques,
   }
 })
