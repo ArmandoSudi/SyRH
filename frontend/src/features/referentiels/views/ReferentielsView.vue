@@ -9,6 +9,7 @@ import ClassificationTree from '@/features/referentiels/components/Classificatio
 import FonctionsTable from '@/features/referentiels/components/FonctionsTable.vue'
 import OrganisationTree from '@/features/referentiels/components/OrganisationTree.vue'
 import SitesTable from '@/features/referentiels/components/SitesTable.vue'
+import TypesContratTable from '@/features/referentiels/components/TypesContratTable.vue'
 import { useReferentielsStore } from '@/features/referentiels/stores/referentiels'
 
 // Read-only: reference data is edited in Django admin until roadmap 1.9 (D27).
@@ -30,6 +31,7 @@ const store = useReferentielsStore()
         <Tab value="sites" data-test="tab-sites">Sites</Tab>
         <Tab value="classification" data-test="tab-classification">Classification</Tab>
         <Tab value="fonctions" data-test="tab-fonctions">Fonctions</Tab>
+        <Tab value="typesContrat" data-test="tab-types-contrat">Types de contrat</Tab>
       </TabList>
       <TabPanels class="panels">
         <TabPanel value="organisation">
@@ -43,6 +45,9 @@ const store = useReferentielsStore()
         </TabPanel>
         <TabPanel value="fonctions">
           <FonctionsTable />
+        </TabPanel>
+        <TabPanel value="typesContrat">
+          <TypesContratTable />
         </TabPanel>
       </TabPanels>
     </Tabs>

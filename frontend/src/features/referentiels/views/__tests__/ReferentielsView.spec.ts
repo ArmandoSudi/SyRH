@@ -9,6 +9,7 @@ import type {
   Echelon,
   Fonction,
   Grade,
+  TypeContrat,
   Site,
   Unite,
 } from '@/features/referentiels/api/referentiels'
@@ -94,6 +95,26 @@ const FONCTIONS: Fonction[] = [
   },
 ]
 
+const TYPES: TypeContrat[] = [
+  {
+    id: 1,
+    code: 'CDD',
+    nom: 'Contrat à durée déterminée',
+    duree_determinee: true,
+    periode_essai: true,
+    ...PERIODE,
+  },
+  {
+    id: 2,
+    code: 'CDI',
+    nom: 'Contrat à durée indéterminée',
+    duree_determinee: false,
+    periode_essai: true,
+    ...PERIODE,
+  },
+  { id: 3, code: 'STG', nom: 'Stage', duree_determinee: true, periode_essai: false, ...PERIODE },
+]
+
 async function mountView() {
   const wrapper = mount(ReferentielsView, {
     global: { plugins: [PrimeVue], stubs: { teleport: true } },
@@ -145,6 +166,7 @@ describe('ReferentielsView', () => {
     vi.mocked(api.fetchGrades).mockResolvedValue(GRADES)
     vi.mocked(api.fetchEchelons).mockResolvedValue(ECHELONS)
     vi.mocked(api.fetchFonctions).mockResolvedValue(FONCTIONS)
+    vi.mocked(api.fetchTypesContrat).mockResolvedValue(TYPES)
   })
 
   it('shows the organisation of today as a tree', async () => {
@@ -326,7 +348,7 @@ describe('ReferentielsView', () => {
     it('comes after the classification tab', async () => {
       const wrapper = await mountView()
       const tabs = wrapper.findAll('[role="tab"]').map((tab) => tab.text())
-      expect(tabs).toEqual(['Organisation', 'Sites', 'Classification', 'Fonctions'])
+      expect(tabs.slice(0, 4)).toEqual(['Organisation', 'Sites', 'Classification', 'Fonctions'])
     })
 
     it('lists the fonctions of today, in the order of the API, with their nature', async () => {
@@ -377,6 +399,78 @@ describe('ReferentielsView', () => {
       const wrapper = await mountView()
       const panel = wrapper.get('[data-test="fonctions"]')
       expect(panel.findAll('button')).toHaveLength(0)
+    })
+  })
+
+  describe('contract types tab', () => {
+    function table(wrapper: Awaited<ReturnType<typeof mountView>>) {
+      return wrapper
+        .findAll('[data-test="types-contrat"] tbody tr')
+        .map((tr) => tr.findAll('td').map((td) => td.text()))
+    }
+
+    beforeEach(() => {
+      useReferentielsStore().onglet = 'typesContrat'
+    })
+
+    it('comes after the fonctions tab', async () => {
+      const wrapper = await mountView()
+      const tabs = wrapper.findAll('[role="tab"]').map((tab) => tab.text())
+      expect(tabs).toEqual([
+        'Organisation',
+        'Sites',
+        'Classification',
+        'Fonctions',
+        'Types de contrat',
+      ])
+    })
+
+    it('lists the types of today with their rules as Oui or Non', async () => {
+      const wrapper = await mountView()
+
+      expect(api.fetchTypesContrat).toHaveBeenCalledWith({ date: localDate(new Date()) })
+      expect(table(wrapper)).toEqual([
+        ['CDD', 'Contrat à durée déterminée', 'Oui', 'Oui', '01/01/2015', '—'],
+        ['CDI', 'Contrat à durée indéterminée', 'Non', 'Oui', '01/01/2015', '—'],
+        ['STG', 'Stage', 'Oui', 'Non', '01/01/2015', '—'],
+      ])
+    })
+
+    it('filters on code or name, ignoring accents', async () => {
+      const wrapper = await mountView()
+
+      await wrapper.get('[data-test="types-contrat-search"]').setValue('indetermin')
+      expect(table(wrapper).map((row) => row[0])).toEqual(['CDI'])
+
+      await wrapper.get('[data-test="types-contrat-search"]').setValue('pilote')
+      expect(wrapper.get('[data-test="types-contrat"]').text()).toContain(
+        'Aucun type ne correspond à cette recherche.',
+      )
+    })
+
+    it('reloads at the chosen date, leaving the other dates alone', async () => {
+      await mountView()
+      const store = useReferentielsStore()
+
+      store.typesContrat.date = new Date(2022, 5, 1)
+      await flushPromises()
+
+      expect(api.fetchTypesContrat).toHaveBeenLastCalledWith({ date: '2022-06-01' })
+      expect(localDate(store.fonctions.date)).toBe(localDate(new Date()))
+      expect(localDate(store.classification.date)).toBe(localDate(new Date()))
+    })
+
+    it('shows an error when the types cannot be loaded', async () => {
+      vi.mocked(api.fetchTypesContrat).mockRejectedValue(new Error('HTTP 502'))
+      const wrapper = await mountView()
+
+      expect(wrapper.get('[data-test="types-contrat-error"]').text()).toContain('HTTP 502')
+      expect(table(wrapper)).toEqual([['Aucun type de contrat à cette date.']])
+    })
+
+    it('offers no action that changes data', async () => {
+      const wrapper = await mountView()
+      expect(wrapper.get('[data-test="types-contrat"]').findAll('button')).toHaveLength(0)
     })
   })
 })

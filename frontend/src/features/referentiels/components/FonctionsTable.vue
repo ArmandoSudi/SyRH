@@ -14,7 +14,8 @@ import {
   type Fonction,
   type Nature,
 } from '@/features/referentiels/api/referentiels'
-import { filterFonctions, NATURE_SEVERITY } from '@/features/referentiels/components/fonctions'
+import { NATURE_SEVERITY } from '@/features/referentiels/components/fonctions'
+import { filterByCodeAndName } from '@/features/referentiels/components/lists'
 import { useReferentielsStore } from '@/features/referentiels/stores/referentiels'
 import { formatDate, localDate } from '@/shared/utils/dates'
 
@@ -45,7 +46,7 @@ async function load() {
   }
 }
 
-const visible = computed(() => filterFonctions(fonctions.value, state.texte))
+const visible = computed(() => filterByCodeAndName(fonctions.value, state.texte))
 const filtering = computed(() => state.texte.trim() !== '')
 
 watch(

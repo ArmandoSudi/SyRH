@@ -66,4 +66,22 @@ describe('referentiels store', () => {
       'chef',
     ])
   })
+
+  it('keeps the contract types date and filter apart from the other tabs', () => {
+    const store = useReferentielsStore()
+    expect(localDate(store.typesContrat.date)).toBe(localDate(new Date()))
+    expect(store.typesContrat.texte).toBe('')
+
+    store.onglet = 'typesContrat'
+    store.typesContrat.date = new Date(2022, 5, 1)
+    store.typesContrat.texte = 'stage'
+
+    expect(localDate(store.fonctions.date)).toBe(localDate(new Date()))
+    const again = useReferentielsStore()
+    expect([again.onglet, localDate(again.typesContrat.date), again.typesContrat.texte]).toEqual([
+      'typesContrat',
+      '2022-06-01',
+      'stage',
+    ])
+  })
 })

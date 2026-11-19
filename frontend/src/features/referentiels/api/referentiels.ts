@@ -70,6 +70,16 @@ export interface Fonction extends Periode {
   nature_libelle: string
 }
 
+/** A contract type and the rules phase 2.3 reads from it (contract types D17). */
+export interface TypeContrat extends Periode {
+  code: string
+  nom: string
+  /** A contract of this type must have an end date. */
+  duree_determinee: boolean
+  /** A contract of this type may have a probation period. */
+  periode_essai: boolean
+}
+
 export interface PeriodeOptions {
   date?: string
   toutes?: boolean
@@ -120,4 +130,9 @@ export function fetchEchelons(options: PeriodeOptions = {}): Promise<Echelon[]> 
 /** Fonctions open on a date, responsabilité first then by name, or all with toutes. */
 export function fetchFonctions(options: PeriodeOptions = {}): Promise<Fonction[]> {
   return request<Fonction[]>(`/api/referentiels/fonctions/${periode(options)}`)
+}
+
+/** Contract types open on a date, by name, or all with toutes. */
+export function fetchTypesContrat(options: PeriodeOptions = {}): Promise<TypeContrat[]> {
+  return request<TypeContrat[]>(`/api/referentiels/types-contrat/${periode(options)}`)
 }
