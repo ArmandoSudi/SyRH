@@ -5,6 +5,7 @@ Classification: catégories, grades, échelons (specs/2026-11-18-classification)
 Fonctions: job functions (specs/2026-11-18-fonctions).
 Contract types (specs/2026-11-19-contract-types).
 Document types and the documents each event requires (specs/2026-11-19-document-types).
+Exit reasons and suspension types (specs/2026-11-19-exit-suspension-reasons).
 
 Rules that only read the row itself are database constraints; rules that read
 other rows (levels, periods, fixed fields) live in check_rules(), called by
@@ -330,6 +331,21 @@ def unique_per_period(name: str, *keys: str, message: str) -> ExclusionConstrain
     )
 
 
+def within_parent(row, parent, subject: str, parent_ref: str, errors: dict) -> None:
+    """A row cannot open before the row it depends on, nor stay open after it
+    (classification D13, document types D8, exit reasons D9)."""
+    start, end = row.date_ouverture, row.date_fermeture
+    if start < parent.date_ouverture:
+        errors.setdefault("date_ouverture", []).append(
+            f"{subject} ne peut pas ouvrir avant {parent_ref} ({fr(parent.date_ouverture)})."
+        )
+    if parent.date_fermeture and (end is None or end > parent.date_fermeture):
+        errors.setdefault("date_fermeture", []).append(
+            f"{subject} doit fermer au plus tard à la fermeture de "
+            f"{parent_ref} ({fr(parent.date_fermeture)})."
+        )
+
+
 class ClassificationQuerySet(BaseQuerySet):
     def ouvertes(self, day: date):
         return self.filter(date_ouverture__lte=day).filter(open_on(day))
@@ -350,6 +366,8 @@ class ClassificationRules:
     PARENT_REF = ""  # "sa catégorie"
     CHILDREN_REF = ""  # "Des échelons rattachés"
     CHILDREN_OPEN = "ouverts"  # agrees with CHILDREN_REF: "ouvertes" for feminine nouns
+    # Other rows that must close with this one: (related name, CHILDREN_REF, CHILDREN_OPEN).
+    OTHER_CHILDREN: tuple[tuple[str, str, str], ...] = ()
     REPLACE = ""  # "fermez le grade et ouvrez-en un nouveau"
 
     def short_label(self) -> str:
@@ -382,34 +400,28 @@ class ClassificationRules:
 
         parent_id = getattr(self, f"{self.PARENT}_id") if self.PARENT else None
         if parent_id is not None:
-            parent = getattr(self, self.PARENT)
-            if start < parent.date_ouverture:
-                errors.setdefault("date_ouverture", []).append(
-                    f"{self.SUBJECT} ne peut pas ouvrir avant {self.PARENT_REF} "
-                    f"({fr(parent.date_ouverture)})."
-                )
-            if parent.date_fermeture and (end is None or end > parent.date_fermeture):
-                errors.setdefault("date_fermeture", []).append(
-                    f"{self.SUBJECT} doit fermer au plus tard à la fermeture de "
-                    f"{self.PARENT_REF} ({fr(parent.date_fermeture)})."
-                )
+            within_parent(self, getattr(self, self.PARENT), self.SUBJECT, self.PARENT_REF, errors)
 
-        if self.CHILDREN and self.pk is not None:
-            children = getattr(self, self.CHILDREN).all()
-            if end is not None:
-                late = list(children.filter(still_open_after(end))[:5])
-                if late:
-                    names = ", ".join(c.short_label() for c in late)
-                    errors.setdefault("date_fermeture", []).append(
-                        f"{self.CHILDREN_REF} restent {self.CHILDREN_OPEN} après cette date : "
-                        f"{names}. Fermez-les d'abord."
+        if self.pk is not None:
+            children = (
+                [(self.CHILDREN, self.CHILDREN_REF, self.CHILDREN_OPEN)] if self.CHILDREN else []
+            )
+            for related, ref, still_open in children + list(self.OTHER_CHILDREN):
+                rows = getattr(self, related).all()
+                if end is not None:
+                    late = list(rows.filter(still_open_after(end))[:5])
+                    if late:
+                        names = ", ".join(c.short_label() for c in late)
+                        errors.setdefault("date_fermeture", []).append(
+                            f"{ref} restent {still_open} après cette date : "
+                            f"{names}. Fermez-les d'abord."
+                        )
+                early = list(rows.filter(date_ouverture__lt=start)[:5])
+                if early:
+                    names = ", ".join(c.short_label() for c in early)
+                    errors.setdefault("date_ouverture", []).append(
+                        f"{ref} ouvrent avant cette date : {names}."
                     )
-            early = list(children.filter(date_ouverture__lt=start)[:5])
-            if early:
-                names = ", ".join(c.short_label() for c in early)
-                errors.setdefault("date_ouverture", []).append(
-                    f"{self.CHILDREN_REF} ouvrent avant cette date : {names}."
-                )
 
         raise_if(errors)
 
@@ -746,6 +758,7 @@ class TypeDocument(ClassificationRules, BaseModel):
     SUBJECT = "Le type de pièce"
     CHILDREN_REF = "Des pièces exigées"
     CHILDREN_OPEN = "ouvertes"
+    OTHER_CHILDREN = (("motifs_sortie", "Des motifs de sortie", "ouverts"),)
 
     code = models.CharField("code", max_length=20)
     nom = models.CharField("nom", max_length=150)
@@ -879,3 +892,99 @@ class PieceRequise(ClassificationRules, BaseModel):
 
     def short_label(self) -> str:
         return self.get_evenement_display().lower()
+
+
+RETRAITE_ET_DECES = "Un motif ne peut pas être à la fois une retraite et un décès."
+
+
+class DocumentRules(FlatListRules):
+    """Flat lists whose rows rest on a document type: exit reasons and suspension
+    types (exit reasons D9, D12). A row stays within its document type's period."""
+
+    SUBJECT = ""  # "Le motif de sortie"
+
+    def short_label(self) -> str:
+        return self.code
+
+    def check_document(self) -> None:
+        if self.date_ouverture is None or self.type_document_id is None:
+            return  # the required fields report themselves
+        errors: dict[str, list[str]] = {}
+        within_parent(self, self.type_document, self.SUBJECT, "son type de pièce", errors)
+        raise_if(errors)
+
+    def clean(self):
+        super().clean()
+        self.check_document()
+
+    def save(self, **kwargs):
+        check_closing_after_opening(self)
+        self.check_document()
+        super().save(**kwargs)
+
+
+class MotifSortie(DocumentRules, BaseModel):
+    """Why an agent leaves for good, such as Démission (exit reasons D1, D2, D4).
+
+    Phase 3.6 records an exit with one of these reasons and requires its document;
+    the flags tell later phases which reasons are retirements and deaths. A reason
+    whose rules change is closed and a successor opened (D8).
+    """
+
+    module = "referentiels"
+    SUBJECT = "Le motif de sortie"
+
+    code = models.CharField("code", max_length=20)
+    nom = models.CharField("nom", max_length=150)
+    type_document = models.ForeignKey(
+        TypeDocument,
+        verbose_name="pièce exigée",
+        on_delete=models.PROTECT,
+        related_name="motifs_sortie",
+        help_text="La pièce sur laquelle repose la sortie.",
+    )
+    retraite = models.BooleanField(
+        "retraite",
+        default=False,
+        help_text="Compté dans les prévisions et alertes de départ à la retraite.",
+    )
+    deces = models.BooleanField(
+        "décès",
+        default=False,
+        help_text="La sortie profite aux ayants droit, identifiés parmi les dépendants.",
+    )
+    date_ouverture = models.DateField("date d'ouverture")
+    date_fermeture = models.DateField(
+        "date de fermeture",
+        null=True,
+        blank=True,
+        help_text="Premier jour où le motif n'existe plus.",
+    )
+
+    objects = ClassificationQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "motif de sortie"
+        verbose_name_plural = "motifs de sortie"
+        ordering = ["nom", "date_ouverture"]
+        default_permissions = NO_DELETE
+        constraints = [
+            closing_after_opening("motifsortie_fermeture_apres_ouverture"),
+            unique_per_period(
+                "motifsortie_code_unique_par_periode",
+                "code",
+                message=(
+                    "Un autre motif de sortie porte déjà ce code sur une partie de cette période."
+                ),
+            ),
+            models.CheckConstraint(
+                condition=~Q(retraite=True, deces=True),
+                name="motifsortie_retraite_ou_deces",
+                violation_error_message=RETRAITE_ET_DECES,
+            ),
+        ]
+
+    def clean(self):
+        if self.retraite and self.deces:
+            raise ValidationError({"deces": [RETRAITE_ET_DECES]})
+        super().clean()
