@@ -1769,3 +1769,39 @@ class DemoSortiesTests(TestCase):
         before = (MotifSortie.objects.count(), EntreeAudit.objects.count())
         self.assertIn("0 créés", self.run_command())
         self.assertEqual((MotifSortie.objects.count(), EntreeAudit.objects.count()), before)
+
+
+class DemoBanquesTests(TestCase):
+    """create_demo_banques (banks D21)."""
+
+    def run_command(self):
+        out = StringIO()
+        call_command("create_demo_banques", stdout=out)
+        return out.getvalue()
+
+    @override_settings(DEBUG=False)
+    def test_refuses_without_debug(self):
+        with self.assertRaises(CommandError):
+            self.run_command()
+        self.assertFalse(Banque.objects.exists())
+
+    @override_settings(DEBUG=True)
+    def test_creates_valid_rows_once(self):
+        self.assertIn("7 créées", self.run_command())
+        for obj in Banque.objects.all():
+            obj.full_clean()  # every rule holds
+
+        self.assertEqual(Banque.objects.filter(swift="").count(), 1)
+        old, new = Banque.objects.filter(code="UBK").order_by("date_ouverture")
+        self.assertEqual(old.date_fermeture, new.date_ouverture)
+        self.assertNotEqual(old.nom, new.nom)
+        today = Banque.objects.ouvertes(timezone.localdate())
+        self.assertEqual(today.count(), 6)
+        self.assertNotIn(old, today)
+        self.assertFalse(
+            EntreeAudit.objects.filter(table__model="banque").exclude(auteur=None).exists()
+        )
+
+        before = (Banque.objects.count(), EntreeAudit.objects.count())
+        self.assertIn("0 créées", self.run_command())
+        self.assertEqual((Banque.objects.count(), EntreeAudit.objects.count()), before)
