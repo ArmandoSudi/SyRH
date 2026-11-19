@@ -43,6 +43,21 @@ def raise_if(errors: dict[str, list[str]]) -> None:
         raise ValidationError(errors)
 
 
+CLOSING_AFTER_OPENING = "La date de fermeture doit être postérieure à la date d'ouverture."
+
+
+def check_closing_after_opening(row) -> None:
+    """Refuse a closing date on or before the opening date, on the field itself.
+
+    An error on date_fermeture makes full_clean() skip the constraints that use
+    it. Without this, the exclusion constraints would build a date range ending
+    before it starts, which PostgreSQL refuses with an error instead of a message.
+    """
+    start, end = row.date_ouverture, row.date_fermeture
+    if start is not None and end is not None and end <= start:
+        raise_if({"date_fermeture": [CLOSING_AFTER_OPENING]})
+
+
 class SiteQuerySet(BaseQuerySet):
     def ouverts(self, day: date):
         return self.filter(open_on(day))
@@ -218,6 +233,7 @@ class UniteOrganisationnelle(BaseModel):
         """Rules that read other rows (D2, D8, D10, D11). Raises per field, in French."""
         if self.code:
             self.code = self.code.strip().upper()
+        check_closing_after_opening(self)
         errors: dict[str, list[str]] = {}
 
         old = None
@@ -293,9 +309,7 @@ def closing_after_opening(name: str) -> models.CheckConstraint:
     return models.CheckConstraint(
         condition=Q(date_fermeture__isnull=True) | Q(date_fermeture__gt=F("date_ouverture")),
         name=name,
-        violation_error_message=(
-            "La date de fermeture doit être postérieure à la date d'ouverture."
-        ),
+        violation_error_message=CLOSING_AFTER_OPENING,
     )
 
 
@@ -341,6 +355,7 @@ class ClassificationRules:
     def check_rules(self) -> None:
         if getattr(self, "code", None):
             self.code = self.code.strip().upper()
+        check_closing_after_opening(self)
         errors: dict[str, list[str]] = {}
 
         if self.PARENT and self.pk is not None:
@@ -648,6 +663,7 @@ class Fonction(BaseModel):
     def clean(self):
         super().clean()
         self.normalise()
+        check_closing_after_opening(self)
 
     def save(self, **kwargs):
         self.normalise()

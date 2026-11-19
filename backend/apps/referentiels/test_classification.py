@@ -469,3 +469,23 @@ class ClassificationHistoryTests(TestCase):
                 )
                 self.assertEqual(entries.latest("id").objet_libelle, label)
                 self.assertEqual(entries.latest("id").module, "referentiels")
+
+
+class ReversedDatesTests(TestCase):
+    """A closing date before the opening date is a message, not a database error."""
+
+    def test_each_level_reports_the_closing_date(self):
+        cd = categorie("CD", 4)
+        a1 = grade("A1", cd, 1)
+        rows = {
+            "catégorie": Categorie(code="X", nom="X", rang=9, date_ouverture=D2020,
+                                   date_fermeture=D2015),
+            "grade": Grade(code="X", nom="X", categorie=cd, rang=9, date_ouverture=D2020,
+                           date_fermeture=D2015),
+            "échelon": Echelon(grade=a1, numero=9, date_ouverture=D2020, date_fermeture=D2015),
+        }  # fmt: skip
+        for level, obj in rows.items():
+            with self.subTest(level):
+                errors = errors_of(obj.full_clean)
+                self.assertIn("postérieure à la date d'ouverture", errors["date_fermeture"][0])
+                self.assertNotIn("__all__", errors)

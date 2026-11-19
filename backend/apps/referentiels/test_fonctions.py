@@ -105,6 +105,13 @@ class FonctionConstraintTests(TestCase):
         raw(code="OLD", date_ouverture=D2020)
         self.assert_refused(code="OLD", date_ouverture=date(2019, 12, 31))
 
+    def test_reversed_dates_report_the_closing_date(self):
+        obj = Fonction(code="X", nom="X", nature=EXEC, date_ouverture=D2020,
+                       date_fermeture=D2015)  # fmt: skip
+        errors = errors_of(obj.full_clean)
+        self.assertIn("postérieure à la date d'ouverture", errors["date_fermeture"][0])
+        self.assertNotIn("__all__", errors)
+
     def test_constraints_have_french_messages_in_forms(self):
         cases = {
             "porte déjà ce code": Fonction(

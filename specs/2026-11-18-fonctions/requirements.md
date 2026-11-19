@@ -146,3 +146,9 @@ and the pattern of phases 1.1 and 1.2.
 | --- | --- |
 | `Q29` — the ARPTC's real list of fonctions: their codes and names, which ones are posts of responsibility, whether a fonction requires a minimum catégorie or grade. | A flat list with two natures (D1, D2); HR enters the real list in Django admin. Added to `docs/questions-ouvertes.md` by this phase; the merge does not wait for the answer. |
 | `Q7`, `Q10` — whether a pay item depends on the fonction (indemnité de fonction). | Not needed here; a fonction can be priced later by its id. |
+
+## Found during implementation
+
+| # | Decision | Reason |
+| --- | --- | --- |
+| D25 | A closing date on or before the opening date is refused by the model rules, on `date_fermeture`, for every dated table (units, catégories, grades, échelons, fonctions), through one shared `check_closing_after_opening()`. The database check stays. | Found while testing the fonction admin: Django checked the exclusion constraints even with reversed dates, and PostgreSQL refused to build the range (`DataError`), so the admin crashed instead of showing the message. The fault dated from phase 1.1. An error on the field makes `full_clean()` skip the constraints that use it, and puts the message next to the field. |

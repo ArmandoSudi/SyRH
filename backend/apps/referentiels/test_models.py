@@ -292,3 +292,19 @@ class HistoryTests(TestCase):
                 }
             ],
         )
+
+
+class ReversedDatesTests(TestCase):
+    """A closing date before the opening date is a message, not a database error."""
+
+    def test_unit_reports_the_closing_date(self):
+        obj = UniteOrganisationnelle(
+            code="DG", nom="Direction générale", type=T.DIRECTION,
+            date_ouverture=D2020, date_fermeture=D2015,
+        )  # fmt: skip
+        errors = errors_of(obj.full_clean)
+        self.assertEqual(
+            errors["date_fermeture"],
+            ["La date de fermeture doit être postérieure à la date d'ouverture."],
+        )
+        self.assertNotIn("__all__", errors)
