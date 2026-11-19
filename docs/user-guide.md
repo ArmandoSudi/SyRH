@@ -5,7 +5,7 @@ find your way around, and use the screens that are available today.
 
 > **Where the application stands (November 2026).** The foundations are in place: sign-in,
 > profiles, the audit log and the reference data (organisation, sites, classification, job
-> functions, contract types). The
+> functions, contract types, supporting documents). The
 > business modules (Agents, Carrière, Présences, Paie, Social, Formation) appear in the menu but
 > are not built yet. The dashboard shows demonstration figures only.
 
@@ -184,15 +184,15 @@ you leave a shared computer.
 ## 5. Reference data (Référentiels)
 
 **Référentiels** holds the reference data the other modules rely on: the organisation chart, the
-sites, the job classification, the job functions and the contract types. Every profile can open
-it.
+sites, the job classification, the job functions, the contract types and the supporting documents
+each event requires. Every profile can open it.
 
 The screen is **read-only**: it shows the data but does not change it. Changes are made by the
 **Administrateur système** and **Gestion de carrière** profiles, in the administration site
 (see [Who changes the reference data](#who-changes-the-reference-data)).
 
-The screen has five tabs: **Organisation**, **Sites**, **Classification**, **Fonctions** and
-**Types de contrat**.
+The screen has six tabs: **Organisation**, **Sites**, **Classification**, **Fonctions**,
+**Types de contrat** and **Pièces justificatives**.
 
 ### Organisation
 
@@ -256,8 +256,7 @@ Since then **Attaché de 2e classe (grille 2025)** has 5.
 
 ![The classification on 1 June 2024, before the 2025 reform](./screenshots/14-classification-2024.png)
 
-The Organisation, Classification, Fonctions and Types de contrat tabs each keep their own date
-and search, so changing one does not move the others.
+Every tab with a date keeps its own date and search, so changing one does not move the others.
 
 ### Fonctions
 
@@ -305,11 +304,41 @@ demonstration data, the **Contrat d'apprentissage** was used until 1 January 202
 
 ![The contract types on 1 June 2022, when the apprenticeship contract was still used](./screenshots/14f-types-contrat-2022.png)
 
+### Pièces justificatives
+
+The **Pièces justificatives** tab answers the question "which documents must I collect for this
+event?". It lists every event in an agent's career, from **Engagement** (hiring) to **Formation**
+(training), with how many documents each requires.
+
+1. Click the arrow in front of an event to see its documents, or **Tout déplier** to open them
+   all.
+2. Each document shows its code and an **Exigence** tag:
+   - **Obligatoire**: without it, the event cannot be validated;
+   - **Facultative**: it can be attached but is not required. For example, ending a dependant's
+     status needs a death certificate *or* a divorce judgment, depending on the cause.
+
+An event marked **Aucune pièce exigée** requires no document of its own. **Sortie** (exit) is
+one: the document depends on the reason for leaving (a resignation letter, a death certificate),
+and each reason will name its own.
+
+![The Pièces justificatives tab, with Engagement opened](./screenshots/14g-pieces.png)
+
+**Search.** Type the name of an event to see it with all its documents, or the name of a document
+to see every event that requires it. Here, the decision is required by every career event:
+
+![Searching for "décision"](./screenshots/14h-pieces-decision.png)
+
+**See the documents required at another date.** Change the **Pièces au** date. In the
+demonstration data, hiring required the criminal record extract until 1 January 2024:
+
+![The documents required for hiring on 1 June 2023](./screenshots/14i-pieces-2023.png)
+
 ### Who changes the reference data
 
 Accounts with the **Administrateur système** or **Gestion de carrière** profile, and with
 staff status (**Statut équipe**), change the reference data (units, sites, the classification,
-the fonctions and the contract types) in the administration site, at
+the fonctions, the contract types and the documents each event requires) in the administration
+site, at
 `/admin/` (the same address as SyRH, followed by `/admin/`). A reorganisation, a reform or a
 rename is recorded by closing the old unit, grade, fonction or contract type on a date and
 opening the new one, never by deleting it, so the history stays readable. Every change is recorded in the
@@ -401,5 +430,5 @@ No. The log is permanent, and nobody can change it, not even the administrator.
 
 *Screenshots taken on 19 November 2026 with the demonstration data and accounts
 (`create_demo_users`, `create_demo_organisation`, `create_demo_classification`,
-`create_demo_fonctions`, `create_demo_types_contrat`). To retake them,
+`create_demo_fonctions`, `create_demo_types_contrat`, `create_demo_pieces`). To retake them,
 see `docs/capture_screenshots.py`.*

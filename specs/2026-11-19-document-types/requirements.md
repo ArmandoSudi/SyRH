@@ -150,3 +150,13 @@ and the pattern of phases 1.2 to 1.4.
 | Point | Assumption until answered |
 | --- | --- |
 | `Q31` — the ARPTC's supporting documents: which document types exist, and for each event which ones are mandatory and which optional? Does a requirement ever depend on the agent (catégorie, contract type, nationality)? Should Administration du personnel edit the requirements for dependants? | The demo list of D23; a requirement depends only on the event kind. HR enters the real list in Django admin. Added to `docs/questions-ouvertes.md` by this phase; the merge does not wait for the answer. |
+
+## Found during implementation
+
+| # | Decision | Reason |
+| --- | --- | --- |
+| D26 | The event order of D6 is the model's `Meta.ordering` (a `Case` on the position of `evenement` in the choices), not a separate queryset method as plan step 2.2 said. | The API, admin list and demo all get it without remembering to call anything. |
+| D27 | `Evenement` is declared at module level and aliased as `PieceRequise.Evenement`, so the check constraint and the ordering read the one list instead of repeating it. | A nested class's `Meta` cannot see its outer class's attributes; the first draft repeated the list three times. |
+| D28 | `ClassificationRules` gains `CHILDREN_OPEN` ("ouverts" by default, "ouvertes" for pièces), and `ClassificationAdmin` locks a model's `FIXED` fields along with its parent. | "Des pièces exigées restent ouverts" was ungrammatical; one admin rule for every locked field. |
+| D29 | The tab filters with its own two-level `filterPieces()` rather than the generic `filterTree()` (D22): an event that matches keeps all its documents. | `filterTree()` keeps a matching parent but drops its non-matching children, so "mariage" would have shown the event with no document. |
+| D30 | The check that the screen's list of event kinds matches the model's (F6) is a backend test that reads `components/pieces.ts`. | One test sees both sides; a frontend-only list would only compare with itself. |

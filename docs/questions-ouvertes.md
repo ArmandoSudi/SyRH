@@ -103,6 +103,15 @@ En attendant, le MVP traite chaque point comme un **paramètre** ou applique l'h
   - Hypothèse en attendant : les quatre types de la section 4.1, chacun avec deux règles
     (« durée déterminée », « période d'essai ») ; la durée de l'essai et les renouvellements ne
     sont pas modélisés. Les RH saisissent la liste réelle dans l'administration.
+- [ ] **Q31 — Pièces justificatives de l'ARPTC.** Quels types de pièces existent, et pour chaque
+  événement (engagement, promotion, mutation, détachement, mise en disponibilité, reprise,
+  intérim, sanction, distinction, sortie, mariage, naissance, fin de qualité de dépendant,
+  formation), lesquelles sont obligatoires et lesquelles facultatives ? Une pièce exigée dépend-elle
+  parfois de l'agent (catégorie, type de contrat, nationalité) ? L'Administration du personnel
+  doit-elle modifier elle-même les pièces exigées pour les dépendants ?
+  - Concerne : section 4.1 (types de pièces justificatives), SOC-04, CAR-02, ADM-14, roadmap 1.5.
+  - Hypothèse en attendant : une pièce exigée ne dépend que de l'événement ; la Gestion de
+    carrière et l'administrateur saisissent la liste réelle dans l'administration.
 
 ## 6. Circuits de validation
 

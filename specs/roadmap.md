@@ -35,7 +35,7 @@ Small tables first, each with model, constraints, admin, API and tests.
 - [x] **1.2 Classification** — catégories, grades, échelons.
 - [x] **1.3 Fonctions** — job functions.
 - [x] **1.4 Contract types** — CDI, CDD, stage, journalier.
-- [ ] **1.5 Document types** — the supporting documents each event requires.
+- [x] **1.5 Document types** — the supporting documents each event requires.
 - [ ] **1.6 Exit and suspension reasons** — with a "counts toward seniority" flag (`Q2`, `Q3`).
 - [ ] **1.7 Banks** — name, code (`REM-28`).
 - [ ] **1.8 General parameters** — dated key/value settings: child age limit (25), maximum

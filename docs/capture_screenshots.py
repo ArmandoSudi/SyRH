@@ -2,7 +2,7 @@
 
 Needs both dev servers running (backend on 8000, frontend on 5173), the demo data
 (create_demo_users, create_demo_organisation, create_demo_classification,
-create_demo_fonctions, create_demo_types_contrat) and Google Chrome.
+create_demo_fonctions, create_demo_types_contrat, create_demo_pieces) and Google Chrome.
 From the repository root:
 
     uv run --no-project --with playwright python docs/capture_screenshots.py
@@ -203,6 +203,25 @@ with sync_playwright() as p:
     page.wait_for_load_state("networkidle")
     page.locator("[data-test=types-contrat] tbody tr", has_text="apprentissage").wait_for()
     shot(page, "14f-types-contrat-2022")
+
+    page.locator("[data-test=tab-pieces]").click()
+    page.locator("[data-test=pieces] tbody tr", has_text="Sortie").wait_for()
+    page.wait_for_load_state("networkidle")
+    store_set(page, "referentiels", "s.pieces.expanded = {'ev-engagement': true}")
+    page.locator("[data-test=pieces] tbody tr", has_text="Contrat signé").wait_for()
+    tall(page, "14g-pieces")
+
+    page.locator("[data-test=pieces-search]").fill("decision")
+    page.wait_for_timeout(400)
+    tall(page, "14h-pieces-decision")
+    page.locator("[data-test=pieces-search]").fill("")
+
+    store_set(page, "referentiels", "s.pieces.date = new Date(2023, 5, 1)")
+    page.wait_for_load_state("networkidle")
+    page.locator("[data-test=pieces-search]").fill("engagement")
+    page.locator("[data-test=pieces] tbody tr", has_text="casier").wait_for()
+    shot(page, "14i-pieces-2023")
+    page.locator("[data-test=pieces-search]").fill("")
 
     # --- Access denied (Social cannot open Paie) -----------------------------
     logout(page)
