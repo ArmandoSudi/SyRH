@@ -3,7 +3,7 @@ from django.utils import timezone
 
 from apps.core.admin import BaseModelAdmin
 
-from .models import Categorie, Echelon, Grade, Site, UniteOrganisationnelle
+from .models import Categorie, Echelon, Fonction, Grade, Site, UniteOrganisationnelle
 
 
 class OuvertFilter(admin.SimpleListFilter):
@@ -92,3 +92,13 @@ class EchelonAdmin(ClassificationAdmin):
     autocomplete_fields = ["grade"]
     list_select_related = ["grade", "grade__categorie"]
     fields = ["grade", "numero", "date_ouverture", "date_fermeture"]
+
+
+@admin.register(Fonction)
+class FonctionAdmin(BaseModelAdmin, admin.ModelAdmin):
+    """Job functions (fonctions D13). A rename closes the row and opens a successor."""
+
+    list_display = ["code", "nom", "nature", "date_ouverture", "date_fermeture"]
+    list_filter = ["nature", OuvertFilter]
+    search_fields = ["code", "nom"]
+    fields = ["code", "nom", "nature", "date_ouverture", "date_fermeture"]

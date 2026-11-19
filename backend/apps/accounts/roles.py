@@ -91,8 +91,15 @@ CLASSIFICATION_EDIT_PERMISSIONS = tuple(
     for action in ("view", "add", "change")
 )
 
+# Editing the fonctions in Django admin, never deleted (fonctions phase D11, D12).
+FONCTION_EDIT_PERMISSIONS = tuple(
+    f"referentiels.{action}_fonction" for action in ("view", "add", "change")
+)
+
 # Reference data the Gestion de carrière profiles and the administrator edit.
-REFERENTIELS_EDIT_PERMISSIONS = ORGANISATION_EDIT_PERMISSIONS + CLASSIFICATION_EDIT_PERMISSIONS
+REFERENTIELS_EDIT_PERMISSIONS = (
+    ORGANISATION_EDIT_PERMISSIONS + CLASSIFICATION_EDIT_PERMISSIONS + FONCTION_EDIT_PERMISSIONS
+)
 
 # Group name -> Django permissions beyond module access. These groups work in
 # Django admin, so their demo accounts get "Statut équipe".

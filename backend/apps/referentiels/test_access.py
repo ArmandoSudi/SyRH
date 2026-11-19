@@ -12,13 +12,14 @@ from rest_framework.test import APIClient
 
 from apps.accounts.roles import (
     CLASSIFICATION_EDIT_PERMISSIONS,
+    FONCTION_EDIT_PERMISSIONS,
     GROUPS,
     ORGANISATION_EDIT_PERMISSIONS,
     sync_groups,
 )
 from apps.audit.models import EntreeAudit
 
-from .models import Categorie, Echelon, Grade, Site, UniteOrganisationnelle
+from .models import Categorie, Echelon, Fonction, Grade, Site, UniteOrganisationnelle
 
 T = UniteOrganisationnelle.Type
 Unite = UniteOrganisationnelle
@@ -72,6 +73,23 @@ class PermissionTests(TestCase):
         sync_groups()
 
         self.assertEqual(self.holders("referentiels.change_grade"), EDITORS)
+
+    def test_editors_hold_view_add_change_on_fonctions(self):
+        self.assertEqual(len(FONCTION_EDIT_PERMISSIONS), 3)
+        for permission in FONCTION_EDIT_PERMISSIONS:
+            with self.subTest(permission):
+                self.assertEqual(self.holders(permission), EDITORS)
+
+    def test_group_setup_regrants_fonction_permissions_and_keeps_hand_made_ones(self):
+        carriere = Group.objects.get(name="Gestion de carrière")
+        carriere.permissions.remove(*Permission.objects.filter(codename__endswith="_fonction"))
+        social = Group.objects.get(name="Social")
+        social.permissions.add(Permission.objects.get(codename="view_fonction"))
+
+        sync_groups()
+
+        self.assertEqual(self.holders("referentiels.change_fonction"), EDITORS)
+        self.assertEqual(self.holders("referentiels.view_fonction"), EDITORS | {"Social"})
 
     def test_nobody_can_delete(self):
         self.assertFalse(
@@ -277,6 +295,72 @@ class ClassificationAdminTests(TestCase):
             with self.subTest(model):
                 response = self.client.get(f"/admin/referentiels/{model}/")
                 self.assertEqual(response.status_code, 403)
+
+
+class FonctionAdminTests(TestCase):
+    """Fonctions in Django admin (fonctions D11, D13)."""
+
+    URL = "/admin/referentiels/fonction/"
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.carriere = member("carriere", "Gestion de carrière", is_staff=True)
+        cls.remuneration = member("remuneration", "Rémunération", is_staff=True)
+        cls.jur = Fonction.objects.create(
+            code="JUR", nom="Juriste", nature="execution", date_ouverture=D2015
+        )
+
+    def setUp(self):
+        self.client.force_login(self.carriere)
+
+    def post(self, url, **values):
+        data = {"code": "", "nom": "", "nature": "execution", "date_ouverture": "2020-01-01",
+                "date_fermeture": "", **values}  # fmt: skip
+        return self.client.post(url, data)
+
+    def test_list_filters_and_search_open(self):
+        for query in ("", "?nature__exact=responsabilite", "?statut=ouvert", "?q=jur"):
+            with self.subTest(query):
+                response = self.client.get(self.URL + query)
+                self.assertEqual(response.status_code, 200)
+        self.assertContains(self.client.get(self.URL + "?q=jurist"), "Juriste")
+
+    def test_editor_adds_and_corrects_a_fonction(self):
+        response = self.post(f"{self.URL}add/", code="cs", nom="Chef de servce",
+                             nature="responsabilite")  # fmt: skip
+        self.assertEqual(response.status_code, 302)
+        cs = Fonction.objects.get(code="CS")
+        self.assertEqual((cs.cree_par, cs.modifie_par), (self.carriere, self.carriere))
+
+        response = self.post(f"{self.URL}{cs.pk}/change/", code="CS", nom="Chef de service",
+                             nature="responsabilite")  # fmt: skip
+        self.assertEqual(response.status_code, 302)
+        entry = EntreeAudit.objects.get(objet_id=cs.pk, table__model="fonction",
+                                        action="modification")  # fmt: skip
+        self.assertEqual(
+            (entry.auteur, entry.objet_libelle), (self.carriere, "CS — Chef de service")
+        )
+
+    def test_duplicate_code_shows_at_the_top(self):
+        response = self.post(f"{self.URL}add/", code="jur", nom="Doublon")
+        self.assertEqual(response.status_code, 200)
+        errors = response.context["adminform"].form.non_field_errors()
+        self.assertIn("Une autre fonction porte déjà ce code", errors[0])
+
+    def test_reversed_dates_show_next_to_the_closing_date(self):
+        response = self.post(f"{self.URL}add/", code="X", nom="X", date_fermeture="2019-01-01")
+        self.assertEqual(response.status_code, 200)
+        errors = response.context["adminform"].form.errors
+        self.assertIn("postérieure à la date d'ouverture", errors["date_fermeture"][0])
+
+    def test_editor_cannot_delete(self):
+        response = self.client.post(f"{self.URL}{self.jur.pk}/delete/", {"post": "yes"})
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Fonction.objects.filter(pk=self.jur.pk).exists())
+
+    def test_other_profiles_cannot_open_the_admin_pages(self):
+        self.client.force_login(self.remuneration)
+        self.assertEqual(self.client.get(self.URL).status_code, 403)
 
 
 class ApiTests(TestCase):
