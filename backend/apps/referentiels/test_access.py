@@ -1243,3 +1243,52 @@ class DemoTypesContratTests(TestCase):
         before = (TypeContrat.objects.count(), EntreeAudit.objects.count())
         self.assertIn("0 créés", self.run_command())
         self.assertEqual((TypeContrat.objects.count(), EntreeAudit.objects.count()), before)
+
+
+class DemoPiecesTests(TestCase):
+    """create_demo_pieces (document types D23)."""
+
+    def run_command(self):
+        out = StringIO()
+        call_command("create_demo_pieces", stdout=out)
+        return out.getvalue()
+
+    @override_settings(DEBUG=False)
+    def test_refuses_without_debug(self):
+        with self.assertRaises(CommandError):
+            self.run_command()
+        self.assertFalse(TypeDocument.objects.exists())
+
+    @override_settings(DEBUG=True)
+    def test_creates_valid_rows_once(self):
+        output = self.run_command()
+
+        self.assertIn("28 créées", output)  # 11 types, 17 requirements
+        for model in (TypeDocument, PieceRequise):
+            for obj in model.objects.all():
+                obj.full_clean()  # every rule holds
+        today = timezone.localdate()
+
+        def hiring(day):
+            return set(
+                PieceRequise.objects.ouvertes(day)
+                .filter(evenement="engagement", obligatoire=True)
+                .values_list("type_document__code", flat=True)
+            )
+
+        self.assertEqual(hiring(today), {"CTR", "CNI", "DIP"})
+        self.assertEqual(hiring(date(2023, 6, 1)), {"CTR", "CNI", "DIP", "CJ"})
+        self.assertFalse(PieceRequise.objects.filter(evenement="sortie").exists())
+        self.assertGreater(PieceRequise.objects.filter(type_document__code="DEC").count(), 1)
+        self.assertEqual(
+            set(PieceRequise.objects.values_list("obligatoire", flat=True)), {True, False}
+        )
+        self.assertFalse(
+            EntreeAudit.objects.filter(table__model__in=["typedocument", "piecerequise"])
+            .exclude(auteur=None)
+            .exists()
+        )
+
+        before = (PieceRequise.objects.count(), EntreeAudit.objects.count())
+        self.assertIn("0 créées", self.run_command())
+        self.assertEqual((PieceRequise.objects.count(), EntreeAudit.objects.count()), before)
