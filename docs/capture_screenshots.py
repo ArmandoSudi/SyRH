@@ -1,7 +1,8 @@
 """Retake the screenshots of docs/user-guide.md.
 
 Needs both dev servers running (backend on 8000, frontend on 5173), the demo data
-(create_demo_users, create_demo_organisation, create_demo_classification) and Google Chrome.
+(create_demo_users, create_demo_organisation, create_demo_classification,
+create_demo_fonctions) and Google Chrome.
 From the repository root:
 
     uv run --no-project --with playwright python docs/capture_screenshots.py
@@ -174,6 +175,24 @@ with sync_playwright() as p:
     grid_row(page, "Attaché de 2e classe").wait_for()
     grid_row(page, "Attaché de 2e classe").locator("button").first.click()
     shot(page, "14-classification-2024")
+
+    page.locator("[data-test=tab-fonctions]").click()
+    page.locator("[data-test=fonctions] tbody tr", has_text="Chef de service").wait_for()
+    page.wait_for_load_state("networkidle")
+    tall(page, "14b-fonctions")
+
+    page.locator("[data-test=fonctions-search]").fill("chef")
+    page.wait_for_timeout(400)
+    shot(page, "14c-fonctions-search")
+    page.locator("[data-test=fonctions-search]").fill("")
+
+    store_set(page, "referentiels", "s.fonctions.date = new Date(2023, 11, 31)")
+    page.wait_for_load_state("networkidle")
+    page.locator("[data-test=fonctions] tbody tr", has_text="Chargé d'études").wait_for()
+    page.locator("[data-test=fonctions-search]").fill("etudes")
+    page.wait_for_timeout(400)
+    shot(page, "14d-fonctions-2023")
+    page.locator("[data-test=fonctions-search]").fill("")
 
     # --- Access denied (Social cannot open Paie) -----------------------------
     logout(page)

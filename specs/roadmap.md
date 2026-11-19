@@ -33,7 +33,7 @@ Small tables first, each with model, constraints, admin, API and tests.
 
 - [x] **1.1 Organisation** — sites, directions, départements, services, bureaux, as a tree.
 - [x] **1.2 Classification** — catégories, grades, échelons.
-- [ ] **1.3 Fonctions** — job functions.
+- [x] **1.3 Fonctions** — job functions.
 - [ ] **1.4 Contract types** — CDI, CDD, stage, journalier.
 - [ ] **1.5 Document types** — the supporting documents each event requires.
 - [ ] **1.6 Exit and suspension reasons** — with a "counts toward seniority" flag (`Q2`, `Q3`).

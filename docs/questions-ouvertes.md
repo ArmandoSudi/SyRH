@@ -88,6 +88,13 @@ En attendant, le MVP traite chaque point comme un **paramètre** ou applique l'h
   - Hypothèse en attendant : trois niveaux imbriqués (catégorie, grade, échelon), chaque grade
     dans une seule catégorie, échelons numérotés par grade. Les RH saisissent la grille réelle
     dans l'administration.
+- [ ] **Q29 — Liste des fonctions de l'ARPTC.** Quelles sont les fonctions, avec leur sigle et
+  leur intitulé, et lesquelles sont des postes de responsabilité (direction d'une unité ou d'une
+  équipe) ? Une fonction exige-t-elle une catégorie ou un grade minimum ?
+  - Concerne : section 4.1 (fonctions), section 4.2 (position), CAR-08, CAR-09, roadmap 1.3.
+  - Hypothèse en attendant : une liste plate, chaque fonction de nature « responsabilité » ou
+    « exécution », sans lien avec la grille. Les RH saisissent la liste réelle dans
+    l'administration.
 
 ## 6. Circuits de validation
 

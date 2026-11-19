@@ -4,7 +4,8 @@ SyRH is the human resources management system of the ARPTC. This guide explains 
 find your way around, and use the screens that are available today.
 
 > **Where the application stands (November 2026).** The foundations are in place: sign-in,
-> profiles, the audit log and the reference data (organisation, sites, classification). The
+> profiles, the audit log and the reference data (organisation, sites, classification, job
+> functions). The
 > business modules (Agents, Carrière, Présences, Paie, Social, Formation) appear in the menu but
 > are not built yet. The dashboard shows demonstration figures only.
 
@@ -183,13 +184,13 @@ you leave a shared computer.
 ## 5. Reference data (Référentiels)
 
 **Référentiels** holds the reference data the other modules rely on: the organisation chart, the
-sites and the job classification. Every profile can open it.
+sites, the job classification and the job functions. Every profile can open it.
 
 The screen is **read-only**: it shows the data but does not change it. Changes are made by the
 **Administrateur système** and **Gestion de carrière** profiles, in the administration site
 (see [Who changes the reference data](#who-changes-the-reference-data)).
 
-The screen has three tabs: **Organisation**, **Sites** and **Classification**.
+The screen has four tabs: **Organisation**, **Sites**, **Classification** and **Fonctions**.
 
 ### Organisation
 
@@ -253,16 +254,41 @@ Since then **Attaché de 2e classe (grille 2025)** has 5.
 
 ![The classification on 1 June 2024, before the 2025 reform](./screenshots/14-classification-2024.png)
 
-The Organisation and Classification tabs each keep their own date and search, so changing one
-does not move the other.
+The Organisation, Classification and Fonctions tabs each keep their own date and search, so
+changing one does not move the others.
+
+### Fonctions
+
+The **Fonctions** tab lists the job functions an agent can hold, with their **Code**, **Nom**,
+**Nature**, and opening and closing dates. The nature is one of two:
+
+- **Responsabilité**: the holder heads a unit or a team (Directeur, Chef de service, ...);
+- **Exécution**: every other post (Juriste, Comptable, Chauffeur, ...).
+
+Posts of responsibility come first, then the others, each in alphabetical order.
+
+![The Fonctions tab](./screenshots/14b-fonctions.png)
+
+**Search for a fonction.** Type part of a code or name in the **Code ou nom** field. Capitals and
+accents do not matter: "ingenieur" finds "Ingénieur télécoms".
+
+![Searching for "chef": the posts of Chef](./screenshots/14c-fonctions-search.png)
+
+**See the fonctions at another date.** When a fonction is renamed, the old name is closed and the
+new one opens on the same day, often with the same code. Change the **Fonctions au** date to see
+the list as it was. In the demonstration data, **Chargé d'études** became
+**Analyste régulation** on 1 January 2024.
+
+![The fonctions on 31 December 2023, before the rename](./screenshots/14d-fonctions-2023.png)
 
 ### Who changes the reference data
 
 Accounts with the **Administrateur système** or **Gestion de carrière** profile, and with
-staff status (**Statut équipe**), change the reference data in the administration site, at
-`/admin/` (the same address as SyRH, followed by `/admin/`). A reorganisation or a reform is
-recorded by closing the old unit or grade on a date and opening the new one, never by deleting
-it, so the history stays readable. Every change is recorded in the
+staff status (**Statut équipe**), change the reference data (units, sites, the classification
+and the fonctions) in the administration site, at
+`/admin/` (the same address as SyRH, followed by `/admin/`). A reorganisation, a reform or a
+rename is recorded by closing the old unit, grade or fonction on a date and opening the new one,
+never by deleting it, so the history stays readable. Every change is recorded in the
 [audit log](#6-the-audit-log-journal-daudit).
 
 ## 6. The audit log (Journal d'audit)
@@ -349,6 +375,7 @@ No. The log is permanent, and nobody can change it, not even the administrator.
 
 ---
 
-*Screenshots taken on 18 November 2026 with the demonstration data and accounts
-(`create_demo_users`, `create_demo_organisation`, `create_demo_classification`). To retake them,
+*Screenshots taken on 19 November 2026 with the demonstration data and accounts
+(`create_demo_users`, `create_demo_organisation`, `create_demo_classification`,
+`create_demo_fonctions`). To retake them,
 see `docs/capture_screenshots.py`.*
