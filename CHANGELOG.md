@@ -3,6 +3,18 @@
 All notable changes to SyRH, newest first. Each section is written from the git history before
 the work is merged.
 
+## 2026-11-19
+
+- Fonctions (roadmap 1.3): job functions as dated reference data, each with a code, a name and
+  a nature (Responsabilité or Exécution); a rename closes the old fonction and opens a successor.
+  Edited in Django admin by the same profiles as the organisation and the classification; a new
+  read-only "Fonctions" tab on Référentiels lists them at any date. Run `migrate`;
+  `create_demo_fonctions` loads a demo list. The real list is open question `Q29`.
+- A closing date before the opening date no longer crashes Django admin on units, catégories,
+  grades and échelons: the form shows the message next to "Date de fermeture".
+- The user guide covers the Fonctions tab; its screenshots were retaken.
+<!-- commits: f3da417 f0aacb2 785feed 870644e c2c5bfb 26d8ba0 573c301 -->
+
 ## 2026-11-18
 
 - Organisation (roadmap 1.1): sites and a dated tree of directions, départements, services and
@@ -19,7 +31,7 @@ the work is merged.
 - User guide for end users in `docs/user-guide.md`, with screenshots of each screen, plus a
   self-contained `docs/user-guide.html` to email or print. Retake the screenshots with
   `docs/capture_screenshots.py` and rebuild the HTML with `docs/build_user_guide.py`.
-<!-- commits: bcbedcb 1bba339 04cd9da e52a536 dd57ad6 02fe759 29f0647 92abaf4 85f9906 5fd4253 6e72f82 -->
+<!-- commits: bcbedcb 1bba339 04cd9da e52a536 dd57ad6 02fe759 29f0647 92abaf4 85f9906 5fd4253 6e72f82 91eb029 -->
 
 ## 2026-11-17
 
