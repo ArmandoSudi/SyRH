@@ -136,3 +136,4 @@ others follow from the cahier des charges, `missions.md`, `tech-stack.md` and ph
 
 | # | Decision | Reason |
 | --- | --- | --- |
+| D24 | The SWIFT/BIC shape is checked by `clean()` with the same pattern as the database constraint (`SWIFT_PATTERN`), so the form shows the message on `swift` rather than at the top. | A constraint error would otherwise land in the form's general errors. |

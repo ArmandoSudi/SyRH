@@ -122,6 +122,13 @@ En attendant, le MVP traite chaque point comme un **paramètre** ou applique l'h
   - Hypothèse en attendant : les quatre motifs de la section 2.2 et les deux positions de la
     section 2.3 ; pas de paramètre de préavis. La Gestion de carrière et l'administrateur
     saisissent la liste réelle dans l'administration.
+- [ ] **Q33 — Banques de l'ARPTC.** Par quelles banques les agents sont-ils payés, avec quel sigle
+  et quel code SWIFT/BIC ? La Gestion de carrière doit-elle pouvoir ajouter une banque quand elle
+  enregistre le compte d'un nouvel agent ?
+  - Concerne : section 4.1 (banques), REM-20, REM-28, roadmap 1.7.
+  - Hypothèse en attendant : une liste fictive de démonstration ; la Rémunération et
+    l'administrateur saisissent la liste réelle dans l'administration. Le modèle du fichier de
+    virement attend la réponse à Q16.
 
 ## 6. Circuits de validation
 

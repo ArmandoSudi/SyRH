@@ -185,14 +185,16 @@ you leave a shared computer.
 
 **Référentiels** holds the reference data the other modules rely on: the organisation chart, the
 sites, the job classification, the job functions, the contract types, the supporting documents
-each event requires, and the reasons a career stops or is suspended. Every profile can open it.
+each event requires, the reasons a career stops or is suspended, and the banks agents are paid
+through. Every profile can open it.
 
 The screen is **read-only**: it shows the data but does not change it. Changes are made by the
-**Administrateur système** and **Gestion de carrière** profiles, in the administration site
+**Administrateur système** and **Gestion de carrière** profiles, and the banks by
+**Rémunération**, in the administration site
 (see [Who changes the reference data](#who-changes-the-reference-data)).
 
-The screen has seven tabs: **Organisation**, **Sites**, **Classification**, **Fonctions**,
-**Types de contrat**, **Pièces justificatives** and **Sorties et suspensions**.
+The screen has eight tabs: **Organisation**, **Sites**, **Classification**, **Fonctions**,
+**Types de contrat**, **Pièces justificatives**, **Sorties et suspensions** and **Banques**.
 
 ### Organisation
 
@@ -365,16 +367,34 @@ suspension positions:
 
 ![Searching for "décision"](./screenshots/14k-sorties-decision.png)
 
+### Banques
+
+The **Banques** tab lists the banks agents can be paid through, in alphabetical order, with their
+code, name and **SWIFT/BIC** code, the international identifier used in bank transfers. A dash
+means the SWIFT/BIC has not been recorded. Each agent's bank and account number will be recorded
+in a later version.
+
+![The Banques tab](./screenshots/14l-banques.png)
+
+Search by code, name or SWIFT/BIC.
+
+**See the banks at another date.** A bank that is renamed or merged is closed and a new one
+opened in its place. Change the **Banques au** date to see the list as it was: in the
+demonstration data, the **Union des Banques du Kasaï** became the **Union Bank Kivu-Kasaï** on
+1 January 2022, keeping its code.
+
+![The banks on 31 December 2021, before the merger](./screenshots/14m-banques-2021.png)
+
 ### Who changes the reference data
 
 Accounts with the **Administrateur système** or **Gestion de carrière** profile, and with
 staff status (**Statut équipe**), change the reference data (units, sites, the classification,
 the fonctions, the contract types, the documents each event requires, the exit reasons and the
-suspension positions) in the administration
-site, at
-`/admin/` (the same address as SyRH, followed by `/admin/`). A reorganisation, a reform or a
-rename is recorded by closing the old unit, grade, fonction or contract type on a date and
-opening the new one, never by deleting it, so the history stays readable. Every change is recorded in the
+suspension positions) in the administration site, at `/admin/` (the same address as SyRH,
+followed by `/admin/`). The **banks** are changed by the **Rémunération** profiles and the
+**Administrateur système**, not by Gestion de carrière. A reorganisation, a reform, a rename or a
+merger is recorded by closing the old row on a date and opening the new one, never by deleting
+it, so the history stays readable. Every change is recorded in the
 [audit log](#6-the-audit-log-journal-daudit).
 
 ## 6. The audit log (Journal d'audit)
