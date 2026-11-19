@@ -16,6 +16,7 @@ from apps.accounts.roles import (
     FONCTION_EDIT_PERMISSIONS,
     GROUPS,
     ORGANISATION_EDIT_PERMISSIONS,
+    SORTIE_EDIT_PERMISSIONS,
     TYPE_CONTRAT_EDIT_PERMISSIONS,
     sync_groups,
 )
@@ -26,10 +27,12 @@ from .models import (
     Echelon,
     Fonction,
     Grade,
+    MotifSortie,
     PieceRequise,
     Site,
     TypeContrat,
     TypeDocument,
+    TypeSuspension,
     UniteOrganisationnelle,
 )
 
@@ -143,6 +146,23 @@ class PermissionTests(TestCase):
             self.holders("referentiels.change_piecerequise"),
             EDITORS | {"Administration du personnel"},
         )
+
+    def test_editors_hold_view_add_change_on_exit_and_suspension_reasons(self):
+        self.assertEqual(len(SORTIE_EDIT_PERMISSIONS), 6)
+        for permission in SORTIE_EDIT_PERMISSIONS:
+            with self.subTest(permission):
+                self.assertEqual(self.holders(permission), EDITORS)
+
+    def test_group_setup_regrants_sortie_permissions_and_keeps_hand_made_ones(self):
+        carriere = Group.objects.get(name="Gestion de carrière")
+        carriere.permissions.remove(*Permission.objects.filter(codename__endswith="_motifsortie"))
+        social = Group.objects.get(name="Social")
+        social.permissions.add(Permission.objects.get(codename="view_typesuspension"))
+
+        sync_groups()
+
+        self.assertEqual(self.holders("referentiels.change_motifsortie"), EDITORS)
+        self.assertEqual(self.holders("referentiels.view_typesuspension"), EDITORS | {"Social"})
 
     def test_nobody_can_delete(self):
         self.assertFalse(
@@ -586,6 +606,121 @@ class PiecesAdminTests(TestCase):
     def test_other_profiles_cannot_open_the_admin_pages(self):
         self.client.force_login(self.remuneration)
         for url in (self.TYPES, self.PIECES):
+            with self.subTest(url):
+                self.assertEqual(self.client.get(url).status_code, 403)
+
+
+class SortiesAdminTests(TestCase):
+    """Exit reasons and suspension types in Django admin (exit reasons D14, D16)."""
+
+    MOTIFS = "/admin/referentiels/motifsortie/"
+    SUSPENSIONS = "/admin/referentiels/typesuspension/"
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.carriere = member("carriere", "Gestion de carrière", is_staff=True)
+        cls.remuneration = member("remuneration", "Rémunération", is_staff=True)
+        cls.adc = TypeDocument.objects.create(code="ADC", nom="Acte de décès", date_ouverture=D2015)
+        cls.dec = TypeDocument.objects.create(code="DEC", nom="Décision", date_ouverture=D2020)
+        cls.dcd = MotifSortie.objects.create(
+            code="DCD", nom="Décès", type_document=cls.adc, deces=True, date_ouverture=D2015
+        )
+        cls.deta = TypeSuspension.objects.create(
+            code="DETA", nom="Détachement", type_document=cls.dec, compte_anciennete=True,
+            date_ouverture=D2020,
+        )  # fmt: skip
+
+    def setUp(self):
+        self.client.force_login(self.carriere)
+
+    def motif(self, **values):
+        data = {"code": "X", "nom": "X", "type_document": self.adc.pk,
+                "date_ouverture": "2015-01-01", "date_fermeture": "", **values}  # fmt: skip
+        return self.client.post(f"{self.MOTIFS}add/", data)
+
+    def test_lists_filters_and_search_open(self):
+        urls = (self.MOTIFS, self.MOTIFS + "?statut=ouvert", self.MOTIFS + "?retraite__exact=1",
+                self.MOTIFS + "?deces__exact=1", self.MOTIFS + "?q=déc",
+                self.SUSPENSIONS, self.SUSPENSIONS + "?compte_anciennete__exact=1",
+                self.SUSPENSIONS + "?statut=ferme", self.SUSPENSIONS + "?q=deta")  # fmt: skip
+        for url in urls:
+            with self.subTest(url):
+                self.assertEqual(self.client.get(url).status_code, 200)
+        self.assertContains(self.client.get(self.MOTIFS + "?deces__exact=1"), "Décès")
+
+    def test_editor_adds_a_reason_and_a_suspension_type(self):
+        response = self.motif(code="dem", nom="Démission")
+        self.assertEqual(response.status_code, 302)
+        dem = MotifSortie.objects.get(code="DEM")
+        self.assertEqual(dem.cree_par, self.carriere)
+
+        response = self.client.post(f"{self.SUSPENSIONS}add/", {
+            "code": "dispo", "nom": "Mise en disponibilité", "type_document": self.dec.pk,
+            "duree_max_mois": "24", "renouvellements_max": "1",
+            "date_ouverture": "2020-01-01", "date_fermeture": ""})  # fmt: skip
+        self.assertEqual(response.status_code, 302)
+        dispo = TypeSuspension.objects.get(code="DISPO")
+        self.assertEqual((dispo.compte_anciennete, dispo.duree_max_mois), (False, 24))
+        entry = EntreeAudit.objects.get(table__model="typesuspension", objet_id=dispo.pk)
+        self.assertEqual((entry.auteur, entry.objet_libelle),
+                         (self.carriere, "DISPO — Mise en disponibilité"))  # fmt: skip
+
+    def test_document_autocomplete_answers(self):
+        for model in ("motifsortie", "typesuspension"):
+            with self.subTest(model):
+                response = self.client.get("/admin/autocomplete/", {
+                    "app_label": "referentiels", "model_name": model,
+                    "field_name": "type_document", "term": "décès"})  # fmt: skip
+                self.assertEqual(response.status_code, 200)
+                texts = [r["text"] for r in response.json()["results"]]
+                self.assertEqual(texts, ["ADC — Acte de décès"])
+
+    def test_retirement_and_death_shows_next_to_death(self):
+        response = self.motif(retraite="on", deces="on")
+        self.assertEqual(response.status_code, 200)
+        errors = response.context["adminform"].form.errors
+        self.assertIn("à la fois une retraite et un décès", errors["deces"][0])
+
+    def test_opening_before_the_document_shows_next_to_the_opening_date(self):
+        response = self.client.post(f"{self.SUSPENSIONS}add/", {
+            "code": "X", "nom": "X", "type_document": self.dec.pk,
+            "date_ouverture": "2015-01-01", "date_fermeture": ""})  # fmt: skip
+        self.assertEqual(response.status_code, 200)
+        errors = response.context["adminform"].form.errors
+        self.assertIn("ne peut pas ouvrir avant son type de pièce", errors["date_ouverture"][0])
+
+    def test_zero_months_shows_next_to_the_duration(self):
+        response = self.client.post(f"{self.SUSPENSIONS}add/", {
+            "code": "X", "nom": "X", "type_document": self.dec.pk, "duree_max_mois": "0",
+            "date_ouverture": "2020-01-01", "date_fermeture": ""})  # fmt: skip
+        self.assertEqual(response.status_code, 200)
+        errors = response.context["adminform"].form.errors
+        self.assertIn("au moins un mois", errors["duree_max_mois"][0])
+
+    def test_duplicate_open_code_shows_at_the_top(self):
+        response = self.motif(code="dcd", nom="Décès bis")
+        self.assertEqual(response.status_code, 200)
+        errors = response.context["adminform"].form.non_field_errors()
+        self.assertIn("porte déjà ce code", errors[0])
+
+    def test_closing_a_document_in_use_names_the_open_rows(self):
+        response = self.client.post(f"/admin/referentiels/typedocument/{self.dec.pk}/change/", {
+            "code": "DEC", "nom": "Décision", "date_ouverture": "2020-01-01",
+            "date_fermeture": "2025-07-01"})  # fmt: skip
+        self.assertEqual(response.status_code, 200)
+        errors = response.context["adminform"].form.errors
+        self.assertIn("Des types de suspension restent ouverts", errors["date_fermeture"][0])
+
+    def test_editor_cannot_delete(self):
+        for url, obj in ((self.MOTIFS, self.dcd), (self.SUSPENSIONS, self.deta)):
+            with self.subTest(url):
+                response = self.client.post(f"{url}{obj.pk}/delete/", {"post": "yes"})
+                self.assertEqual(response.status_code, 403)
+                self.assertTrue(type(obj).objects.filter(pk=obj.pk).exists())
+
+    def test_other_profiles_cannot_open_the_admin_pages(self):
+        self.client.force_login(self.remuneration)
+        for url in (self.MOTIFS, self.SUSPENSIONS):
             with self.subTest(url):
                 self.assertEqual(self.client.get(url).status_code, 403)
 

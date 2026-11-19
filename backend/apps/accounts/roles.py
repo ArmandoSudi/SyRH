@@ -109,6 +109,13 @@ DOCUMENT_EDIT_PERMISSIONS = tuple(
     for action in ("view", "add", "change")
 )
 
+# Editing the exit reasons and suspension types, never deleted (exit reasons D14, D15).
+SORTIE_EDIT_PERMISSIONS = tuple(
+    f"referentiels.{action}_{model}"
+    for model in ("motifsortie", "typesuspension")
+    for action in ("view", "add", "change")
+)
+
 # Reference data the Gestion de carrière profiles and the administrator edit.
 REFERENTIELS_EDIT_PERMISSIONS = (
     ORGANISATION_EDIT_PERMISSIONS
@@ -116,6 +123,7 @@ REFERENTIELS_EDIT_PERMISSIONS = (
     + FONCTION_EDIT_PERMISSIONS
     + TYPE_CONTRAT_EDIT_PERMISSIONS
     + DOCUMENT_EDIT_PERMISSIONS
+    + SORTIE_EDIT_PERMISSIONS
 )
 
 # Group name -> Django permissions beyond module access. These groups work in

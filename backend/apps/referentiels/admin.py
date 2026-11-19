@@ -8,10 +8,12 @@ from .models import (
     Echelon,
     Fonction,
     Grade,
+    MotifSortie,
     PieceRequise,
     Site,
     TypeContrat,
     TypeDocument,
+    TypeSuspension,
     UniteOrganisationnelle,
 )
 
@@ -157,3 +159,32 @@ class PieceRequiseAdmin(ClassificationAdmin):
     autocomplete_fields = ["type_document"]
     list_select_related = ["type_document"]
     fields = ["evenement", "type_document", "obligatoire", "date_ouverture", "date_fermeture"]
+
+
+@admin.register(MotifSortie)
+class MotifSortieAdmin(BaseModelAdmin, admin.ModelAdmin):
+    """Exit reasons (exit reasons D16). Changing a rule closes the reason and opens a
+    successor, so an old exit keeps the reason it was recorded under (D8)."""
+
+    list_display = ["code", "nom", "type_document", "retraite", "deces", "date_ouverture",
+                    "date_fermeture"]  # fmt: skip
+    list_filter = ["retraite", "deces", OuvertFilter]
+    search_fields = ["code", "nom"]
+    autocomplete_fields = ["type_document"]
+    list_select_related = ["type_document"]
+    fields = ["code", "nom", "type_document", "retraite", "deces", "date_ouverture",
+              "date_fermeture"]  # fmt: skip
+
+
+@admin.register(TypeSuspension)
+class TypeSuspensionAdmin(BaseModelAdmin, admin.ModelAdmin):
+    """Suspension types (exit reasons D16)."""
+
+    list_display = ["code", "nom", "type_document", "compte_anciennete", "duree_max_mois",
+                    "renouvellements_max", "date_ouverture", "date_fermeture"]  # fmt: skip
+    list_filter = ["compte_anciennete", OuvertFilter]
+    search_fields = ["code", "nom"]
+    autocomplete_fields = ["type_document"]
+    list_select_related = ["type_document"]
+    fields = ["code", "nom", "type_document", "compte_anciennete", "duree_max_mois",
+              "renouvellements_max", "date_ouverture", "date_fermeture"]  # fmt: skip
