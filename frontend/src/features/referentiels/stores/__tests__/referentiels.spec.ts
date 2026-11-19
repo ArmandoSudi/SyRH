@@ -84,4 +84,23 @@ describe('referentiels store', () => {
       'stage',
     ])
   })
+
+  it('keeps the documents date, filter and expanded rows apart from the other tabs', () => {
+    const store = useReferentielsStore()
+    expect(localDate(store.pieces.date)).toBe(localDate(new Date()))
+
+    store.onglet = 'pieces'
+    store.pieces.date = new Date(2023, 5, 1)
+    store.pieces.texte = 'decision'
+    store.pieces.expanded = { 'ev-engagement': true }
+
+    expect(localDate(store.typesContrat.date)).toBe(localDate(new Date()))
+    const again = useReferentielsStore()
+    expect([
+      again.onglet,
+      localDate(again.pieces.date),
+      again.pieces.texte,
+      again.pieces.expanded,
+    ]).toEqual(['pieces', '2023-06-01', 'decision', { 'ev-engagement': true }])
+  })
 })

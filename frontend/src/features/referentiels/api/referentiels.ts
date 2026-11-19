@@ -80,6 +80,37 @@ export interface TypeContrat extends Periode {
   periode_essai: boolean
 }
 
+/** A kind of supporting document (document types D19). */
+export interface TypeDocument extends Periode {
+  code: string
+  nom: string
+}
+
+/** Event kinds that rest on a document, in the order of the agent's life (document types D2). */
+export type Evenement =
+  | 'engagement'
+  | 'promotion'
+  | 'mutation'
+  | 'detachement'
+  | 'disponibilite'
+  | 'reprise'
+  | 'interim'
+  | 'sanction'
+  | 'distinction'
+  | 'sortie'
+  | 'mariage'
+  | 'naissance'
+  | 'fin_dependance'
+  | 'formation'
+
+/** A document type an event kind requires; type_document is the type's id. */
+export interface PieceRequise extends Periode {
+  evenement: Evenement
+  evenement_libelle: string
+  type_document: number
+  obligatoire: boolean
+}
+
 export interface PeriodeOptions {
   date?: string
   toutes?: boolean
@@ -135,4 +166,14 @@ export function fetchFonctions(options: PeriodeOptions = {}): Promise<Fonction[]
 /** Contract types open on a date, by name, or all with toutes. */
 export function fetchTypesContrat(options: PeriodeOptions = {}): Promise<TypeContrat[]> {
   return request<TypeContrat[]>(`/api/referentiels/types-contrat/${periode(options)}`)
+}
+
+/** Document types open on a date, by name, or all with toutes. */
+export function fetchTypesDocument(options: PeriodeOptions = {}): Promise<TypeDocument[]> {
+  return request<TypeDocument[]>(`/api/referentiels/types-document/${periode(options)}`)
+}
+
+/** Required documents open on a date, in event order, mandatory first, or all with toutes. */
+export function fetchPiecesRequises(options: PeriodeOptions = {}): Promise<PieceRequise[]> {
+  return request<PieceRequise[]>(`/api/referentiels/pieces-requises/${periode(options)}`)
 }

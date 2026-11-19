@@ -1,7 +1,10 @@
 """Document types and the documents each event requires. See specs/2026-11-19-document-types."""
 
+import re
 from datetime import date
+from pathlib import Path
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError
@@ -314,3 +317,15 @@ class PieceRequiseAuditTests(TestCase):
             {("referentiels", "Promotion — DEC (facultative)"),
              ("referentiels", "Promotion — DEC (obligatoire)")},
         )  # fmt: skip
+
+
+class EvenementMirrorTests(TestCase):
+    """The screen lists event kinds from its own copy of the list (document types D21)."""
+
+    def test_frontend_list_matches_the_backend(self):
+        source = (
+            Path(settings.BASE_DIR).parent
+            / "frontend/src/features/referentiels/components/pieces.ts"
+        ).read_text()
+        pairs = re.findall(r"\{ value: '([a-z_]+)', label: '([^']+)' \}", source)
+        self.assertEqual(pairs, [(value, str(label)) for value, label in E.choices])

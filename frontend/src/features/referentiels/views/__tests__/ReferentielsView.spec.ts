@@ -9,7 +9,9 @@ import type {
   Echelon,
   Fonction,
   Grade,
+  PieceRequise,
   TypeContrat,
+  TypeDocument,
   Site,
   Unite,
 } from '@/features/referentiels/api/referentiels'
@@ -115,6 +117,37 @@ const TYPES: TypeContrat[] = [
   { id: 3, code: 'STG', nom: 'Stage', duree_determinee: true, periode_essai: false, ...PERIODE },
 ]
 
+const TYPES_DOCUMENT: TypeDocument[] = [
+  { id: 1, code: 'CTR', nom: 'Contrat signé', ...PERIODE },
+  { id: 2, code: 'DEC', nom: 'Décision', ...PERIODE },
+]
+const PIECES: PieceRequise[] = [
+  {
+    id: 1,
+    evenement: 'engagement',
+    evenement_libelle: 'Engagement',
+    type_document: 1,
+    obligatoire: true,
+    ...PERIODE,
+  },
+  {
+    id: 2,
+    evenement: 'promotion',
+    evenement_libelle: 'Promotion',
+    type_document: 2,
+    obligatoire: true,
+    ...PERIODE,
+  },
+  {
+    id: 3,
+    evenement: 'formation',
+    evenement_libelle: 'Formation',
+    type_document: 2,
+    obligatoire: false,
+    ...PERIODE,
+  },
+]
+
 async function mountView() {
   const wrapper = mount(ReferentielsView, {
     global: { plugins: [PrimeVue], stubs: { teleport: true } },
@@ -167,6 +200,8 @@ describe('ReferentielsView', () => {
     vi.mocked(api.fetchEchelons).mockResolvedValue(ECHELONS)
     vi.mocked(api.fetchFonctions).mockResolvedValue(FONCTIONS)
     vi.mocked(api.fetchTypesContrat).mockResolvedValue(TYPES)
+    vi.mocked(api.fetchTypesDocument).mockResolvedValue(TYPES_DOCUMENT)
+    vi.mocked(api.fetchPiecesRequises).mockResolvedValue(PIECES)
   })
 
   it('shows the organisation of today as a tree', async () => {
@@ -416,7 +451,7 @@ describe('ReferentielsView', () => {
     it('comes after the fonctions tab', async () => {
       const wrapper = await mountView()
       const tabs = wrapper.findAll('[role="tab"]').map((tab) => tab.text())
-      expect(tabs).toEqual([
+      expect(tabs.slice(0, 5)).toEqual([
         'Organisation',
         'Sites',
         'Classification',
@@ -471,6 +506,88 @@ describe('ReferentielsView', () => {
     it('offers no action that changes data', async () => {
       const wrapper = await mountView()
       expect(wrapper.get('[data-test="types-contrat"]').findAll('button')).toHaveLength(0)
+    })
+  })
+
+  describe('documents tab', () => {
+    function tree(wrapper: Awaited<ReturnType<typeof mountView>>) {
+      return wrapper
+        .findAll('[data-test="pieces"] tbody tr')
+        .map((tr) => tr.findAll('td').map((td) => td.text()))
+    }
+
+    beforeEach(() => {
+      useReferentielsStore().onglet = 'pieces'
+    })
+
+    it('comes after the contract types tab', async () => {
+      const wrapper = await mountView()
+      const tabs = wrapper.findAll('[role="tab"]').map((tab) => tab.text())
+      expect(tabs.slice(-2)).toEqual(['Types de contrat', 'Pièces justificatives'])
+    })
+
+    it('lists every event of today with its count, and opens to its documents', async () => {
+      const wrapper = await mountView()
+
+      const today = { date: localDate(new Date()) }
+      expect(api.fetchTypesDocument).toHaveBeenCalledWith(today)
+      expect(api.fetchPiecesRequises).toHaveBeenCalledWith(today)
+      const rows = tree(wrapper)
+      expect(rows).toHaveLength(14)
+      expect(rows[0]).toEqual(['Engagement', '', '1 pièce', '', ''])
+      expect(rows.find((r) => r[0] === 'Sortie')).toEqual([
+        'Sortie',
+        '',
+        'Aucune pièce exigée',
+        '',
+        '',
+      ])
+
+      await wrapper.get('[data-test="pieces-expand-all"]').trigger('click')
+      const expanded = tree(wrapper)
+      expect(expanded[1]).toEqual(['Contrat signé', 'CTR', 'Obligatoire', '01/01/2015', '—'])
+      expect(expanded.find((r) => r[1] === 'DEC' && r[2] === 'Facultative')).toBeTruthy()
+
+      await wrapper.get('[data-test="pieces-collapse-all"]').trigger('click')
+      expect(tree(wrapper)).toHaveLength(14)
+    })
+
+    it('filters on a document, keeping the events that require it', async () => {
+      const wrapper = await mountView()
+
+      await wrapper.get('[data-test="pieces-search"]').setValue('décision')
+      expect(tree(wrapper).map((r) => r[0])).toEqual([
+        'Promotion',
+        'Décision',
+        'Formation',
+        'Décision',
+      ])
+    })
+
+    it('reloads at the chosen date, leaving the other dates alone', async () => {
+      await mountView()
+      const store = useReferentielsStore()
+
+      store.pieces.date = new Date(2023, 5, 1)
+      await flushPromises()
+
+      expect(api.fetchPiecesRequises).toHaveBeenLastCalledWith({ date: '2023-06-01' })
+      expect(api.fetchTypesDocument).toHaveBeenLastCalledWith({ date: '2023-06-01' })
+      expect(localDate(store.typesContrat.date)).toBe(localDate(new Date()))
+    })
+
+    it('shows an error, and no event rows, when the lists cannot be loaded', async () => {
+      vi.mocked(api.fetchPiecesRequises).mockRejectedValue(new Error('HTTP 502'))
+      const wrapper = await mountView()
+
+      expect(wrapper.get('[data-test="pieces-error"]').text()).toContain('HTTP 502')
+      expect(tree(wrapper)).toEqual([['Aucune pièce à afficher.']])
+    })
+
+    it('offers no action that changes data', async () => {
+      const wrapper = await mountView()
+      const labels = wrapper.findAll('button').map((b) => b.text())
+      expect(labels.filter((l) => /ajouter|modifier|supprimer|enregistrer/i.test(l))).toEqual([])
     })
   })
 })
