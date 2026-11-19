@@ -17,8 +17,14 @@ the work is merged.
   d'essai" (probation allowed). Same editors in Django admin; a new read-only "Types de contrat"
   tab. Run `migrate`; `create_demo_types_contrat` loads demo types. The real list is open
   question `Q30`.
-- The user guide covers the Fonctions and Types de contrat tabs; its screenshots were retaken.
-<!-- commits: f3da417 f0aacb2 785feed 870644e c2c5bfb 26d8ba0 573c301 e5031ce 3554bcb 8d0d343 cfe667d ad9b38e 5576e63 8fbb1d5 -->
+- Document types (roadmap 1.5): the kinds of supporting document, and for each of fourteen event
+  kinds (hiring, promotion, marriage, birth, ...) the documents it requires, mandatory or
+  optional, dated like the other reference data. Same editors in Django admin; a new read-only
+  "Pièces justificatives" tab lists each event with its documents. Run `migrate`;
+  `create_demo_pieces` loads demo data. The real list is open question `Q31`.
+- The user guide covers the Fonctions, Types de contrat and Pièces justificatives tabs; its
+  screenshots were retaken.
+<!-- commits: f3da417 f0aacb2 785feed 870644e c2c5bfb 26d8ba0 573c301 e5031ce 3554bcb 8d0d343 cfe667d ad9b38e 5576e63 8fbb1d5 9d1b91f cd8291e ce97a1b 78890f5 08f3067 6648383 5066896 c20767f -->
 
 ## 2026-11-18
 
