@@ -767,3 +767,42 @@ class DemoClassificationTests(TestCase):
         before = self.counts()
         self.assertIn("0 créés", self.run_command())
         self.assertEqual(self.counts(), before)
+
+
+class DemoFonctionsTests(TestCase):
+    """create_demo_fonctions (fonctions D21, D22)."""
+
+    def run_command(self):
+        out = StringIO()
+        call_command("create_demo_fonctions", stdout=out)
+        return out.getvalue()
+
+    @override_settings(DEBUG=False)
+    def test_refuses_without_debug(self):
+        with self.assertRaises(CommandError):
+            self.run_command()
+        self.assertFalse(Fonction.objects.exists())
+
+    @override_settings(DEBUG=True)
+    def test_creates_a_valid_list_once(self):
+        output = self.run_command()
+
+        self.assertIn("13 créées", output)
+        for obj in Fonction.objects.all():
+            obj.full_clean()  # every rule holds
+        today = timezone.localdate()
+        natures = set(Fonction.objects.ouvertes(today).values_list("nature", flat=True))
+        self.assertEqual(natures, {"responsabilite", "execution"})
+        self.assertFalse(
+            EntreeAudit.objects.filter(table__model="fonction").exclude(auteur=None).exists()
+        )
+
+        # The renamed fonction: the old name until 2024, the new one since, same code.
+        old, new = Fonction.objects.filter(code="CE").order_by("date_ouverture")
+        self.assertEqual((old.date_fermeture, new.date_ouverture), (date(2024, 1, 1),) * 2)
+        self.assertEqual(Fonction.objects.ouvertes(date(2023, 12, 31)).get(code="CE"), old)
+        self.assertEqual(Fonction.objects.ouvertes(today).get(code="CE"), new)
+
+        before = (Fonction.objects.count(), EntreeAudit.objects.count())
+        self.assertIn("0 créées", self.run_command())
+        self.assertEqual((Fonction.objects.count(), EntreeAudit.objects.count()), before)
