@@ -29,7 +29,12 @@ the work is merged.
   l'ancienneté", maximum length and renewals), dated like the other reference data. Same editors
   in Django admin; a new read-only "Sorties et suspensions" tab, described in the user guide. Run
   `migrate`; `create_demo_sorties` loads demo data. The real lists are open question `Q32`.
-<!-- commits: f3da417 f0aacb2 785feed 870644e c2c5bfb 26d8ba0 573c301 e5031ce 3554bcb 8d0d343 cfe667d ad9b38e 5576e63 8fbb1d5 9d1b91f cd8291e ce97a1b 78890f5 08f3067 6648383 5066896 c20767f 0a25d29 acb197e b9e14c4 fe1373e be30eff ac34cf4 5d9d613 516590d -->
+- Banks (roadmap 1.7): dated list of banks with a code, a name and an optional SWIFT/BIC checked
+  for shape; edited in Django admin by Rémunération, its Chef de service and the administrator
+  (not Gestion de carrière); a new read-only "Banques" tab, described in the user guide. Run
+  `migrate`, then re-run `create_demo_users` so the Rémunération accounts get staff status;
+  `create_demo_banques` loads fictional banks. The real list is open question `Q33`.
+<!-- commits: f3da417 f0aacb2 785feed 870644e c2c5bfb 26d8ba0 573c301 e5031ce 3554bcb 8d0d343 cfe667d ad9b38e 5576e63 8fbb1d5 9d1b91f cd8291e ce97a1b 78890f5 08f3067 6648383 5066896 c20767f 0a25d29 acb197e b9e14c4 fe1373e be30eff ac34cf4 5d9d613 516590d 4dbe7c9 fb9a9e6 bc5ef56 cd721d9 4741666 5cfaf32 5d2af74 -->
 
 ## 2026-11-18
 
