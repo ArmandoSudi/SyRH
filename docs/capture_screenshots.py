@@ -2,7 +2,8 @@
 
 Needs both dev servers running (backend on 8000, frontend on 5173), the demo data
 (create_demo_users, create_demo_organisation, create_demo_classification,
-create_demo_fonctions, create_demo_types_contrat, create_demo_pieces) and Google Chrome.
+create_demo_fonctions, create_demo_types_contrat, create_demo_pieces, create_demo_sorties)
+and Google Chrome.
 From the repository root:
 
     uv run --no-project --with playwright python docs/capture_screenshots.py
@@ -222,6 +223,17 @@ with sync_playwright() as p:
     page.locator("[data-test=pieces] tbody tr", has_text="casier").wait_for()
     shot(page, "14i-pieces-2023")
     page.locator("[data-test=pieces-search]").fill("")
+
+    page.locator("[data-test=tab-sorties]").click()
+    page.locator("[data-test=suspensions] tbody tr", has_text="Détachement").wait_for()
+    page.locator("[data-test=motifs] tbody tr", has_text="Démission").wait_for()
+    page.wait_for_load_state("networkidle")
+    tall(page, "14j-sorties")
+
+    page.locator("[data-test=sorties-search]").fill("decision")
+    page.wait_for_timeout(400)
+    tall(page, "14k-sorties-decision")
+    page.locator("[data-test=sorties-search]").fill("")
 
     # --- Access denied (Social cannot open Paie) -----------------------------
     logout(page)

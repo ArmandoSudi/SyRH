@@ -184,15 +184,15 @@ you leave a shared computer.
 ## 5. Reference data (Référentiels)
 
 **Référentiels** holds the reference data the other modules rely on: the organisation chart, the
-sites, the job classification, the job functions, the contract types and the supporting documents
-each event requires. Every profile can open it.
+sites, the job classification, the job functions, the contract types, the supporting documents
+each event requires, and the reasons a career stops or is suspended. Every profile can open it.
 
 The screen is **read-only**: it shows the data but does not change it. Changes are made by the
 **Administrateur système** and **Gestion de carrière** profiles, in the administration site
 (see [Who changes the reference data](#who-changes-the-reference-data)).
 
-The screen has six tabs: **Organisation**, **Sites**, **Classification**, **Fonctions**,
-**Types de contrat** and **Pièces justificatives**.
+The screen has seven tabs: **Organisation**, **Sites**, **Classification**, **Fonctions**,
+**Types de contrat**, **Pièces justificatives** and **Sorties et suspensions**.
 
 ### Organisation
 
@@ -333,11 +333,44 @@ demonstration data, hiring required the criminal record extract until 1 January 
 
 ![The documents required for hiring on 1 June 2023](./screenshots/14i-pieces-2023.png)
 
+### Sorties et suspensions
+
+The **Sorties et suspensions** tab shows two lists, one above the other.
+
+**Motifs de sortie** are the reasons an agent leaves for good: retirement, resignation, death.
+Each one names the **Pièce exigée**, the document the exit rests on (a retirement decision, a
+resignation letter, a death certificate). Two tags mark the reasons later steps treat apart:
+
+- **Retraite**: the reason is a retirement; it will count in the retirement forecast and alerts;
+- **Décès**: the reason is a death; the final settlement will go to the agent's heirs.
+
+**Positions de suspension** are the positions that pause a career without ending it, such as a
+**Mise en disponibilité** or a **Détachement**. For each one:
+
+- **Pièce exigée**: the document the suspension rests on, usually a decision;
+- **Compte dans l'ancienneté**: **Oui** if the time spent in this position counts toward
+  seniority and the 30 years of career;
+- **Durée maximale**: the longest single period, or **Fixée par la décision** when the decision
+  sets it;
+- **Renouvellements**: how many times a period may be renewed, or **Sans limite**.
+
+These rules will apply when exits and suspensions are recorded for each agent, in a later
+version.
+
+![The Sorties et suspensions tab](./screenshots/14j-sorties.png)
+
+**Search and date.** One search box and one **Au** date serve both lists. The search matches a
+code, a name or the required document. Here, "décision" keeps the two retirements and both
+suspension positions:
+
+![Searching for "décision"](./screenshots/14k-sorties-decision.png)
+
 ### Who changes the reference data
 
 Accounts with the **Administrateur système** or **Gestion de carrière** profile, and with
 staff status (**Statut équipe**), change the reference data (units, sites, the classification,
-the fonctions, the contract types and the documents each event requires) in the administration
+the fonctions, the contract types, the documents each event requires, the exit reasons and the
+suspension positions) in the administration
 site, at
 `/admin/` (the same address as SyRH, followed by `/admin/`). A reorganisation, a reform or a
 rename is recorded by closing the old unit, grade, fonction or contract type on a date and

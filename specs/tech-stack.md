@@ -45,7 +45,7 @@ backend/            Django project
     core/           shared base models, health check
     audit/          audit log: entries, capture service, read-only API
     referentiels/   reference data: sites, units, classification, fonctions, contract and
-                    document types
+                    document types, exit reasons and suspension types
 frontend/           Vue application, organised by feature (see "Frontend folder layout")
 docs/               stakeholder input (French)
 specs/              this constitution
@@ -216,7 +216,7 @@ frontend/src/
 │   ├── dashboard/
 │   ├── systeme/                 # system status (health check)
 │   ├── audit/                   # audit log screen (read-only)
-│   ├── referentiels/            # reference data: organisation, sites, classification, fonctions, contract types, documents (read-only)
+│   ├── referentiels/            # reference data: organisation, sites, classification, fonctions, contract types, documents, exits and suspensions (read-only)
 │   ├── design/                  # design guide page
 │   ├── agents/                  # then one folder per module as the roadmap reaches it:
 │   └── ...                      # carriere, personnel, paie, social, formation

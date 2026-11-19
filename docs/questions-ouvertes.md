@@ -18,10 +18,12 @@ En attendant, le MVP traite chaque point comme un **paramètre** ou applique l'h
   révocation, inaptitude ?
   - Concerne : section 2.2, CAR-16.
   - Hypothèse MVP : référentiel des motifs paramétrable, avec décès, démission et retraite au départ.
+    Appliquée par la roadmap 1.6 (motifs de sortie).
 - [ ] **Q3 — Mise en disponibilité et 30 ans de carrière.** La période de mise en disponibilité
   compte-t-elle dans les 30 ans, comme celle de détachement ?
   - Concerne : section 2.3, CAR-14, SOC-07.
-  - Hypothèse MVP : indicateur « compte dans l'ancienneté » par type de suspension.
+  - Hypothèse MVP : indicateur « compte dans l'ancienneté » par type de suspension. Appliquée par
+    la roadmap 1.6 : la mise en disponibilité ne compte pas dans les données de démonstration.
 - [ ] **Q4 — Portée de « l'agent ne bénéficie de rien ».** La règle s'applique-t-elle à la mise en
   disponibilité comme au détachement ? Suspend-elle aussi les bons de soins des dépendants ?
   - Concerne : section 2.3, CAR-08.
@@ -112,6 +114,14 @@ En attendant, le MVP traite chaque point comme un **paramètre** ou applique l'h
   - Concerne : section 4.1 (types de pièces justificatives), SOC-04, CAR-02, ADM-14, roadmap 1.5.
   - Hypothèse en attendant : une pièce exigée ne dépend que de l'événement ; la Gestion de
     carrière et l'administrateur saisissent la liste réelle dans l'administration.
+- [ ] **Q32 — Motifs de sortie et positions de suspension de l'ARPTC.** Quels motifs de sortie et
+  quelles positions de suspension existent, avec quel sigle et quelle pièce exigée pour chacun ?
+  Quelles sont la durée maximale et le nombre de renouvellements réels de chaque position ? Le
+  préavis de démission a-t-il une durée fixe à paramétrer ?
+  - Concerne : sections 2.2, 2.3 et 4.1 (motifs de sortie), CAR-08, CAR-16, roadmap 1.6.
+  - Hypothèse en attendant : les quatre motifs de la section 2.2 et les deux positions de la
+    section 2.3 ; pas de paramètre de préavis. La Gestion de carrière et l'administrateur
+    saisissent la liste réelle dans l'administration.
 
 ## 6. Circuits de validation
 

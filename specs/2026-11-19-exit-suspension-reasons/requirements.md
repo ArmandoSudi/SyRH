@@ -153,3 +153,6 @@ others follow from the cahier des charges, `missions.md`, `tech-stack.md` and ph
 
 | # | Decision | Reason |
 | --- | --- | --- |
+| D26 | The tab is one component, `SortiesSuspensions.vue`, holding the shared toolbar and both tables, instead of two table components as plan step 6.1 said. | The date and filter belong to both tables; one component avoids passing them around. Each list still loads and fails on its own. |
+| D27 | `TypeDocument` lists the exit reasons and suspension types in a new `ClassificationRules.OTHER_CHILDREN`, and the parent period check became a shared `within_parent()` used by `DocumentRules`. The period queryset method is `ouvertes(date)`, as on the other reference tables, rather than `ouverts(date)`. | One copy of each period rule; the same queryset as the views already use. |
+| D28 | `create_demo_pieces` gains "Décision de retraite" (DRT) and "Lettre de démission" (LDM), so it now creates 13 types. | D23: the exit reasons need them, and the document types belong to that command. |
