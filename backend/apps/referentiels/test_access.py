@@ -11,6 +11,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.roles import (
+    BANQUE_EDIT_PERMISSIONS,
     CLASSIFICATION_EDIT_PERMISSIONS,
     DOCUMENT_EDIT_PERMISSIONS,
     FONCTION_EDIT_PERMISSIONS,
@@ -23,6 +24,7 @@ from apps.accounts.roles import (
 from apps.audit.models import EntreeAudit
 
 from .models import (
+    Banque,
     Categorie,
     Echelon,
     Fonction,
@@ -43,6 +45,8 @@ EDITORS = {
     "Gestion de carrière",
     "Chef de service — Gestion de carrière",
 }
+# Banks belong to pay: Rémunération edits them instead of Gestion de carrière (banks D12).
+BANK_EDITORS = {"Administrateur système", "Rémunération", "Chef de service — Rémunération"}
 UNITES = "/api/referentiels/unites/"
 SITES = "/api/referentiels/sites/"
 CATEGORIES = "/api/referentiels/categories/"
@@ -187,8 +191,38 @@ class PermissionTests(TestCase):
             .objects.filter(username__startswith="demo.", is_staff=True)
             .values_list("groups__name", flat=True)
         )
-        self.assertEqual(staff, EDITORS)
-        self.assertTrue(EDITORS <= set(GROUPS))
+        self.assertEqual(staff, EDITORS | BANK_EDITORS)
+        self.assertTrue(EDITORS | BANK_EDITORS <= set(GROUPS))
+
+    def test_bank_editors_hold_view_add_change_and_nobody_else_edits(self):
+        self.assertEqual(len(BANQUE_EDIT_PERMISSIONS), 3)
+        self.assertEqual(self.holders("referentiels.view_banque"), BANK_EDITORS)
+        self.assertEqual(self.holders("referentiels.add_banque"), BANK_EDITORS)
+        self.assertEqual(self.holders("referentiels.change_banque"), BANK_EDITORS)
+        self.assertNotIn("Gestion de carrière", self.holders("referentiels.change_banque"))
+
+    def test_remuneration_edits_no_other_reference_table(self):
+        remuneration = Group.objects.get(name="Rémunération")
+        codenames = set(
+            remuneration.permissions.filter(content_type__app_label="referentiels").values_list(
+                "codename", flat=True
+            )
+        )
+        self.assertEqual(codenames, {"view_banque", "add_banque", "change_banque"})
+        self.assertEqual(self.holders("referentiels.change_fonction"), EDITORS)
+
+    def test_group_setup_regrants_bank_permissions_and_keeps_hand_made_ones(self):
+        chef = Group.objects.get(name="Chef de service — Rémunération")
+        chef.permissions.remove(*Permission.objects.filter(codename__endswith="_banque"))
+        carriere = Group.objects.get(name="Gestion de carrière")
+        carriere.permissions.add(Permission.objects.get(codename="view_banque"))
+
+        sync_groups()
+
+        self.assertEqual(self.holders("referentiels.change_banque"), BANK_EDITORS)
+        self.assertEqual(
+            self.holders("referentiels.view_banque"), BANK_EDITORS | {"Gestion de carrière"}
+        )
 
 
 class AdminTests(TestCase):
@@ -725,6 +759,69 @@ class SortiesAdminTests(TestCase):
         for url in (self.MOTIFS, self.SUSPENSIONS):
             with self.subTest(url):
                 self.assertEqual(self.client.get(url).status_code, 403)
+
+
+class BanquesAdminTests(TestCase):
+    """Banks in Django admin, edited by Rémunération (banks D12, D14)."""
+
+    BANQUES = "/admin/referentiels/banque/"
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.remuneration = member("remuneration", "Rémunération", is_staff=True)
+        cls.carriere = member("carriere", "Gestion de carrière", is_staff=True)
+        cls.bcf = Banque.objects.create(
+            code="BCF", nom="Banque Commerciale du Fleuve", swift="BCFLCDKI", date_ouverture=D2015
+        )
+
+    def setUp(self):
+        self.client.force_login(self.remuneration)
+
+    def add(self, **values):
+        data = {"code": "X", "nom": "X", "swift": "", "date_ouverture": "2015-01-01",
+                "date_fermeture": "", **values}  # fmt: skip
+        return self.client.post(f"{self.BANQUES}add/", data)
+
+    def test_lists_filter_and_search_open(self):
+        urls = (self.BANQUES, self.BANQUES + "?statut=ouvert", self.BANQUES + "?statut=ferme",
+                self.BANQUES + "?q=fleuve", self.BANQUES + "?q=bcfl")  # fmt: skip
+        for url in urls:
+            with self.subTest(url):
+                self.assertEqual(self.client.get(url).status_code, 200)
+        self.assertContains(self.client.get(self.BANQUES + "?q=bcfl"), "Banque Commerciale")
+
+    def test_remuneration_adds_a_bank_and_is_its_author(self):
+        response = self.add(code="trc", nom="Trésor Crédit", swift="trcrcdki")
+        self.assertEqual(response.status_code, 302)
+        trc = Banque.objects.get(code="TRC")
+        self.assertEqual((trc.swift, trc.cree_par), ("TRCRCDKI", self.remuneration))
+        entry = EntreeAudit.objects.get(table__model="banque", objet_id=trc.pk)
+        self.assertEqual((entry.auteur, entry.objet_libelle),
+                         (self.remuneration, "TRC — Trésor Crédit"))  # fmt: skip
+
+    def test_wrong_swift_shows_next_to_its_field(self):
+        response = self.add(swift="ABC")
+        self.assertEqual(response.status_code, 200)
+        errors = response.context["adminform"].form.errors
+        self.assertIn("Code SWIFT/BIC invalide", errors["swift"][0])
+
+    def test_duplicate_open_code_shows_at_the_top(self):
+        response = self.add(code="bcf", nom="Bis")
+        self.assertEqual(response.status_code, 200)
+        errors = response.context["adminform"].form.non_field_errors()
+        self.assertIn("porte déjà ce code", errors[0])
+
+    def test_remuneration_cannot_delete_nor_open_other_tables(self):
+        response = self.client.post(f"{self.BANQUES}{self.bcf.pk}/delete/", {"post": "yes"})
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Banque.objects.filter(pk=self.bcf.pk).exists())
+        self.assertEqual(self.client.get("/admin/referentiels/fonction/").status_code, 403)
+
+    def test_gestion_de_carriere_cannot_open_the_bank_pages(self):
+        self.client.force_login(self.carriere)
+        self.assertEqual(self.client.get(self.BANQUES).status_code, 403)
+        self.assertEqual(self.client.get(f"{self.BANQUES}add/").status_code, 403)
+        self.assertEqual(self.client.get("/admin/referentiels/fonction/").status_code, 200)
 
 
 class ApiTests(TestCase):

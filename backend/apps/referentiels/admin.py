@@ -4,6 +4,7 @@ from django.utils import timezone
 from apps.core.admin import BaseModelAdmin
 
 from .models import (
+    Banque,
     Categorie,
     Echelon,
     Fonction,
@@ -188,3 +189,14 @@ class TypeSuspensionAdmin(BaseModelAdmin, admin.ModelAdmin):
     list_select_related = ["type_document"]
     fields = ["code", "nom", "type_document", "compte_anciennete", "duree_max_mois",
               "renouvellements_max", "date_ouverture", "date_fermeture"]  # fmt: skip
+
+
+@admin.register(Banque)
+class BanqueAdmin(BaseModelAdmin, admin.ModelAdmin):
+    """Banks (banks D14), edited by Rémunération and the administrator. A renamed or
+    merged bank is closed and a successor opened (D7)."""
+
+    list_display = ["code", "nom", "swift", "date_ouverture", "date_fermeture"]
+    list_filter = [OuvertFilter]
+    search_fields = ["code", "nom", "swift"]
+    fields = ["code", "nom", "swift", "date_ouverture", "date_fermeture"]

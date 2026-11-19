@@ -126,12 +126,22 @@ REFERENTIELS_EDIT_PERMISSIONS = (
     + SORTIE_EDIT_PERMISSIONS
 )
 
+# Editing the banks, never deleted: they belong to pay, so Rémunération edits them
+# rather than Gestion de carrière (banks D12, D13).
+BANQUE_EDIT_PERMISSIONS = tuple(
+    f"referentiels.{action}_banque" for action in ("view", "add", "change")
+)
+
 # Group name -> Django permissions beyond module access. These groups work in
 # Django admin, so their demo accounts get "Statut équipe".
 EXTRA_PERMISSIONS: dict[str, tuple[str, ...]] = {
-    ADMIN_GROUP: ACCOUNT_ADMIN_PERMISSIONS + REFERENTIELS_EDIT_PERMISSIONS,
+    ADMIN_GROUP: (
+        ACCOUNT_ADMIN_PERMISSIONS + REFERENTIELS_EDIT_PERMISSIONS + BANQUE_EDIT_PERMISSIONS
+    ),
     "Gestion de carrière": REFERENTIELS_EDIT_PERMISSIONS,
     "Chef de service — Gestion de carrière": REFERENTIELS_EDIT_PERMISSIONS,
+    "Rémunération": BANQUE_EDIT_PERMISSIONS,
+    "Chef de service — Rémunération": BANQUE_EDIT_PERMISSIONS,
 }
 
 
