@@ -58,6 +58,18 @@ export interface Echelon extends Periode {
   libelle: string
 }
 
+export type Nature = 'responsabilite' | 'execution'
+
+/** A job function, open from date_ouverture to date_fermeture excluded (fonctions D16). */
+export interface Fonction extends Periode {
+  code: string
+  nom: string
+  /** Responsabilité: the holder heads a unit or a team. */
+  nature: Nature
+  /** "Responsabilité" or "Exécution" */
+  nature_libelle: string
+}
+
 export interface PeriodeOptions {
   date?: string
   toutes?: boolean
@@ -103,4 +115,9 @@ export function fetchGrades(options: PeriodeOptions = {}): Promise<Grade[]> {
 /** Échelons open on a date, in grid order, or all with toutes. */
 export function fetchEchelons(options: PeriodeOptions = {}): Promise<Echelon[]> {
   return request<Echelon[]>(`/api/referentiels/echelons/${periode(options)}`)
+}
+
+/** Fonctions open on a date, responsabilité first then by name, or all with toutes. */
+export function fetchFonctions(options: PeriodeOptions = {}): Promise<Fonction[]> {
+  return request<Fonction[]>(`/api/referentiels/fonctions/${periode(options)}`)
 }

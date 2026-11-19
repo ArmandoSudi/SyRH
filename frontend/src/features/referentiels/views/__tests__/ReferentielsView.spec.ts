@@ -7,6 +7,7 @@ import * as api from '@/features/referentiels/api/referentiels'
 import type {
   Categorie,
   Echelon,
+  Fonction,
   Grade,
   Site,
   Unite,
@@ -65,6 +66,34 @@ const ECHELONS: Echelon[] = [
   { id: 2, grade: 1, numero: 2, libelle: 'DIR — Échelon 2', ...PERIODE },
 ]
 
+const FONCTIONS: Fonction[] = [
+  {
+    id: 1,
+    code: 'CS',
+    nom: 'Chef de service',
+    nature: 'responsabilite',
+    nature_libelle: 'Responsabilité',
+    ...PERIODE,
+  },
+  {
+    id: 2,
+    code: 'CE',
+    nom: 'Analyste régulation',
+    nature: 'execution',
+    nature_libelle: 'Exécution',
+    date_ouverture: '2024-01-01',
+    date_fermeture: null,
+  },
+  {
+    id: 3,
+    code: 'JUR',
+    nom: 'Juriste',
+    nature: 'execution',
+    nature_libelle: 'Exécution',
+    ...PERIODE,
+  },
+]
+
 async function mountView() {
   const wrapper = mount(ReferentielsView, {
     global: { plugins: [PrimeVue], stubs: { teleport: true } },
@@ -115,6 +144,7 @@ describe('ReferentielsView', () => {
     vi.mocked(api.fetchCategories).mockResolvedValue(CATEGORIES)
     vi.mocked(api.fetchGrades).mockResolvedValue(GRADES)
     vi.mocked(api.fetchEchelons).mockResolvedValue(ECHELONS)
+    vi.mocked(api.fetchFonctions).mockResolvedValue(FONCTIONS)
   })
 
   it('shows the organisation of today as a tree', async () => {
@@ -279,6 +309,74 @@ describe('ReferentielsView', () => {
       const labels = wrapper.findAll('button').map((b) => b.attributes('aria-label') ?? b.text())
       expect(labels.join(' ')).not.toMatch(/ajouter|créer|supprimer|modifier|enregistrer|fermer/i)
       wrapper.unmount()
+    })
+  })
+
+  describe('fonctions tab', () => {
+    function table(wrapper: Awaited<ReturnType<typeof mountView>>) {
+      return wrapper
+        .findAll('[data-test="fonctions"] tbody tr')
+        .map((tr) => tr.findAll('td').map((td) => td.text()))
+    }
+
+    beforeEach(() => {
+      useReferentielsStore().onglet = 'fonctions'
+    })
+
+    it('comes after the classification tab', async () => {
+      const wrapper = await mountView()
+      const tabs = wrapper.findAll('[role="tab"]').map((tab) => tab.text())
+      expect(tabs).toEqual(['Organisation', 'Sites', 'Classification', 'Fonctions'])
+    })
+
+    it('lists the fonctions of today, in the order of the API, with their nature', async () => {
+      const wrapper = await mountView()
+
+      expect(api.fetchFonctions).toHaveBeenCalledWith({ date: localDate(new Date()) })
+      expect(table(wrapper)).toEqual([
+        ['CS', 'Chef de service', 'Responsabilité', '01/01/2015', '—'],
+        ['CE', 'Analyste régulation', 'Exécution', '01/01/2024', '—'],
+        ['JUR', 'Juriste', 'Exécution', '01/01/2015', '—'],
+      ])
+      expect(wrapper.find('[data-test="fonctions"] .p-tag').exists()).toBe(true)
+    })
+
+    it('filters on code or name', async () => {
+      const wrapper = await mountView()
+
+      await wrapper.get('[data-test="fonctions-search"]').setValue('regulation')
+      expect(table(wrapper).map((row) => row[0])).toEqual(['CE'])
+
+      await wrapper.get('[data-test="fonctions-search"]').setValue('pilote')
+      expect(wrapper.get('[data-test="fonctions"]').text()).toContain(
+        'Aucune fonction ne correspond à cette recherche.',
+      )
+    })
+
+    it('reloads at the chosen date, leaving the other dates alone', async () => {
+      await mountView()
+      const store = useReferentielsStore()
+
+      store.fonctions.date = new Date(2023, 11, 31)
+      await flushPromises()
+
+      expect(api.fetchFonctions).toHaveBeenLastCalledWith({ date: '2023-12-31' })
+      expect(localDate(store.date)).toBe(localDate(new Date()))
+      expect(localDate(store.classification.date)).toBe(localDate(new Date()))
+    })
+
+    it('shows an error when the fonctions cannot be loaded', async () => {
+      vi.mocked(api.fetchFonctions).mockRejectedValue(new Error('HTTP 502'))
+      const wrapper = await mountView()
+
+      expect(wrapper.get('[data-test="fonctions-error"]').text()).toContain('HTTP 502')
+      expect(table(wrapper)).toEqual([['Aucune fonction à cette date.']])
+    })
+
+    it('offers no action that changes data', async () => {
+      const wrapper = await mountView()
+      const panel = wrapper.get('[data-test="fonctions"]')
+      expect(panel.findAll('button')).toHaveLength(0)
     })
   })
 })

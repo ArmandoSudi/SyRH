@@ -47,4 +47,23 @@ describe('referentiels store', () => {
     store.date = new Date(2020, 0, 1)
     expect(localDate(store.classification.date)).toBe('2024-12-31')
   })
+
+  it('keeps the fonctions date and filter apart from the other tabs', () => {
+    const store = useReferentielsStore()
+    expect(localDate(store.fonctions.date)).toBe(localDate(new Date()))
+    expect(store.fonctions.texte).toBe('')
+
+    store.onglet = 'fonctions'
+    store.fonctions.date = new Date(2023, 11, 31)
+    store.fonctions.texte = 'chef'
+
+    expect(localDate(store.date)).toBe(localDate(new Date()))
+    expect(localDate(store.classification.date)).toBe(localDate(new Date()))
+    const again = useReferentielsStore()
+    expect([again.onglet, localDate(again.fonctions.date), again.fonctions.texte]).toEqual([
+      'fonctions',
+      '2023-12-31',
+      'chef',
+    ])
+  })
 })

@@ -6,6 +6,7 @@ import TabPanels from 'primevue/tabpanels'
 import Tabs from 'primevue/tabs'
 
 import ClassificationTree from '@/features/referentiels/components/ClassificationTree.vue'
+import FonctionsTable from '@/features/referentiels/components/FonctionsTable.vue'
 import OrganisationTree from '@/features/referentiels/components/OrganisationTree.vue'
 import SitesTable from '@/features/referentiels/components/SitesTable.vue'
 import { useReferentielsStore } from '@/features/referentiels/stores/referentiels'
@@ -28,6 +29,7 @@ const store = useReferentielsStore()
         <Tab value="organisation" data-test="tab-organisation">Organisation</Tab>
         <Tab value="sites" data-test="tab-sites">Sites</Tab>
         <Tab value="classification" data-test="tab-classification">Classification</Tab>
+        <Tab value="fonctions" data-test="tab-fonctions">Fonctions</Tab>
       </TabList>
       <TabPanels class="panels">
         <TabPanel value="organisation">
@@ -38,6 +40,9 @@ const store = useReferentielsStore()
         </TabPanel>
         <TabPanel value="classification">
           <ClassificationTree />
+        </TabPanel>
+        <TabPanel value="fonctions">
+          <FonctionsTable />
         </TabPanel>
       </TabPanels>
     </Tabs>

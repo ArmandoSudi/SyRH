@@ -49,7 +49,7 @@ export function buildTree(unites: Unite[]): UniteNode[] {
 }
 
 /** Lower case, without accents, so "departement" finds "Département". */
-function normalise(text: string): string {
+export function normalise(text: string): string {
   return text
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')

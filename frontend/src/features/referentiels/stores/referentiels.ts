@@ -1,12 +1,12 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 
-export type Onglet = 'organisation' | 'sites' | 'classification'
+export type Onglet = 'organisation' | 'sites' | 'classification' | 'fonctions'
 
 /**
  * What the reader chose on the Référentiels screen, kept in Pinia so it
  * survives leaving the screen and coming back (organisation D27,
- * classification D30).
+ * classification D30, fonctions D20).
  */
 export const useReferentielsStore = defineStore('referentiels', () => {
   const onglet = ref<Onglet>('organisation')
@@ -23,5 +23,8 @@ export const useReferentielsStore = defineStore('referentiels', () => {
     expanded: {} as Record<string, boolean>,
   })
 
-  return { onglet, date, texte, expanded, sitesFermes, classification }
+  // The fonctions have their own date and filter too.
+  const fonctions = ref({ date: new Date(), texte: '' })
+
+  return { onglet, date, texte, expanded, sitesFermes, classification, fonctions }
 })
