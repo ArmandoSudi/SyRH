@@ -9,9 +9,11 @@ import type {
   Echelon,
   Fonction,
   Grade,
+  MotifSortie,
   PieceRequise,
   TypeContrat,
   TypeDocument,
+  TypeSuspension,
   Site,
   Unite,
 } from '@/features/referentiels/api/referentiels'
@@ -148,6 +150,63 @@ const PIECES: PieceRequise[] = [
   },
 ]
 
+const MOTIFS: MotifSortie[] = [
+  {
+    id: 1,
+    code: 'DCD',
+    nom: 'Décès',
+    type_document: 7,
+    type_document_libelle: 'ADC — Acte de décès',
+    retraite: false,
+    deces: true,
+    ...PERIODE,
+  },
+  {
+    id: 2,
+    code: 'DEM',
+    nom: 'Démission',
+    type_document: 8,
+    type_document_libelle: 'LDM — Lettre de démission',
+    retraite: false,
+    deces: false,
+    ...PERIODE,
+  },
+  {
+    id: 3,
+    code: 'RET-ANC',
+    nom: 'Retraite pour ancienneté',
+    type_document: 9,
+    type_document_libelle: 'DRT — Décision de retraite',
+    retraite: true,
+    deces: false,
+    ...PERIODE,
+  },
+]
+const SUSPENSIONS: TypeSuspension[] = [
+  {
+    id: 1,
+    code: 'DETA',
+    nom: 'Détachement',
+    type_document: 2,
+    type_document_libelle: 'DEC — Décision',
+    compte_anciennete: true,
+    duree_max_mois: null,
+    renouvellements_max: null,
+    ...PERIODE,
+  },
+  {
+    id: 2,
+    code: 'DISPO',
+    nom: 'Mise en disponibilité',
+    type_document: 2,
+    type_document_libelle: 'DEC — Décision',
+    compte_anciennete: false,
+    duree_max_mois: 24,
+    renouvellements_max: 1,
+    ...PERIODE,
+  },
+]
+
 async function mountView() {
   const wrapper = mount(ReferentielsView, {
     global: { plugins: [PrimeVue], stubs: { teleport: true } },
@@ -202,6 +261,8 @@ describe('ReferentielsView', () => {
     vi.mocked(api.fetchTypesContrat).mockResolvedValue(TYPES)
     vi.mocked(api.fetchTypesDocument).mockResolvedValue(TYPES_DOCUMENT)
     vi.mocked(api.fetchPiecesRequises).mockResolvedValue(PIECES)
+    vi.mocked(api.fetchMotifsSortie).mockResolvedValue(MOTIFS)
+    vi.mocked(api.fetchTypesSuspension).mockResolvedValue(SUSPENSIONS)
   })
 
   it('shows the organisation of today as a tree', async () => {
@@ -523,7 +584,7 @@ describe('ReferentielsView', () => {
     it('comes after the contract types tab', async () => {
       const wrapper = await mountView()
       const tabs = wrapper.findAll('[role="tab"]').map((tab) => tab.text())
-      expect(tabs.slice(-2)).toEqual(['Types de contrat', 'Pièces justificatives'])
+      expect(tabs.slice(-3, -1)).toEqual(['Types de contrat', 'Pièces justificatives'])
     })
 
     it('lists every event of today with its count, and opens to its documents', async () => {
@@ -588,6 +649,110 @@ describe('ReferentielsView', () => {
       const wrapper = await mountView()
       const labels = wrapper.findAll('button').map((b) => b.text())
       expect(labels.filter((l) => /ajouter|modifier|supprimer|enregistrer/i.test(l))).toEqual([])
+    })
+  })
+
+  describe('exit and suspension tab', () => {
+    function table(wrapper: Awaited<ReturnType<typeof mountView>>, name: string) {
+      return wrapper
+        .findAll(`[data-test="${name}"] tbody tr`)
+        .map((tr) => tr.findAll('td').map((td) => td.text().replace(/\s+/g, ' ')))
+    }
+
+    beforeEach(() => {
+      useReferentielsStore().onglet = 'sorties'
+    })
+
+    it('comes last, after the documents tab', async () => {
+      const wrapper = await mountView()
+      const tabs = wrapper.findAll('[role="tab"]').map((tab) => tab.text())
+      expect(tabs).toHaveLength(7)
+      expect(tabs.slice(-2)).toEqual(['Pièces justificatives', 'Sorties et suspensions'])
+    })
+
+    it('lists the reasons and the positions of today with their rules', async () => {
+      const wrapper = await mountView()
+
+      const today = { date: localDate(new Date()) }
+      expect(api.fetchMotifsSortie).toHaveBeenCalledWith(today)
+      expect(api.fetchTypesSuspension).toHaveBeenCalledWith(today)
+      expect(table(wrapper, 'motifs')).toEqual([
+        ['DCD', 'Décès Décès', 'ADC — Acte de décès', '01/01/2015', '—'],
+        ['DEM', 'Démission', 'LDM — Lettre de démission', '01/01/2015', '—'],
+        [
+          'RET-ANC',
+          'Retraite pour ancienneté Retraite',
+          'DRT — Décision de retraite',
+          '01/01/2015',
+          '—',
+        ],
+      ])
+      expect(table(wrapper, 'suspensions')).toEqual([
+        [
+          'DETA',
+          'Détachement',
+          'DEC — Décision',
+          'Oui',
+          'Fixée par la décision',
+          'Sans limite',
+          '01/01/2015',
+          '—',
+        ],
+        [
+          'DISPO',
+          'Mise en disponibilité',
+          'DEC — Décision',
+          'Non',
+          '24 mois',
+          '1',
+          '01/01/2015',
+          '—',
+        ],
+      ])
+    })
+
+    it('filters both tables on code, name or document', async () => {
+      const wrapper = await mountView()
+
+      await wrapper.get('[data-test="sorties-search"]').setValue('décision')
+      expect(table(wrapper, 'motifs').map((r) => r[0])).toEqual(['RET-ANC'])
+      expect(table(wrapper, 'suspensions').map((r) => r[0])).toEqual(['DETA', 'DISPO'])
+
+      await wrapper.get('[data-test="sorties-search"]').setValue('demission')
+      expect(table(wrapper, 'motifs').map((r) => r[0])).toEqual(['DEM'])
+      expect(table(wrapper, 'suspensions')).toEqual([
+        ['Aucune position ne correspond à cette recherche.'],
+      ])
+    })
+
+    it('reloads both lists at the chosen date, leaving the other dates alone', async () => {
+      await mountView()
+      const store = useReferentielsStore()
+
+      store.sorties.date = new Date(2014, 11, 31)
+      await flushPromises()
+
+      expect(api.fetchMotifsSortie).toHaveBeenLastCalledWith({ date: '2014-12-31' })
+      expect(api.fetchTypesSuspension).toHaveBeenLastCalledWith({ date: '2014-12-31' })
+      expect(localDate(store.pieces.date)).toBe(localDate(new Date()))
+    })
+
+    it('shows each error on its own table, keeping the other list', async () => {
+      vi.mocked(api.fetchTypesSuspension).mockRejectedValue(new Error('HTTP 502'))
+      const wrapper = await mountView()
+
+      expect(wrapper.get('[data-test="suspensions-error"]').text()).toContain('HTTP 502')
+      expect(wrapper.find('[data-test="motifs-error"]').exists()).toBe(false)
+      expect(table(wrapper, 'suspensions')).toEqual([
+        ['Aucune position de suspension à cette date.'],
+      ])
+      expect(table(wrapper, 'motifs')).toHaveLength(3)
+    })
+
+    it('offers no action that changes data', async () => {
+      const wrapper = await mountView()
+      expect(wrapper.get('[data-test="motifs"]').findAll('button')).toHaveLength(0)
+      expect(wrapper.get('[data-test="suspensions"]').findAll('button')).toHaveLength(0)
     })
   })
 })

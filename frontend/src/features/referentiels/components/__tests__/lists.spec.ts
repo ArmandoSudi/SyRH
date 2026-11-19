@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { Fonction, TypeContrat } from '@/features/referentiels/api/referentiels'
+import type { Fonction, MotifSortie, TypeContrat } from '@/features/referentiels/api/referentiels'
 
 import { filterByCodeAndName } from '../lists'
 
@@ -70,5 +70,25 @@ describe('filterByCodeAndName', () => {
     ]
     expect(filterByCodeAndName(types, 'indetermin').map((t) => t.code)).toEqual(['CDI'])
     expect(filterByCodeAndName(types, 'stg').map((t) => t.code)).toEqual(['STG'])
+  })
+
+  it('also matches the required document of exit reasons and suspension types', () => {
+    const motif = (id: number, code: string, nom: string, libelle: string): MotifSortie => ({
+      id,
+      code,
+      nom,
+      type_document: id,
+      type_document_libelle: libelle,
+      retraite: false,
+      deces: false,
+      ...PERIODE,
+    })
+    const motifs = [
+      motif(1, 'DEM', 'Démission', 'LDM — Lettre de démission'),
+      motif(2, 'DCD', 'Décès', 'ADC — Acte de décès'),
+    ]
+    expect(filterByCodeAndName(motifs, 'lettre').map((m) => m.code)).toEqual(['DEM'])
+    expect(filterByCodeAndName(motifs, 'adc').map((m) => m.code)).toEqual(['DCD'])
+    expect(filterByCodeAndName(motifs, 'deces').map((m) => m.code)).toEqual(['DCD'])
   })
 })

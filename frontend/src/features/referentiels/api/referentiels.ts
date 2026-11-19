@@ -111,6 +111,31 @@ export interface PieceRequise extends Periode {
   obligatoire: boolean
 }
 
+/** A reason an agent leaves for good (exit reasons D19); type_document is the type's id. */
+export interface MotifSortie extends Periode {
+  code: string
+  nom: string
+  type_document: number
+  type_document_libelle: string
+  /** Counted in the retirement forecast and alerts. */
+  retraite: boolean
+  /** The exit goes to the heirs. */
+  deces: boolean
+}
+
+/** A position that suspends a career without ending it (exit reasons D19). */
+export interface TypeSuspension extends Periode {
+  code: string
+  nom: string
+  type_document: number
+  type_document_libelle: string
+  compte_anciennete: boolean
+  /** Longest single period; null when the decision sets it. */
+  duree_max_mois: number | null
+  /** Renewals allowed; null for no limit. */
+  renouvellements_max: number | null
+}
+
 export interface PeriodeOptions {
   date?: string
   toutes?: boolean
@@ -176,4 +201,14 @@ export function fetchTypesDocument(options: PeriodeOptions = {}): Promise<TypeDo
 /** Required documents open on a date, in event order, mandatory first, or all with toutes. */
 export function fetchPiecesRequises(options: PeriodeOptions = {}): Promise<PieceRequise[]> {
   return request<PieceRequise[]>(`/api/referentiels/pieces-requises/${periode(options)}`)
+}
+
+/** Exit reasons open on a date (the API defaults to today), by name, or all with toutes. */
+export function fetchMotifsSortie(options: PeriodeOptions = {}): Promise<MotifSortie[]> {
+  return request<MotifSortie[]>(`/api/referentiels/motifs-sortie/${periode(options)}`)
+}
+
+/** Suspension types open on a date, by name, or all with toutes. */
+export function fetchTypesSuspension(options: PeriodeOptions = {}): Promise<TypeSuspension[]> {
+  return request<TypeSuspension[]>(`/api/referentiels/types-suspension/${periode(options)}`)
 }

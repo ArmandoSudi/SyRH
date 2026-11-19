@@ -103,4 +103,22 @@ describe('referentiels store', () => {
       again.pieces.expanded,
     ]).toEqual(['pieces', '2023-06-01', 'decision', { 'ev-engagement': true }])
   })
+
+  it('keeps the exit and suspension date and filter apart from the other tabs', () => {
+    const store = useReferentielsStore()
+    expect(localDate(store.sorties.date)).toBe(localDate(new Date()))
+    expect(store.sorties.texte).toBe('')
+
+    store.onglet = 'sorties'
+    store.sorties.date = new Date(2014, 11, 31)
+    store.sorties.texte = 'décision'
+
+    expect(localDate(store.pieces.date)).toBe(localDate(new Date()))
+    const again = useReferentielsStore()
+    expect([again.onglet, localDate(again.sorties.date), again.sorties.texte]).toEqual([
+      'sorties',
+      '2014-12-31',
+      'décision',
+    ])
+  })
 })

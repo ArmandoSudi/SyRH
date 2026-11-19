@@ -9,6 +9,7 @@ import ClassificationTree from '@/features/referentiels/components/Classificatio
 import FonctionsTable from '@/features/referentiels/components/FonctionsTable.vue'
 import OrganisationTree from '@/features/referentiels/components/OrganisationTree.vue'
 import PiecesTree from '@/features/referentiels/components/PiecesTree.vue'
+import SortiesSuspensions from '@/features/referentiels/components/SortiesSuspensions.vue'
 import SitesTable from '@/features/referentiels/components/SitesTable.vue'
 import TypesContratTable from '@/features/referentiels/components/TypesContratTable.vue'
 import { useReferentielsStore } from '@/features/referentiels/stores/referentiels'
@@ -34,6 +35,7 @@ const store = useReferentielsStore()
         <Tab value="fonctions" data-test="tab-fonctions">Fonctions</Tab>
         <Tab value="typesContrat" data-test="tab-types-contrat">Types de contrat</Tab>
         <Tab value="pieces" data-test="tab-pieces">Pièces justificatives</Tab>
+        <Tab value="sorties" data-test="tab-sorties">Sorties et suspensions</Tab>
       </TabList>
       <TabPanels class="panels">
         <TabPanel value="organisation">
@@ -53,6 +55,9 @@ const store = useReferentielsStore()
         </TabPanel>
         <TabPanel value="pieces">
           <PiecesTree />
+        </TabPanel>
+        <TabPanel value="sorties">
+          <SortiesSuspensions />
         </TabPanel>
       </TabPanels>
     </Tabs>
