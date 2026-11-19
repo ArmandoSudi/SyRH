@@ -3,6 +3,7 @@ from rest_framework import viewsets
 from apps.accounts.permissions import HasModuleAccess
 
 from .models import (
+    Banque,
     Categorie,
     Echelon,
     Fonction,
@@ -16,6 +17,7 @@ from .models import (
     UniteOrganisationnelle,
 )
 from .serializers import (
+    BanqueSerializer,
     CategorieSerializer,
     EchelonSerializer,
     FonctionSerializer,
@@ -142,3 +144,10 @@ class TypeSuspensionViewSet(ClassificationViewSet):
 
     serializer_class = TypeSuspensionSerializer
     queryset = TypeSuspension.objects.select_related("type_document")
+
+
+class BanqueViewSet(ClassificationViewSet):
+    """Banks by name (banks D16, D17). Read-only: edited in Django admin by Rémunération."""
+
+    serializer_class = BanqueSerializer
+    queryset = Banque.objects.all()

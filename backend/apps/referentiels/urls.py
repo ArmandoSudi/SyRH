@@ -1,6 +1,7 @@
 from rest_framework.routers import SimpleRouter
 
 from .views import (
+    BanqueViewSet,
     CategorieViewSet,
     EchelonViewSet,
     FonctionViewSet,
@@ -26,5 +27,6 @@ router.register("types-document", TypeDocumentViewSet, basename="referentiels-ty
 router.register("pieces-requises", PieceRequiseViewSet, basename="referentiels-piecerequise")
 router.register("motifs-sortie", MotifSortieViewSet, basename="referentiels-motifsortie")
 router.register("types-suspension", TypeSuspensionViewSet, basename="referentiels-typesuspension")
+router.register("banques", BanqueViewSet, basename="referentiels-banque")
 
 urlpatterns = router.urls

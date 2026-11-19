@@ -5,6 +5,7 @@ from apps.core.models import BASE_FIELDS
 from apps.core.serializers import BaseModelSerializer
 
 from .models import (
+    Banque,
     Categorie,
     Echelon,
     Fonction,
@@ -190,6 +191,14 @@ class TypeSuspensionSerializer(DocumentRowSerializer):
             "date_fermeture",
             *BASE_FIELDS,
         ]
+
+
+class BanqueSerializer(BaseModelSerializer):
+    """A bank (banks D17); swift is "" when unknown."""
+
+    class Meta:
+        model = Banque
+        fields = ["id", "code", "nom", "swift", "date_ouverture", "date_fermeture", *BASE_FIELDS]
 
 
 class PeriodeSerializer(serializers.Serializer):
