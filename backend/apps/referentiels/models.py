@@ -2,6 +2,7 @@
 
 Organisation: sites and organisation units (specs/2026-11-18-organisation).
 Classification: catégories, grades, échelons (specs/2026-11-18-classification).
+Fonctions: job functions (specs/2026-11-18-fonctions).
 
 Rules that only read the row itself are database constraints; rules that read
 other rows (levels, periods, fixed fields) live in check_rules(), called by
@@ -584,3 +585,70 @@ class Echelon(ClassificationRules, BaseModel):
 
     def short_label(self) -> str:
         return f"échelon {self.numero}"
+
+
+class Fonction(BaseModel):
+    """A job function, such as Chef de service or Juriste (fonctions D1, D2).
+
+    Open from date_ouverture included to date_fermeture excluded (D5). A rename
+    closes the row and opens a successor, which may keep the code (D6).
+    """
+
+    module = "referentiels"
+
+    class Nature(models.TextChoices):
+        RESPONSABILITE = "responsabilite", "Responsabilité"
+        EXECUTION = "execution", "Exécution"
+
+    code = models.CharField("code", max_length=20)
+    nom = models.CharField("nom", max_length=150)
+    nature = models.CharField(
+        "nature",
+        max_length=20,
+        choices=Nature.choices,
+        help_text="Responsabilité : le titulaire dirige une unité ou une équipe.",
+    )
+    date_ouverture = models.DateField("date d'ouverture")
+    date_fermeture = models.DateField(
+        "date de fermeture",
+        null=True,
+        blank=True,
+        help_text="Premier jour où la fonction n'existe plus.",
+    )
+
+    objects = ClassificationQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "fonction"
+        verbose_name_plural = "fonctions"
+        # "responsabilite" sorts after "execution": descending puts it first (D4).
+        ordering = ["-nature", "nom", "date_ouverture"]
+        default_permissions = NO_DELETE
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(nature__in=["responsabilite", "execution"]),
+                name="fonction_nature_valide",
+                violation_error_message="Nature inconnue.",
+            ),
+            closing_after_opening("fonction_fermeture_apres_ouverture"),
+            unique_per_period(
+                "fonction_code_unique_par_periode",
+                "code",
+                message="Une autre fonction porte déjà ce code sur une partie de cette période.",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.code} — {self.nom}"
+
+    def normalise(self) -> None:
+        if self.code:
+            self.code = self.code.strip().upper()
+
+    def clean(self):
+        super().clean()
+        self.normalise()
+
+    def save(self, **kwargs):
+        self.normalise()
+        super().save(**kwargs)
