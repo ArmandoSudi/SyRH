@@ -15,11 +15,20 @@ from apps.accounts.roles import (
     FONCTION_EDIT_PERMISSIONS,
     GROUPS,
     ORGANISATION_EDIT_PERMISSIONS,
+    TYPE_CONTRAT_EDIT_PERMISSIONS,
     sync_groups,
 )
 from apps.audit.models import EntreeAudit
 
-from .models import Categorie, Echelon, Fonction, Grade, Site, UniteOrganisationnelle
+from .models import (
+    Categorie,
+    Echelon,
+    Fonction,
+    Grade,
+    Site,
+    TypeContrat,
+    UniteOrganisationnelle,
+)
 
 T = UniteOrganisationnelle.Type
 Unite = UniteOrganisationnelle
@@ -91,6 +100,23 @@ class PermissionTests(TestCase):
 
         self.assertEqual(self.holders("referentiels.change_fonction"), EDITORS)
         self.assertEqual(self.holders("referentiels.view_fonction"), EDITORS | {"Social"})
+
+    def test_editors_hold_view_add_change_on_contract_types(self):
+        self.assertEqual(len(TYPE_CONTRAT_EDIT_PERMISSIONS), 3)
+        for permission in TYPE_CONTRAT_EDIT_PERMISSIONS:
+            with self.subTest(permission):
+                self.assertEqual(self.holders(permission), EDITORS)
+
+    def test_group_setup_regrants_contract_type_permissions_and_keeps_hand_made_ones(self):
+        carriere = Group.objects.get(name="Gestion de carrière")
+        carriere.permissions.remove(*Permission.objects.filter(codename__endswith="_typecontrat"))
+        social = Group.objects.get(name="Social")
+        social.permissions.add(Permission.objects.get(codename="view_typecontrat"))
+
+        sync_groups()
+
+        self.assertEqual(self.holders("referentiels.change_typecontrat"), EDITORS)
+        self.assertEqual(self.holders("referentiels.view_typecontrat"), EDITORS | {"Social"})
 
     def test_nobody_can_delete(self):
         self.assertFalse(
@@ -358,6 +384,80 @@ class FonctionAdminTests(TestCase):
         response = self.client.post(f"{self.URL}{self.jur.pk}/delete/", {"post": "yes"})
         self.assertEqual(response.status_code, 403)
         self.assertTrue(Fonction.objects.filter(pk=self.jur.pk).exists())
+
+    def test_other_profiles_cannot_open_the_admin_pages(self):
+        self.client.force_login(self.remuneration)
+        self.assertEqual(self.client.get(self.URL).status_code, 403)
+
+
+class TypeContratAdminTests(TestCase):
+    """Contract types in Django admin (contract types D12, D14)."""
+
+    URL = "/admin/referentiels/typecontrat/"
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.carriere = member("carriere", "Gestion de carrière", is_staff=True)
+        cls.remuneration = member("remuneration", "Rémunération", is_staff=True)
+        cls.cdi = TypeContrat.objects.create(
+            code="CDI", nom="Contrat à durée indéterminée", duree_determinee=False,
+            periode_essai=True, date_ouverture=D2015,
+        )  # fmt: skip
+
+    def setUp(self):
+        self.client.force_login(self.carriere)
+
+    def post(self, url, **values):
+        data = {"code": "", "nom": "", "date_ouverture": "2020-01-01", "date_fermeture": "",
+                **values}  # fmt: skip
+        return self.client.post(url, data)
+
+    def test_list_filters_search_and_help_texts(self):
+        queries = ("", "?duree_determinee__exact=1", "?periode_essai__exact=0",
+                   "?statut=ouvert", "?q=cdi")  # fmt: skip
+        for query in queries:
+            with self.subTest(query):
+                self.assertEqual(self.client.get(self.URL + query).status_code, 200)
+        self.assertContains(self.client.get(self.URL + "?q=indéterm"), "CDI")
+        page = self.client.get(f"{self.URL}add/")
+        self.assertContains(page, "doit avoir une date de fin")
+        self.assertContains(page, "peut comporter une période d")
+
+    def test_editor_adds_and_corrects_a_type(self):
+        # An unticked checkbox is absent from the form data: the flag is False.
+        response = self.post(f"{self.URL}add/", code="cdd", nom="Contrat a duree determinee",
+                             duree_determinee="on", periode_essai="on")  # fmt: skip
+        self.assertEqual(response.status_code, 302)
+        cdd = TypeContrat.objects.get(code="CDD")
+        self.assertEqual((cdd.duree_determinee, cdd.periode_essai), (True, True))
+        self.assertEqual((cdd.cree_par, cdd.modifie_par), (self.carriere, self.carriere))
+
+        response = self.post(f"{self.URL}{cdd.pk}/change/", code="CDD",
+                             nom="Contrat à durée déterminée", duree_determinee="on",
+                             periode_essai="on")  # fmt: skip
+        self.assertEqual(response.status_code, 302)
+        entry = EntreeAudit.objects.get(objet_id=cdd.pk, table__model="typecontrat",
+                                        action="modification")  # fmt: skip
+        self.assertEqual(
+            (entry.auteur, entry.objet_libelle), (self.carriere, "CDD — Contrat à durée déterminée")
+        )
+
+    def test_duplicate_code_shows_at_the_top(self):
+        response = self.post(f"{self.URL}add/", code="cdi", nom="Doublon")
+        self.assertEqual(response.status_code, 200)
+        errors = response.context["adminform"].form.non_field_errors()
+        self.assertIn("Un autre type de contrat porte déjà ce code", errors[0])
+
+    def test_reversed_dates_show_next_to_the_closing_date(self):
+        response = self.post(f"{self.URL}add/", code="X", nom="X", date_fermeture="2019-01-01")
+        self.assertEqual(response.status_code, 200)
+        errors = response.context["adminform"].form.errors
+        self.assertIn("postérieure à la date d'ouverture", errors["date_fermeture"][0])
+
+    def test_editor_cannot_delete(self):
+        response = self.client.post(f"{self.URL}{self.cdi.pk}/delete/", {"post": "yes"})
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(TypeContrat.objects.filter(pk=self.cdi.pk).exists())
 
     def test_other_profiles_cannot_open_the_admin_pages(self):
         self.client.force_login(self.remuneration)

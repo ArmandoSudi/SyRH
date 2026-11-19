@@ -3,7 +3,15 @@ from django.utils import timezone
 
 from apps.core.admin import BaseModelAdmin
 
-from .models import Categorie, Echelon, Fonction, Grade, Site, UniteOrganisationnelle
+from .models import (
+    Categorie,
+    Echelon,
+    Fonction,
+    Grade,
+    Site,
+    TypeContrat,
+    UniteOrganisationnelle,
+)
 
 
 class OuvertFilter(admin.SimpleListFilter):
@@ -102,3 +110,23 @@ class FonctionAdmin(BaseModelAdmin, admin.ModelAdmin):
     list_filter = ["nature", OuvertFilter]
     search_fields = ["code", "nom"]
     fields = ["code", "nom", "nature", "date_ouverture", "date_fermeture"]
+
+
+@admin.register(TypeContrat)
+class TypeContratAdmin(BaseModelAdmin, admin.ModelAdmin):
+    """Contract types (contract types D14). Changing a rule closes the type and opens a
+    successor, so old contracts keep the rules they were signed under."""
+
+    list_display = [
+        "code", "nom", "duree_determinee", "periode_essai", "date_ouverture", "date_fermeture"
+    ]  # fmt: skip
+    list_filter = ["duree_determinee", "periode_essai", OuvertFilter]
+    search_fields = ["code", "nom"]
+    fields = [
+        "code",
+        "nom",
+        "duree_determinee",
+        "periode_essai",
+        "date_ouverture",
+        "date_fermeture",
+    ]
