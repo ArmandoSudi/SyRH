@@ -17,7 +17,7 @@ from django.contrib.postgres.constraints import ExclusionConstraint
 from django.contrib.postgres.fields import DateRangeField, RangeOperators
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import F, Func, Q, Value
+from django.db.models import Case, F, Func, IntegerField, Q, Value, When
 
 from apps.core.models import BaseModel, BaseQuerySet
 
@@ -345,9 +345,11 @@ class ClassificationRules:
 
     PARENT: str | None = None  # foreign key to the parent row
     CHILDREN: str | None = None  # related name of the child rows
+    FIXED: tuple[str, ...] = ()  # other fields that never change after creation
     SUBJECT = ""  # "Le grade"
     PARENT_REF = ""  # "sa catégorie"
     CHILDREN_REF = ""  # "Des échelons rattachés"
+    CHILDREN_OPEN = "ouverts"  # agrees with CHILDREN_REF: "ouvertes" for feminine nouns
     REPLACE = ""  # "fermez le grade et ouvrez-en un nouveau"
 
     def short_label(self) -> str:
@@ -360,11 +362,18 @@ class ClassificationRules:
         check_closing_after_opening(self)
         errors: dict[str, list[str]] = {}
 
-        if self.PARENT and self.pk is not None:
-            attname = self._meta.get_field(self.PARENT).attname
-            old = type(self)._base_manager.filter(pk=self.pk).values_list(attname, flat=True)
-            if old and old[0] != getattr(self, attname):
-                raise_if({self.PARENT: [f"Ne peut pas être modifié : {self.REPLACE}."]})
+        fixed = ((self.PARENT,) if self.PARENT else ()) + self.FIXED
+        if fixed and self.pk is not None:
+            attnames = {name: self._meta.get_field(name).attname for name in fixed}
+            old = type(self)._base_manager.filter(pk=self.pk).values(*attnames.values()).first()
+            if old:
+                raise_if(
+                    {
+                        name: [f"Ne peut pas être modifié : {self.REPLACE}."]
+                        for name, attname in attnames.items()
+                        if old[attname] != getattr(self, attname)
+                    }
+                )
 
         start, end = self.date_ouverture, self.date_fermeture
         if start is None:
@@ -392,8 +401,8 @@ class ClassificationRules:
                 if late:
                     names = ", ".join(c.short_label() for c in late)
                     errors.setdefault("date_fermeture", []).append(
-                        f"{self.CHILDREN_REF} restent ouverts après cette date : {names}. "
-                        "Fermez-les d'abord."
+                        f"{self.CHILDREN_REF} restent {self.CHILDREN_OPEN} après cette date : "
+                        f"{names}. Fermez-les d'abord."
                     )
             early = list(children.filter(date_ouverture__lt=start)[:5])
             if early:
@@ -733,7 +742,10 @@ class TypeDocument(ClassificationRules, BaseModel):
     """
 
     module = "referentiels"
+    CHILDREN = "pieces_requises"
     SUBJECT = "Le type de pièce"
+    CHILDREN_REF = "Des pièces exigées"
+    CHILDREN_OPEN = "ouvertes"
 
     code = models.CharField("code", max_length=20)
     nom = models.CharField("nom", max_length=150)
@@ -765,3 +777,105 @@ class TypeDocument(ClassificationRules, BaseModel):
 
     def __str__(self):
         return f"{self.code} — {self.nom}"
+
+
+class Evenement(models.TextChoices):
+    """Event kinds that rest on a document, in the order of the agent's life (document
+    types D2). The screen lists them in this order; the frontend mirrors this list."""
+
+    ENGAGEMENT = "engagement", "Engagement"
+    PROMOTION = "promotion", "Promotion"
+    MUTATION = "mutation", "Mutation ou changement de fonction"
+    DETACHEMENT = "detachement", "Détachement"
+    DISPONIBILITE = "disponibilite", "Mise en disponibilité"
+    REPRISE = "reprise", "Reprise de service"
+    INTERIM = "interim", "Intérim"
+    SANCTION = "sanction", "Sanction"
+    DISTINCTION = "distinction", "Distinction"
+    SORTIE = "sortie", "Sortie"
+    MARIAGE = "mariage", "Mariage"
+    NAISSANCE = "naissance", "Naissance"
+    FIN_DEPENDANCE = "fin_dependance", "Fin de qualité de dépendant"
+    FORMATION = "formation", "Formation"
+
+
+class PieceRequise(ClassificationRules, BaseModel):
+    """A document type an event kind requires, mandatory or optional (document types
+    D1 to D4).
+
+    The event kinds are fixed in code (D2); which documents each needs is data. A
+    requirement lies within its type's period (D8); its event and type never change
+    (D9).
+    """
+
+    module = "referentiels"
+    PARENT = "type_document"
+    FIXED = ("evenement",)
+    SUBJECT = "La pièce exigée"
+    PARENT_REF = "son type de pièce"
+    REPLACE = "fermez la pièce exigée et ouvrez-en une nouvelle"
+
+    Evenement = Evenement
+
+    evenement = models.CharField("événement", max_length=20, choices=Evenement.choices)
+    type_document = models.ForeignKey(
+        TypeDocument,
+        verbose_name="type de pièce",
+        on_delete=models.PROTECT,
+        related_name="pieces_requises",
+    )
+    obligatoire = models.BooleanField(
+        "obligatoire",
+        help_text="Une pièce obligatoire manquante bloque la validation de l'événement.",
+    )
+    date_ouverture = models.DateField("date d'ouverture")
+    date_fermeture = models.DateField(
+        "date de fermeture",
+        null=True,
+        blank=True,
+        help_text="Premier jour où la pièce n'est plus exigée.",
+    )
+
+    objects = ClassificationQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "pièce exigée"
+        verbose_name_plural = "pièces exigées"
+        # The event in the order of D2, mandatory first, then the document's name (D6).
+        ordering = [
+            Case(
+                *(
+                    When(evenement=value, then=Value(position))
+                    for position, value in enumerate(Evenement.values)
+                ),
+                output_field=IntegerField(),
+            ),
+            "-obligatoire",
+            "type_document__nom",
+            "date_ouverture",
+        ]
+        default_permissions = NO_DELETE
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(evenement__in=Evenement.values),
+                name="piecerequise_evenement_valide",
+                violation_error_message="Événement inconnu.",
+            ),
+            closing_after_opening("piecerequise_fermeture_apres_ouverture"),
+            unique_per_period(
+                "piecerequise_unique_par_periode",
+                "evenement",
+                "type_document",
+                message=(
+                    "Cet événement exige déjà ce type de pièce sur une partie de cette période."
+                ),
+            ),
+        ]
+
+    def __str__(self):
+        code = self.type_document.code if self.type_document_id else "?"
+        nature = "obligatoire" if self.obligatoire else "facultative"
+        return f"{self.get_evenement_display()} — {code} ({nature})"
+
+    def short_label(self) -> str:
+        return self.get_evenement_display().lower()
