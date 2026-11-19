@@ -22,6 +22,8 @@ TYPES = [
     ("JDV", "Jugement de divorce"),
     ("CRF", "Certificat de formation"),
     ("CMD", "Certificat médical"),  # for absence types, phase 5.1
+    ("DRT", "Décision de retraite"),  # for exit reasons, create_demo_sorties
+    ("LDM", "Lettre de démission"),
 ]
 
 E = Evenement

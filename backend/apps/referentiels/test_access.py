@@ -1521,7 +1521,7 @@ class DemoPiecesTests(TestCase):
     def test_creates_valid_rows_once(self):
         output = self.run_command()
 
-        self.assertIn("28 créées", output)  # 11 types, 17 requirements
+        self.assertIn("30 créées", output)  # 13 types, 17 requirements
         for model in (TypeDocument, PieceRequise):
             for obj in model.objects.all():
                 obj.full_clean()  # every rule holds
@@ -1550,3 +1550,59 @@ class DemoPiecesTests(TestCase):
         before = (PieceRequise.objects.count(), EntreeAudit.objects.count())
         self.assertIn("0 créées", self.run_command())
         self.assertEqual((PieceRequise.objects.count(), EntreeAudit.objects.count()), before)
+
+
+class DemoSortiesTests(TestCase):
+    """create_demo_sorties (exit reasons D23)."""
+
+    def run_command(self):
+        out = StringIO()
+        call_command("create_demo_sorties", stdout=out)
+        return out.getvalue()
+
+    @override_settings(DEBUG=False)
+    def test_refuses_without_debug(self):
+        with self.assertRaises(CommandError):
+            self.run_command()
+        self.assertFalse(TypeDocument.objects.exists())
+
+    @override_settings(DEBUG=True)
+    def test_creates_valid_rows_once(self):
+        output = self.run_command()
+
+        self.assertIn("Pièces de démonstration prêtes", output)  # ran create_demo_pieces
+        self.assertIn("6 créés", output)  # 4 reasons, 2 suspension types
+        for model in (MotifSortie, TypeSuspension):
+            for obj in model.objects.all():
+                obj.full_clean()  # every rule holds
+
+        motifs = {m.code: m for m in MotifSortie.objects.select_related("type_document")}
+        self.assertEqual({c for c, m in motifs.items() if m.retraite}, {"RET-ANC", "RET-AGE"})
+        self.assertEqual({c for c, m in motifs.items() if m.deces}, {"DCD"})
+        self.assertFalse(motifs["DEM"].retraite or motifs["DEM"].deces)
+        self.assertEqual(
+            {c: m.type_document.code for c, m in motifs.items()},
+            {"RET-ANC": "DRT", "RET-AGE": "DRT", "DEM": "LDM", "DCD": "ADC"},
+        )
+
+        dispo = TypeSuspension.objects.get(code="DISPO")
+        deta = TypeSuspension.objects.get(code="DETA")
+        self.assertEqual(
+            (dispo.compte_anciennete, dispo.duree_max_mois, dispo.renouvellements_max),
+            (False, 24, 1),
+        )
+        self.assertEqual(
+            (deta.compte_anciennete, deta.duree_max_mois, deta.renouvellements_max),
+            (True, None, None),
+        )
+        self.assertEqual(dispo.type_document, deta.type_document)
+        self.assertEqual(deta.type_document.code, "DEC")
+        self.assertFalse(
+            EntreeAudit.objects.filter(table__model__in=["motifsortie", "typesuspension"])
+            .exclude(auteur=None)
+            .exists()
+        )
+
+        before = (MotifSortie.objects.count(), EntreeAudit.objects.count())
+        self.assertIn("0 créés", self.run_command())
+        self.assertEqual((MotifSortie.objects.count(), EntreeAudit.objects.count()), before)
