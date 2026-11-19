@@ -24,7 +24,12 @@ the work is merged.
   `create_demo_pieces` loads demo data. The real list is open question `Q31`.
 - The user guide covers the Fonctions, Types de contrat and Pièces justificatives tabs; its
   screenshots were retaken.
-<!-- commits: f3da417 f0aacb2 785feed 870644e c2c5bfb 26d8ba0 573c301 e5031ce 3554bcb 8d0d343 cfe667d ad9b38e 5576e63 8fbb1d5 9d1b91f cd8291e ce97a1b 78890f5 08f3067 6648383 5066896 c20767f -->
+- Exit and suspension reasons (roadmap 1.6): exit reasons (each with its required document and
+  "Retraite" or "Décès" flags) and suspension positions (required document, "compte dans
+  l'ancienneté", maximum length and renewals), dated like the other reference data. Same editors
+  in Django admin; a new read-only "Sorties et suspensions" tab, described in the user guide. Run
+  `migrate`; `create_demo_sorties` loads demo data. The real lists are open question `Q32`.
+<!-- commits: f3da417 f0aacb2 785feed 870644e c2c5bfb 26d8ba0 573c301 e5031ce 3554bcb 8d0d343 cfe667d ad9b38e 5576e63 8fbb1d5 9d1b91f cd8291e ce97a1b 78890f5 08f3067 6648383 5066896 c20767f 0a25d29 acb197e b9e14c4 fe1373e be30eff ac34cf4 5d9d613 516590d -->
 
 ## 2026-11-18
 
