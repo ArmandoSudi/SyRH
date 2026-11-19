@@ -2,10 +2,11 @@ from rest_framework import viewsets
 
 from apps.accounts.permissions import HasModuleAccess
 
-from .models import Categorie, Echelon, Grade, Site, UniteOrganisationnelle
+from .models import Categorie, Echelon, Fonction, Grade, Site, UniteOrganisationnelle
 from .serializers import (
     CategorieSerializer,
     EchelonSerializer,
+    FonctionSerializer,
     GradeSerializer,
     PeriodeSerializer,
     SiteSerializer,
@@ -71,3 +72,15 @@ class GradeViewSet(ClassificationViewSet):
 class EchelonViewSet(ClassificationViewSet):
     serializer_class = EchelonSerializer
     queryset = Echelon.objects.select_related("grade")  # the label shows the grade code
+
+
+class FonctionViewSet(PeriodeMixin, viewsets.ReadOnlyModelViewSet):
+    """Job functions, responsabilité first then by name (fonctions D15 to D17).
+    Read-only: they are edited in Django admin until phase 1.9."""
+
+    permission_classes = [HasModuleAccess("referentiels")]
+    serializer_class = FonctionSerializer
+    queryset = Fonction.objects.all()
+
+    def open_on(self, queryset, day):
+        return queryset.ouvertes(day)

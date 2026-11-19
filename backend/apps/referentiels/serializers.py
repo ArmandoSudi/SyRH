@@ -4,7 +4,7 @@ from rest_framework import serializers
 from apps.core.models import BASE_FIELDS
 from apps.core.serializers import BaseModelSerializer
 
-from .models import Categorie, Echelon, Grade, Site, UniteOrganisationnelle
+from .models import Categorie, Echelon, Fonction, Grade, Site, UniteOrganisationnelle
 
 
 class SiteSerializer(BaseModelSerializer):
@@ -70,6 +70,25 @@ class EchelonSerializer(BaseModelSerializer):
             "grade",
             "numero",
             "libelle",
+            "date_ouverture",
+            "date_fermeture",
+            *BASE_FIELDS,
+        ]
+
+
+class FonctionSerializer(BaseModelSerializer):
+    """A job function with its nature and the nature's French label (fonctions D16)."""
+
+    nature_libelle = serializers.CharField(source="get_nature_display", read_only=True)
+
+    class Meta:
+        model = Fonction
+        fields = [
+            "id",
+            "code",
+            "nom",
+            "nature",
+            "nature_libelle",
             "date_ouverture",
             "date_fermeture",
             *BASE_FIELDS,

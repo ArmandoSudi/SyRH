@@ -3,6 +3,7 @@ from rest_framework.routers import SimpleRouter
 from .views import (
     CategorieViewSet,
     EchelonViewSet,
+    FonctionViewSet,
     GradeViewSet,
     SiteViewSet,
     UniteOrganisationnelleViewSet,
@@ -14,5 +15,6 @@ router.register("unites", UniteOrganisationnelleViewSet, basename="referentiels-
 router.register("categories", CategorieViewSet, basename="referentiels-categorie")
 router.register("grades", GradeViewSet, basename="referentiels-grade")
 router.register("echelons", EchelonViewSet, basename="referentiels-echelon")
+router.register("fonctions", FonctionViewSet, basename="referentiels-fonction")
 
 urlpatterns = router.urls

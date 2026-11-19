@@ -34,6 +34,7 @@ CATEGORIES = "/api/referentiels/categories/"
 GRADES = "/api/referentiels/grades/"
 ECHELONS = "/api/referentiels/echelons/"
 CLASSIFICATION = (CATEGORIES, GRADES, ECHELONS)
+FONCTIONS = "/api/referentiels/fonctions/"
 D2020 = date(2020, 1, 1)
 D2015 = date(2015, 1, 1)
 D2025 = date(2025, 7, 1)
@@ -604,6 +605,75 @@ class ClassificationApiTests(TestCase):
             Echelon.objects.create(grade=grade, numero=1, date_ouverture=D2015)
 
         self.assertEqual({url: count(url) for url in CLASSIFICATION}, before)
+
+
+class FonctionApiTests(TestCase):
+    """GET /api/referentiels/fonctions/ (fonctions D15 to D17)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        def create(code, nom, nature="execution", debut=D2015, fin=None):
+            return Fonction.objects.create(
+                code=code, nom=nom, nature=nature, date_ouverture=debut, date_fermeture=fin
+            )
+
+        cls.jur = create("JUR", "Juriste")
+        cls.cs = create("CS", "Chef de service", "responsabilite")
+        cls.cpt = create("CPT", "Comptable")
+        # CE renamed on 2020-01-01: the old row closes, a successor keeps the code.
+        cls.old = create("CE", "Chargé d'études", fin=D2020)
+        cls.new = create("CE", "Analyste", debut=D2020)
+        cls.users = {name: member(slug, name) for name, (slug, _) in GROUPS.items()}
+        cls.nobody = member("personne")
+
+    def get(self, user="Auditeur", **params):
+        client = APIClient()
+        if user is not None:
+            client.force_authenticate(self.users.get(user, user))
+        return client.get(FONCTIONS, params)
+
+    def ids(self, **params):
+        return [row["id"] for row in self.get(**params).json()]
+
+    def test_access(self):
+        self.assertEqual(self.get(None).status_code, 401)
+        self.assertEqual(self.get(self.nobody).status_code, 403)
+        for name in self.users:
+            with self.subTest(name):
+                self.assertEqual(self.get(name).status_code, 200)
+
+    def test_open_today_by_default_at_a_date_or_all_in_order(self):
+        self.assertEqual(self.ids(), [self.cs.pk, self.new.pk, self.cpt.pk, self.jur.pk])
+        self.assertEqual(
+            self.ids(date="2019-12-31"), [self.cs.pk, self.old.pk, self.cpt.pk, self.jur.pk]
+        )
+        self.assertEqual(len(self.ids(toutes="1")), 5)
+
+    def test_fields(self):
+        row = self.get().json()[0]
+        self.assertEqual(
+            {k: row[k] for k in ("id", "code", "nom", "nature", "nature_libelle",
+                                 "date_ouverture", "date_fermeture")},
+            {"id": self.cs.pk, "code": "CS", "nom": "Chef de service",
+             "nature": "responsabilite", "nature_libelle": "Responsabilité",
+             "date_ouverture": "2015-01-01", "date_fermeture": None},
+        )  # fmt: skip
+        self.assertIn("cree_par", row)
+        self.assertIn("date_modification", row)
+
+    def test_invalid_date_is_refused_per_field(self):
+        response = self.get(date="31/12/2025")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("date", response.json())
+
+    def test_writes_are_refused(self):
+        client = APIClient()
+        client.force_authenticate(self.users["Gestion de carrière"])
+        detail = f"{FONCTIONS}{self.jur.pk}/"
+        self.assertEqual(client.post(FONCTIONS, {}).status_code, 405)
+        self.assertEqual(client.put(detail, {}).status_code, 405)
+        self.assertEqual(client.patch(detail, {}).status_code, 405)
+        self.assertEqual(client.delete(detail).status_code, 405)
 
 
 class DemoOrganisationTests(TestCase):
