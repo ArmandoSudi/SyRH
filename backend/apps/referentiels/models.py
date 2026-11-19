@@ -6,12 +6,14 @@ Fonctions: job functions (specs/2026-11-18-fonctions).
 Contract types (specs/2026-11-19-contract-types).
 Document types and the documents each event requires (specs/2026-11-19-document-types).
 Exit reasons and suspension types (specs/2026-11-19-exit-suspension-reasons).
+Banks (specs/2026-11-19-banks).
 
 Rules that only read the row itself are database constraints; rules that read
 other rows (levels, periods, fixed fields) live in check_rules(), called by
 clean() and save().
 """
 
+import re
 from datetime import date
 
 from django.contrib.postgres.constraints import ExclusionConstraint
@@ -1076,3 +1078,67 @@ class TypeSuspension(DocumentRules, BaseModel):
         if self.duree_max_mois == 0:
             raise ValidationError({"duree_max_mois": [DUREE_NULLE]})
         super().clean()
+
+
+SWIFT_PATTERN = r"^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$"
+SWIFT_INVALIDE = (
+    "Code SWIFT/BIC invalide : 8 ou 11 caractères, soit 4 lettres pour la banque, 2 pour le "
+    "pays, 2 lettres ou chiffres pour la ville, et éventuellement 3 pour l'agence."
+)
+
+
+class Banque(FlatListRules, BaseModel):
+    """A bank agents are paid through, such as one of Kinshasa's commercial banks (banks D1, D2).
+
+    Phase 2.5 attaches each agent's account to one of these; the transfer file
+    template waits for Q16 (D3). A renamed or merged bank is closed and a
+    successor opened (D7).
+    """
+
+    module = "referentiels"
+
+    code = models.CharField("code", max_length=20)
+    nom = models.CharField("nom", max_length=150)
+    swift = models.CharField(
+        "code SWIFT/BIC",
+        max_length=11,
+        blank=True,
+        help_text="8 ou 11 caractères, par exemple ABCDCDKI. Facultatif.",
+    )
+    date_ouverture = models.DateField("date d'ouverture")
+    date_fermeture = models.DateField(
+        "date de fermeture",
+        null=True,
+        blank=True,
+        help_text="Premier jour où la banque n'existe plus.",
+    )
+
+    objects = ClassificationQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "banque"
+        verbose_name_plural = "banques"
+        ordering = ["nom", "date_ouverture"]
+        default_permissions = NO_DELETE
+        constraints = [
+            closing_after_opening("banque_fermeture_apres_ouverture"),
+            unique_per_period(
+                "banque_code_unique_par_periode",
+                "code",
+                message="Une autre banque porte déjà ce code sur une partie de cette période.",
+            ),
+            models.CheckConstraint(
+                condition=Q(swift="") | Q(swift__regex=SWIFT_PATTERN),
+                name="banque_swift_valide",
+                violation_error_message=SWIFT_INVALIDE,
+            ),
+        ]
+
+    def normalise(self) -> None:
+        super().normalise()
+        self.swift = (self.swift or "").strip().upper()
+
+    def clean(self):
+        super().clean()
+        if self.swift and not re.fullmatch(SWIFT_PATTERN, self.swift):
+            raise ValidationError({"swift": [SWIFT_INVALIDE]})
