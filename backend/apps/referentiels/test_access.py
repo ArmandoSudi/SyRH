@@ -974,3 +974,43 @@ class DemoFonctionsTests(TestCase):
         before = (Fonction.objects.count(), EntreeAudit.objects.count())
         self.assertIn("0 créées", self.run_command())
         self.assertEqual((Fonction.objects.count(), EntreeAudit.objects.count()), before)
+
+
+class DemoTypesContratTests(TestCase):
+    """create_demo_types_contrat (contract types D22)."""
+
+    def run_command(self):
+        out = StringIO()
+        call_command("create_demo_types_contrat", stdout=out)
+        return out.getvalue()
+
+    @override_settings(DEBUG=False)
+    def test_refuses_without_debug(self):
+        with self.assertRaises(CommandError):
+            self.run_command()
+        self.assertFalse(TypeContrat.objects.exists())
+
+    @override_settings(DEBUG=True)
+    def test_creates_valid_types_once(self):
+        output = self.run_command()
+
+        self.assertIn("5 créés", output)
+        for obj in TypeContrat.objects.all():
+            obj.full_clean()  # every rule holds
+        today = timezone.localdate()
+        open_now = TypeContrat.objects.ouvertes(today)
+        self.assertEqual(
+            {(t.code, t.duree_determinee, t.periode_essai) for t in open_now},
+            {("CDI", False, True), ("CDD", True, True), ("STG", True, False),
+             ("JRN", False, False)},
+        )  # fmt: skip
+        # The retired type: open in 2022, gone since 2023, with no successor.
+        self.assertTrue(TypeContrat.objects.ouvertes(date(2022, 6, 1)).filter(code="APP").exists())
+        self.assertEqual(TypeContrat.objects.filter(code="APP").count(), 1)
+        self.assertFalse(
+            EntreeAudit.objects.filter(table__model="typecontrat").exclude(auteur=None).exists()
+        )
+
+        before = (TypeContrat.objects.count(), EntreeAudit.objects.count())
+        self.assertIn("0 créés", self.run_command())
+        self.assertEqual((TypeContrat.objects.count(), EntreeAudit.objects.count()), before)
