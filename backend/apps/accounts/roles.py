@@ -101,12 +101,21 @@ TYPE_CONTRAT_EDIT_PERMISSIONS = tuple(
     f"referentiels.{action}_typecontrat" for action in ("view", "add", "change")
 )
 
+# Editing the document types and the documents each event requires, never deleted
+# (document types D14, D15).
+DOCUMENT_EDIT_PERMISSIONS = tuple(
+    f"referentiels.{action}_{model}"
+    for model in ("typedocument", "piecerequise")
+    for action in ("view", "add", "change")
+)
+
 # Reference data the Gestion de carrière profiles and the administrator edit.
 REFERENTIELS_EDIT_PERMISSIONS = (
     ORGANISATION_EDIT_PERMISSIONS
     + CLASSIFICATION_EDIT_PERMISSIONS
     + FONCTION_EDIT_PERMISSIONS
     + TYPE_CONTRAT_EDIT_PERMISSIONS
+    + DOCUMENT_EDIT_PERMISSIONS
 )
 
 # Group name -> Django permissions beyond module access. These groups work in

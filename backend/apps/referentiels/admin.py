@@ -8,8 +8,10 @@ from .models import (
     Echelon,
     Fonction,
     Grade,
+    PieceRequise,
     Site,
     TypeContrat,
+    TypeDocument,
     UniteOrganisationnelle,
 )
 
@@ -62,16 +64,17 @@ class UniteOrganisationnelleAdmin(BaseModelAdmin, admin.ModelAdmin):
 
 
 class ClassificationAdmin(BaseModelAdmin, admin.ModelAdmin):
-    """Catégories, grades and échelons. No inlines: BaseModelAdmin stamps the
-    author on the main row only (classification D22)."""
+    """Rows with ClassificationRules: the classification, document types and required
+    documents. The parent and the FIXED fields are read-only once saved. No inlines:
+    BaseModelAdmin stamps the author on the main row only (classification D22)."""
 
     def get_readonly_fields(self, request, obj=None):
         readonly = super().get_readonly_fields(request, obj)
-        parent = self.model.PARENT
-        if obj is None or parent is None:
+        fixed = ((self.model.PARENT,) if self.model.PARENT else ()) + self.model.FIXED
+        if obj is None or not fixed:
             return readonly
         # A reform closes the row and opens a new one (D11).
-        return (parent, *readonly)
+        return (*fixed, *readonly)
 
 
 @admin.register(Categorie)
@@ -130,3 +133,27 @@ class TypeContratAdmin(BaseModelAdmin, admin.ModelAdmin):
         "date_ouverture",
         "date_fermeture",
     ]
+
+
+@admin.register(TypeDocument)
+class TypeDocumentAdmin(ClassificationAdmin):
+    """Kinds of supporting document (document types D16)."""
+
+    list_display = ["code", "nom", "date_ouverture", "date_fermeture"]
+    list_filter = [OuvertFilter]
+    search_fields = ["code", "nom"]  # also used by the requirement's autocomplete
+    fields = ["code", "nom", "date_ouverture", "date_fermeture"]
+
+
+@admin.register(PieceRequise)
+class PieceRequiseAdmin(ClassificationAdmin):
+    """The documents each event kind requires (document types D16). The event and the
+    type are read-only once saved: a new rule closes the row and opens another (D9)."""
+
+    list_display = ["evenement", "type_document", "obligatoire", "date_ouverture",
+                    "date_fermeture"]  # fmt: skip
+    list_filter = ["evenement", "obligatoire", OuvertFilter]
+    search_fields = ["type_document__code", "type_document__nom"]
+    autocomplete_fields = ["type_document"]
+    list_select_related = ["type_document"]
+    fields = ["evenement", "type_document", "obligatoire", "date_ouverture", "date_fermeture"]

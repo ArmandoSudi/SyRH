@@ -12,6 +12,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.roles import (
     CLASSIFICATION_EDIT_PERMISSIONS,
+    DOCUMENT_EDIT_PERMISSIONS,
     FONCTION_EDIT_PERMISSIONS,
     GROUPS,
     ORGANISATION_EDIT_PERMISSIONS,
@@ -25,8 +26,10 @@ from .models import (
     Echelon,
     Fonction,
     Grade,
+    PieceRequise,
     Site,
     TypeContrat,
+    TypeDocument,
     UniteOrganisationnelle,
 )
 
@@ -118,6 +121,26 @@ class PermissionTests(TestCase):
 
         self.assertEqual(self.holders("referentiels.change_typecontrat"), EDITORS)
         self.assertEqual(self.holders("referentiels.view_typecontrat"), EDITORS | {"Social"})
+
+    def test_editors_hold_view_add_change_on_documents(self):
+        self.assertEqual(len(DOCUMENT_EDIT_PERMISSIONS), 6)
+        for permission in DOCUMENT_EDIT_PERMISSIONS:
+            with self.subTest(permission):
+                self.assertEqual(self.holders(permission), EDITORS)
+
+    def test_group_setup_regrants_document_permissions_and_keeps_hand_made_ones(self):
+        carriere = Group.objects.get(name="Gestion de carrière")
+        carriere.permissions.remove(*Permission.objects.filter(codename__endswith="_piecerequise"))
+        personnel = Group.objects.get(name="Administration du personnel")
+        personnel.permissions.add(Permission.objects.get(codename="change_piecerequise"))
+
+        sync_groups()
+
+        self.assertEqual(self.holders("referentiels.view_piecerequise"), EDITORS)
+        self.assertEqual(
+            self.holders("referentiels.change_piecerequise"),
+            EDITORS | {"Administration du personnel"},
+        )
 
     def test_nobody_can_delete(self):
         self.assertFalse(
@@ -463,6 +486,106 @@ class TypeContratAdminTests(TestCase):
     def test_other_profiles_cannot_open_the_admin_pages(self):
         self.client.force_login(self.remuneration)
         self.assertEqual(self.client.get(self.URL).status_code, 403)
+
+
+class PiecesAdminTests(TestCase):
+    """Document types and required documents in Django admin (document types D14, D16)."""
+
+    TYPES = "/admin/referentiels/typedocument/"
+    PIECES = "/admin/referentiels/piecerequise/"
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.carriere = member("carriere", "Gestion de carrière", is_staff=True)
+        cls.remuneration = member("remuneration", "Rémunération", is_staff=True)
+        cls.dec = TypeDocument.objects.create(code="DEC", nom="Décision", date_ouverture=D2020)
+        cls.ama = TypeDocument.objects.create(
+            code="AMA", nom="Acte de mariage", date_ouverture=D2015
+        )
+        cls.req = PieceRequise.objects.create(
+            evenement="promotion", type_document=cls.dec, obligatoire=True, date_ouverture=D2020
+        )
+
+    def setUp(self):
+        self.client.force_login(self.carriere)
+
+    def test_lists_filters_and_search_open(self):
+        urls = (self.TYPES, self.TYPES + "?statut=ouvert", self.TYPES + "?q=dec",
+                self.PIECES, self.PIECES + "?evenement__exact=promotion",
+                self.PIECES + "?obligatoire__exact=1", self.PIECES + "?q=décision")  # fmt: skip
+        for url in urls:
+            with self.subTest(url):
+                self.assertEqual(self.client.get(url).status_code, 200)
+        self.assertContains(self.client.get(self.PIECES + "?q=décision"), "Promotion")
+
+    def test_editor_adds_a_type_and_a_requirement(self):
+        response = self.client.post(f"{self.TYPES}add/", {
+            "code": "ana", "nom": "Acte de naissance", "date_ouverture": "2015-01-01",
+            "date_fermeture": ""})  # fmt: skip
+        self.assertEqual(response.status_code, 302)
+        ana = TypeDocument.objects.get(code="ANA")
+        self.assertEqual(ana.cree_par, self.carriere)
+
+        response = self.client.post(f"{self.PIECES}add/", {
+            "evenement": "naissance", "type_document": ana.pk, "obligatoire": "on",
+            "date_ouverture": "2015-01-01", "date_fermeture": ""})  # fmt: skip
+        self.assertEqual(response.status_code, 302)
+        req = PieceRequise.objects.get(evenement="naissance")
+        self.assertTrue(req.obligatoire)
+        entry = EntreeAudit.objects.get(table__model="piecerequise", objet_id=req.pk)
+        self.assertEqual((entry.auteur, entry.objet_libelle),
+                         (self.carriere, "Naissance — ANA (obligatoire)"))  # fmt: skip
+
+    def test_type_autocomplete_answers(self):
+        response = self.client.get("/admin/autocomplete/", {
+            "app_label": "referentiels", "model_name": "piecerequise",
+            "field_name": "type_document", "term": "mariage"})  # fmt: skip
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([r["text"] for r in response.json()["results"]], ["AMA — Acte de mariage"])
+
+    def test_event_and_type_are_read_only_on_change(self):
+        page = self.client.get(f"{self.PIECES}{self.req.pk}/change/").content.decode()
+        self.assertNotIn('name="evenement"', page)
+        self.assertNotIn('name="type_document"', page)
+        self.assertIn('name="obligatoire"', page)
+
+        response = self.client.post(
+            f"{self.PIECES}{self.req.pk}/change/",
+            {"date_ouverture": "2020-01-01", "date_fermeture": ""},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.req.refresh_from_db()
+        self.assertFalse(self.req.obligatoire)  # unticked: corrected to optional
+        self.assertEqual(self.req.type_document, self.dec)
+
+    def test_rule_errors_show_next_to_the_field(self):
+        response = self.client.post(f"{self.PIECES}add/", {
+            "evenement": "mutation", "type_document": self.dec.pk, "obligatoire": "on",
+            "date_ouverture": "2015-01-01", "date_fermeture": ""})  # fmt: skip
+        self.assertEqual(response.status_code, 200)
+        errors = response.context["adminform"].form.errors
+        self.assertIn("ne peut pas ouvrir avant son type de pièce", errors["date_ouverture"][0])
+
+    def test_duplicate_requirement_shows_at_the_top(self):
+        response = self.client.post(f"{self.PIECES}add/", {
+            "evenement": "promotion", "type_document": self.dec.pk,
+            "date_ouverture": "2021-01-01", "date_fermeture": ""})  # fmt: skip
+        self.assertEqual(response.status_code, 200)
+        errors = response.context["adminform"].form.non_field_errors()
+        self.assertIn("exige déjà ce type de pièce", errors[0])
+
+    def test_editor_cannot_delete(self):
+        for url, obj in ((self.TYPES, self.ama), (self.PIECES, self.req)):
+            with self.subTest(url):
+                response = self.client.post(f"{url}{obj.pk}/delete/", {"post": "yes"})
+                self.assertEqual(response.status_code, 403)
+                self.assertTrue(type(obj).objects.filter(pk=obj.pk).exists())
+
+    def test_other_profiles_cannot_open_the_admin_pages(self):
+        self.client.force_login(self.remuneration)
+        for url in (self.TYPES, self.PIECES):
+            with self.subTest(url):
+                self.assertEqual(self.client.get(url).status_code, 403)
 
 
 class ApiTests(TestCase):
