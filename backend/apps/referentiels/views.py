@@ -7,8 +7,10 @@ from .models import (
     Echelon,
     Fonction,
     Grade,
+    PieceRequise,
     Site,
     TypeContrat,
+    TypeDocument,
     UniteOrganisationnelle,
 )
 from .serializers import (
@@ -17,8 +19,10 @@ from .serializers import (
     FonctionSerializer,
     GradeSerializer,
     PeriodeSerializer,
+    PieceRequiseSerializer,
     SiteSerializer,
     TypeContratSerializer,
+    TypeDocumentSerializer,
     UniteOrganisationnelleSerializer,
 )
 
@@ -105,3 +109,18 @@ class TypeContratViewSet(PeriodeMixin, viewsets.ReadOnlyModelViewSet):
 
     def open_on(self, queryset, day):
         return queryset.ouvertes(day)
+
+
+class TypeDocumentViewSet(ClassificationViewSet):
+    """Kinds of supporting document, by name (document types D18, D19)."""
+
+    serializer_class = TypeDocumentSerializer
+    queryset = TypeDocument.objects.all()
+
+
+class PieceRequiseViewSet(ClassificationViewSet):
+    """The documents each event kind requires, in event order (document types D18, D19).
+    The ordering joins the type for its name; the type itself is returned as an id."""
+
+    serializer_class = PieceRequiseSerializer
+    queryset = PieceRequise.objects.all()

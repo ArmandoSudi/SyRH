@@ -48,6 +48,8 @@ ECHELONS = "/api/referentiels/echelons/"
 CLASSIFICATION = (CATEGORIES, GRADES, ECHELONS)
 FONCTIONS = "/api/referentiels/fonctions/"
 TYPES_CONTRAT = "/api/referentiels/types-contrat/"
+TYPES_DOCUMENT = "/api/referentiels/types-document/"
+PIECES = "/api/referentiels/pieces-requises/"
 D2020 = date(2020, 1, 1)
 D2015 = date(2015, 1, 1)
 D2025 = date(2025, 7, 1)
@@ -965,6 +967,110 @@ class TypeContratApiTests(TestCase):
         self.assertEqual(client.put(detail, {}).status_code, 405)
         self.assertEqual(client.patch(detail, {}).status_code, 405)
         self.assertEqual(client.delete(detail).status_code, 405)
+
+
+class PiecesApiTests(TestCase):
+    """GET /api/referentiels/{types-document,pieces-requises}/ (document types D18, D19)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        def doc(code, nom, fin=None):
+            return TypeDocument.objects.create(
+                code=code, nom=nom, date_ouverture=D2015, date_fermeture=fin
+            )
+
+        def req(evenement, type_doc, obligatoire=True, fin=None):
+            return PieceRequise.objects.create(
+                evenement=evenement, type_document=type_doc, obligatoire=obligatoire,
+                date_ouverture=D2015, date_fermeture=fin,
+            )  # fmt: skip
+
+        cls.dec = doc("DEC", "Décision")
+        cls.ctr = doc("CTR", "Contrat signé")
+        cls.cj = doc("CJ", "Extrait de casier judiciaire", fin=D2020)
+        cls.formation = req("formation", cls.dec, False)
+        cls.promotion = req("promotion", cls.dec)
+        cls.casier = req("engagement", cls.cj, fin=D2020)
+        cls.contrat = req("engagement", cls.ctr)
+        cls.users = {name: member(slug, name) for name, (slug, _) in GROUPS.items()}
+        cls.nobody = member("personne")
+
+    def get(self, url, user="Auditeur", **params):
+        client = APIClient()
+        if user is not None:
+            client.force_authenticate(self.users.get(user, user))
+        return client.get(url, params)
+
+    def ids(self, url, **params):
+        return [row["id"] for row in self.get(url, **params).json()]
+
+    def test_access(self):
+        for url in (TYPES_DOCUMENT, PIECES):
+            with self.subTest(url):
+                self.assertEqual(self.get(url, None).status_code, 401)
+                self.assertEqual(self.get(url, self.nobody).status_code, 403)
+                for name in self.users:
+                    self.assertEqual(self.get(url, name).status_code, 200, name)
+
+    def test_open_today_by_default_at_a_date_or_all_in_order(self):
+        self.assertEqual(self.ids(TYPES_DOCUMENT), [self.ctr.pk, self.dec.pk])
+        self.assertEqual(self.ids(PIECES), [self.contrat.pk, self.promotion.pk, self.formation.pk])
+        self.assertEqual(
+            self.ids(PIECES, date="2019-12-31"),
+            [self.contrat.pk, self.casier.pk, self.promotion.pk, self.formation.pk],
+        )
+        self.assertEqual(len(self.ids(TYPES_DOCUMENT, toutes="1")), 3)
+        self.assertEqual(len(self.ids(PIECES, toutes="1")), 4)
+
+    def test_fields(self):
+        doc = next(r for r in self.get(TYPES_DOCUMENT).json() if r["id"] == self.dec.pk)
+        self.assertEqual(
+            {k: doc[k] for k in ("code", "nom", "date_ouverture", "date_fermeture")},
+            {"code": "DEC", "nom": "Décision", "date_ouverture": "2015-01-01",
+             "date_fermeture": None},
+        )  # fmt: skip
+        row = next(r for r in self.get(PIECES).json() if r["id"] == self.formation.pk)
+        self.assertEqual(
+            {k: row[k] for k in ("evenement", "evenement_libelle", "type_document",
+                                 "obligatoire", "date_ouverture", "date_fermeture")},
+            {"evenement": "formation", "evenement_libelle": "Formation",
+             "type_document": self.dec.pk, "obligatoire": False,
+             "date_ouverture": "2015-01-01", "date_fermeture": None},
+        )  # fmt: skip
+        self.assertIn("cree_par", row)
+
+    def test_invalid_date_is_refused_per_field(self):
+        for url in (TYPES_DOCUMENT, PIECES):
+            with self.subTest(url):
+                response = self.get(url, date="31/12/2025")
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("date", response.json())
+
+    def test_writes_are_refused(self):
+        client = APIClient()
+        client.force_authenticate(self.users["Gestion de carrière"])
+        for url, obj in ((TYPES_DOCUMENT, self.dec), (PIECES, self.promotion)):
+            detail = f"{url}{obj.pk}/"
+            with self.subTest(url):
+                self.assertEqual(client.post(url, {}).status_code, 405)
+                self.assertEqual(client.put(detail, {}).status_code, 405)
+                self.assertEqual(client.patch(detail, {}).status_code, 405)
+                self.assertEqual(client.delete(detail).status_code, 405)
+
+    def test_query_count_does_not_grow_with_requirements(self):
+        def count():
+            with CaptureQueriesContext(connection) as queries:
+                self.get(PIECES, toutes="1")
+            return len(queries)
+
+        count()  # the first request also loads the user's permissions
+        before = count()
+        for i in range(10):
+            doc = TypeDocument.objects.create(code=f"T{i}", nom="x", date_ouverture=D2015)
+            PieceRequise.objects.create(
+                evenement="mariage", type_document=doc, obligatoire=True, date_ouverture=D2015
+            )
+        self.assertEqual(count(), before)
 
 
 class DemoOrganisationTests(TestCase):

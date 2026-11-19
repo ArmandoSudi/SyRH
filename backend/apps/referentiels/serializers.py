@@ -9,8 +9,10 @@ from .models import (
     Echelon,
     Fonction,
     Grade,
+    PieceRequise,
     Site,
     TypeContrat,
+    TypeDocument,
     UniteOrganisationnelle,
 )
 
@@ -114,6 +116,32 @@ class TypeContratSerializer(BaseModelSerializer):
             "nom",
             "duree_determinee",
             "periode_essai",
+            "date_ouverture",
+            "date_fermeture",
+            *BASE_FIELDS,
+        ]
+
+
+class TypeDocumentSerializer(BaseModelSerializer):
+    class Meta:
+        model = TypeDocument
+        fields = ["id", "code", "nom", "date_ouverture", "date_fermeture", *BASE_FIELDS]
+
+
+class PieceRequiseSerializer(BaseModelSerializer):
+    """A document an event kind requires; the client joins it to its type by id
+    (document types D19)."""
+
+    evenement_libelle = serializers.CharField(source="get_evenement_display", read_only=True)
+
+    class Meta:
+        model = PieceRequise
+        fields = [
+            "id",
+            "evenement",
+            "evenement_libelle",
+            "type_document",
+            "obligatoire",
             "date_ouverture",
             "date_fermeture",
             *BASE_FIELDS,
