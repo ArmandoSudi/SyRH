@@ -95,6 +95,14 @@ En attendant, le MVP traite chaque point comme un **paramètre** ou applique l'h
   - Hypothèse en attendant : une liste plate, chaque fonction de nature « responsabilité » ou
     « exécution », sans lien avec la grille. Les RH saisissent la liste réelle dans
     l'administration.
+- [ ] **Q30 — Types de contrat de l'ARPTC.** Existe-t-il d'autres types que CDI, CDD, stage et
+  journalier (apprentissage, consultance, détachement entrant) ? Lesquels exigent une date de fin,
+  et lesquels admettent une période d'essai ? Quelle est la durée de la période d'essai, dépend-elle
+  du type de contrat ou de la catégorie, et un CDD peut-il être renouvelé, combien de fois ?
+  - Concerne : section 4.1 (types de contrat), section 4.2 (contrat), CAR-03, CAR-04, roadmap 1.4.
+  - Hypothèse en attendant : les quatre types de la section 4.1, chacun avec deux règles
+    (« durée déterminée », « période d'essai ») ; la durée de l'essai et les renouvellements ne
+    sont pas modélisés. Les RH saisissent la liste réelle dans l'administration.
 
 ## 6. Circuits de validation
 

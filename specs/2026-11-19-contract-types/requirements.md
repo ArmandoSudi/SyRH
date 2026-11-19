@@ -143,3 +143,10 @@ and the pattern of phase 1.3.
 | --- | --- |
 | `Q30` — the ARPTC's contract types: are there others (apprentissage, consultance, détachement entrant)? Which require an end date and which allow a probation period? How long is the probation period, does it depend on the type or the catégorie, and can a CDD be renewed? | The four types of section 4.1 with the flags of D22; probation length and renewals are not modelled. Added to `docs/questions-ouvertes.md` by this phase; the merge does not wait for the answer. |
 | `Q2` — other exit reasons, including the end of a fixed-term contract. | Phase 1.6. |
+
+## Found during implementation
+
+| # | Decision | Reason |
+| --- | --- | --- |
+| D25 | `Fonction` and `TypeContrat` share their rules through one `FlatListRules` mixin (label `CODE — Nom`, code in capitals, `check_closing_after_opening()`), as plan step 1.3 allowed. `Fonction`'s tests pass unchanged. | The two models repeated the same four methods word for word. |
+| D26 | The Fonctions and Types de contrat tabs filter through one generic `filterByCodeAndName()` in `components/lists.ts`, as plan step 5.1 allowed; `components/fonctions.ts` keeps only the nature colours. | The two filters were identical. |

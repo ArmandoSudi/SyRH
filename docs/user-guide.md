@@ -5,7 +5,7 @@ find your way around, and use the screens that are available today.
 
 > **Where the application stands (November 2026).** The foundations are in place: sign-in,
 > profiles, the audit log and the reference data (organisation, sites, classification, job
-> functions). The
+> functions, contract types). The
 > business modules (Agents, Carrière, Présences, Paie, Social, Formation) appear in the menu but
 > are not built yet. The dashboard shows demonstration figures only.
 
@@ -184,13 +184,15 @@ you leave a shared computer.
 ## 5. Reference data (Référentiels)
 
 **Référentiels** holds the reference data the other modules rely on: the organisation chart, the
-sites, the job classification and the job functions. Every profile can open it.
+sites, the job classification, the job functions and the contract types. Every profile can open
+it.
 
 The screen is **read-only**: it shows the data but does not change it. Changes are made by the
 **Administrateur système** and **Gestion de carrière** profiles, in the administration site
 (see [Who changes the reference data](#who-changes-the-reference-data)).
 
-The screen has four tabs: **Organisation**, **Sites**, **Classification** and **Fonctions**.
+The screen has five tabs: **Organisation**, **Sites**, **Classification**, **Fonctions** and
+**Types de contrat**.
 
 ### Organisation
 
@@ -254,8 +256,8 @@ Since then **Attaché de 2e classe (grille 2025)** has 5.
 
 ![The classification on 1 June 2024, before the 2025 reform](./screenshots/14-classification-2024.png)
 
-The Organisation, Classification and Fonctions tabs each keep their own date and search, so
-changing one does not move the others.
+The Organisation, Classification, Fonctions and Types de contrat tabs each keep their own date
+and search, so changing one does not move the others.
 
 ### Fonctions
 
@@ -281,14 +283,36 @@ the list as it was. In the demonstration data, **Chargé d'études** became
 
 ![The fonctions on 31 December 2023, before the rename](./screenshots/14d-fonctions-2023.png)
 
+### Types de contrat
+
+The **Types de contrat** tab lists the kinds of contract an agent can be hired on, such as
+CDI, CDD, Stage and Journalier, in alphabetical order. Besides the code, name and dates, two
+columns give each type's rules, as **Oui** or **Non**:
+
+- **Durée déterminée**: a contract of this type must have an end date (a CDD or an internship,
+  for example);
+- **Période d'essai**: a contract of this type may start with a probation period.
+
+These rules will apply when contracts are recorded for each agent, in a later version.
+
+![The Types de contrat tab](./screenshots/14e-types-contrat.png)
+
+Search by code or name works as in the other tabs.
+
+**See the types at another date.** A type that is no longer used is closed and disappears from the
+list after its closing date. Change the **Types au** date to see the list as it was: in the
+demonstration data, the **Contrat d'apprentissage** was used until 1 January 2023.
+
+![The contract types on 1 June 2022, when the apprenticeship contract was still used](./screenshots/14f-types-contrat-2022.png)
+
 ### Who changes the reference data
 
 Accounts with the **Administrateur système** or **Gestion de carrière** profile, and with
-staff status (**Statut équipe**), change the reference data (units, sites, the classification
-and the fonctions) in the administration site, at
+staff status (**Statut équipe**), change the reference data (units, sites, the classification,
+the fonctions and the contract types) in the administration site, at
 `/admin/` (the same address as SyRH, followed by `/admin/`). A reorganisation, a reform or a
-rename is recorded by closing the old unit, grade or fonction on a date and opening the new one,
-never by deleting it, so the history stays readable. Every change is recorded in the
+rename is recorded by closing the old unit, grade, fonction or contract type on a date and
+opening the new one, never by deleting it, so the history stays readable. Every change is recorded in the
 [audit log](#6-the-audit-log-journal-daudit).
 
 ## 6. The audit log (Journal d'audit)
@@ -377,5 +401,5 @@ No. The log is permanent, and nobody can change it, not even the administrator.
 
 *Screenshots taken on 19 November 2026 with the demonstration data and accounts
 (`create_demo_users`, `create_demo_organisation`, `create_demo_classification`,
-`create_demo_fonctions`). To retake them,
+`create_demo_fonctions`, `create_demo_types_contrat`). To retake them,
 see `docs/capture_screenshots.py`.*
