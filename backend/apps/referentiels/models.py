@@ -3,6 +3,7 @@
 Organisation: sites and organisation units (specs/2026-11-18-organisation).
 Classification: catégories, grades, échelons (specs/2026-11-18-classification).
 Fonctions: job functions (specs/2026-11-18-fonctions).
+Contract types (specs/2026-11-19-contract-types).
 
 Rules that only read the row itself are database constraints; rules that read
 other rows (levels, periods, fixed fields) live in check_rules(), called by
@@ -602,7 +603,29 @@ class Echelon(ClassificationRules, BaseModel):
         return f"échelon {self.numero}"
 
 
-class Fonction(BaseModel):
+class FlatListRules:
+    """Rules of the flat, dated lists: fonctions and contract types (fonctions D9,
+    contract types D10). The code is saved in capitals; a closing date on or
+    before the opening date is refused on its field (fonctions D25)."""
+
+    def __str__(self):
+        return f"{self.code} — {self.nom}"
+
+    def normalise(self) -> None:
+        if self.code:
+            self.code = self.code.strip().upper()
+
+    def clean(self):
+        super().clean()
+        self.normalise()
+        check_closing_after_opening(self)
+
+    def save(self, **kwargs):
+        self.normalise()
+        super().save(**kwargs)
+
+
+class Fonction(FlatListRules, BaseModel):
     """A job function, such as Chef de service or Juriste (fonctions D1, D2).
 
     Open from date_ouverture included to date_fermeture excluded (D5). A rename
@@ -653,18 +676,49 @@ class Fonction(BaseModel):
             ),
         ]
 
-    def __str__(self):
-        return f"{self.code} — {self.nom}"
 
-    def normalise(self) -> None:
-        if self.code:
-            self.code = self.code.strip().upper()
+class TypeContrat(FlatListRules, BaseModel):
+    """A contract type, such as CDI or Stage (contract types D1, D2).
 
-    def clean(self):
-        super().clean()
-        self.normalise()
-        check_closing_after_opening(self)
+    The two flags tell phase 2.3 whether a contract of this type must have an end
+    date and whether it may have a probation period. Open from date_ouverture
+    included to date_fermeture excluded (D6); changing a flag closes the type and
+    opens a successor (D7).
+    """
 
-    def save(self, **kwargs):
-        self.normalise()
-        super().save(**kwargs)
+    module = "referentiels"
+
+    code = models.CharField("code", max_length=20)
+    nom = models.CharField("nom", max_length=150)
+    duree_determinee = models.BooleanField(
+        "durée déterminée", help_text="Un contrat de ce type doit avoir une date de fin."
+    )
+    periode_essai = models.BooleanField(
+        "période d'essai",
+        help_text="Un contrat de ce type peut comporter une période d'essai.",
+    )
+    date_ouverture = models.DateField("date d'ouverture")
+    date_fermeture = models.DateField(
+        "date de fermeture",
+        null=True,
+        blank=True,
+        help_text="Premier jour où le type n'existe plus.",
+    )
+
+    objects = ClassificationQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "type de contrat"
+        verbose_name_plural = "types de contrat"
+        ordering = ["nom", "date_ouverture"]
+        default_permissions = NO_DELETE
+        constraints = [
+            closing_after_opening("typecontrat_fermeture_apres_ouverture"),
+            unique_per_period(
+                "typecontrat_code_unique_par_periode",
+                "code",
+                message=(
+                    "Un autre type de contrat porte déjà ce code sur une partie de cette période."
+                ),
+            ),
+        ]
