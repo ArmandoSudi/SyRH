@@ -9,7 +9,7 @@ from django.test import TestCase
 
 from apps.audit.models import EntreeAudit
 
-from .models import MotifSortie, TypeDocument
+from .models import MotifSortie, PieceRequise, TypeDocument, TypeSuspension
 from .test_pieces import errors_of, raw, type_document
 
 D2015 = date(2015, 1, 1)
@@ -215,4 +215,179 @@ class MotifSortieAuditTests(TestCase):
         self.assertEqual(
             set(entries.values_list("module", "objet_libelle")),
             {("referentiels", "DEM — Démision"), ("referentiels", "DEM — Démission")},
+        )
+
+
+def suspension(code, nom=None, document=None, *, compte=False, duree=None, renouvellements=None,
+               debut=D2015, fin=None):  # fmt: skip
+    return TypeSuspension.objects.create(
+        code=code, nom=nom or f"Suspension {code}",
+        type_document=document or TypeDocument.objects.get(code="DEC"),
+        compte_anciennete=compte, duree_max_mois=duree, renouvellements_max=renouvellements,
+        date_ouverture=debut, date_fermeture=fin,
+    )  # fmt: skip
+
+
+class TypeSuspensionTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.dec = type_document("DEC", "Décision")
+
+    def test_type_is_created_with_its_label(self):
+        dispo = suspension("dispo ", "Mise en disponibilité", duree=24, renouvellements=1)
+
+        dispo.refresh_from_db()
+        self.assertEqual(dispo.code, "DISPO")
+        self.assertEqual(str(dispo), "DISPO — Mise en disponibilité")
+        self.assertEqual((dispo.duree_max_mois, dispo.renouvellements_max), (24, 1))
+
+    def test_required_fields(self):
+        self.assertEqual(
+            set(errors_of(TypeSuspension().full_clean)),
+            {"code", "nom", "type_document", "compte_anciennete", "date_ouverture"},
+        )
+
+    def test_blank_duration_and_renewals_are_accepted(self):
+        obj = TypeSuspension(code="deta", nom="Détachement", type_document=self.dec,
+                             compte_anciennete=True, date_ouverture=D2015)  # fmt: skip
+        obj.full_clean()
+        obj.save()
+        obj.refresh_from_db()
+        self.assertEqual(
+            (obj.code, obj.duree_max_mois, obj.renouvellements_max), ("DETA", None, None)
+        )
+
+    def test_zero_renewals_accepted_zero_months_reported_on_the_field(self):
+        ok = TypeSuspension(code="A", nom="A", type_document=self.dec, compte_anciennete=False,
+                            renouvellements_max=0, duree_max_mois=6,
+                            date_ouverture=D2015)  # fmt: skip
+        ok.full_clean()
+        zero = TypeSuspension(code="B", nom="B", type_document=self.dec, compte_anciennete=False,
+                              duree_max_mois=0, date_ouverture=D2015)  # fmt: skip
+        self.assertIn("au moins un mois", errors_of(zero.full_clean)["duree_max_mois"][0])
+
+    def test_ordered_by_name(self):
+        suspension("DISPO", "Mise en disponibilité")
+        suspension("DETA", "Détachement")
+        self.assertEqual(
+            list(TypeSuspension.objects.values_list("code", flat=True)), ["DETA", "DISPO"]
+        )
+
+    def test_one_document_serves_several_types(self):
+        suspension("DISPO")
+        suspension("DETA")
+        self.assertEqual(self.dec.types_suspension.count(), 2)
+
+    def test_no_delete_permission(self):
+        self.assertEqual(TypeSuspension._meta.default_permissions, ("view", "add", "change"))
+
+    def test_deleting_a_document_type_in_use_is_refused(self):
+        suspension("DETA")
+        with self.assertRaises(ProtectedError):
+            self.dec.delete()
+
+
+class TypeSuspensionConstraintTests(TestCase):
+    """Rules on the row itself, enforced by PostgreSQL (D11)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.dec = type_document("DEC", "Décision")
+        suspension("DETA", "Détachement")
+
+    def assert_refused(self, **values):
+        values = {"nom": "x", "type_document": self.dec, "compte_anciennete": False,
+                  "date_ouverture": D2015, **values}  # fmt: skip
+        with self.assertRaises(IntegrityError):
+            raw(TypeSuspension, **values)
+
+    def test_closing_after_opening(self):
+        self.assert_refused(code="X1", date_fermeture=D2015)
+        self.assert_refused(code="X2", date_fermeture=date(2014, 1, 1))
+
+    def test_code_unique_over_overlapping_periods(self):
+        self.assert_refused(code="DETA", date_ouverture=D2020)
+        suspension("OLD", fin=D2020)
+        raw(TypeSuspension, code="OLD", nom="x", type_document=self.dec,
+            compte_anciennete=False, date_ouverture=D2020)  # fmt: skip
+        self.assert_refused(code="OLD", date_ouverture=date(2019, 12, 31))
+
+    def test_duration_above_zero_and_renewals_not_negative(self):
+        self.assert_refused(code="X3", duree_max_mois=0)
+        self.assert_refused(code="X4", renouvellements_max=-1)
+        raw(TypeSuspension, code="OK", nom="x", type_document=self.dec, compte_anciennete=False,
+            date_ouverture=D2015, duree_max_mois=1, renouvellements_max=0)  # fmt: skip
+
+    def test_duplicate_code_has_a_french_message_in_forms(self):
+        obj = TypeSuspension(code="deta", nom="Bis", type_document=self.dec,
+                             compte_anciennete=True, date_ouverture=D2020)  # fmt: skip
+        self.assertIn("porte déjà ce code", str(errors_of(obj.full_clean)))
+
+    def test_reversed_dates_report_the_closing_date(self):
+        obj = TypeSuspension(code="X", nom="X", type_document=self.dec, compte_anciennete=True,
+                             date_ouverture=D2020, date_fermeture=D2015)  # fmt: skip
+        errors = errors_of(obj.full_clean)
+        self.assertIn("postérieure à la date d'ouverture", errors["date_fermeture"][0])
+        self.assertNotIn("__all__", errors)
+
+
+class TypeSuspensionRuleTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.dec = type_document("DEC", "Décision", debut=D2020)
+
+    def test_type_within_its_document_period(self):
+        early = TypeSuspension(code="DETA", nom="Détachement", type_document=self.dec,
+                               compte_anciennete=True, date_ouverture=D2015)  # fmt: skip
+        self.assertIn("ne peut pas ouvrir avant son type de pièce",
+                      errors_of(early.full_clean)["date_ouverture"][0])  # fmt: skip
+        with self.assertRaises(ValidationError):
+            early.save()
+
+    def test_document_cannot_close_while_a_suspension_type_stays_open(self):
+        suspension("DETA", debut=D2020)
+        self.dec.date_fermeture = D2025
+        self.assertIn("Des types de suspension restent ouverts après cette date : DETA",
+                      errors_of(self.dec.full_clean)["date_fermeture"][0])  # fmt: skip
+
+    def test_requirements_reasons_and_suspensions_are_all_named(self):
+        PieceRequise.objects.create(evenement="detachement", type_document=self.dec,
+                                    obligatoire=True, date_ouverture=D2020)  # fmt: skip
+        motif("RET", document=self.dec, debut=D2020)
+        suspension("DETA", debut=D2020)
+        self.dec.date_fermeture = D2025
+        messages = errors_of(self.dec.full_clean)["date_fermeture"]
+        self.assertEqual(len(messages), 3)
+
+
+class TypeSuspensionHistoryTests(TestCase):
+    def test_open_from_opening_day_to_closing_day_excluded(self):
+        type_document("DEC")
+        suspension("DETA")
+        suspension("OLD", fin=D2020)
+
+        def codes_on(day):
+            return set(TypeSuspension.objects.ouvertes(day).values_list("code", flat=True))
+
+        self.assertEqual(codes_on(date(2019, 12, 31)), {"DETA", "OLD"})
+        self.assertEqual(codes_on(D2020), {"DETA"})
+
+
+class TypeSuspensionAuditTests(TestCase):
+    def test_create_correct_and_close_are_audited(self):
+        type_document("DEC")
+        dispo = suspension("DISPO", "Mise en disponibilite")
+        dispo.nom = "Mise en disponibilité"
+        dispo.save()
+        dispo.date_fermeture = D2025
+        dispo.save()
+
+        entries = EntreeAudit.objects.filter(table__model="typesuspension", objet_id=dispo.pk)
+        self.assertEqual(entries.count(), 3)
+        self.assertEqual(
+            set(entries.values_list("module", "objet_libelle")),
+            {
+                ("referentiels", "DISPO — Mise en disponibilite"),
+                ("referentiels", "DISPO — Mise en disponibilité"),
+            },
         )

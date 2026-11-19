@@ -758,7 +758,10 @@ class TypeDocument(ClassificationRules, BaseModel):
     SUBJECT = "Le type de pièce"
     CHILDREN_REF = "Des pièces exigées"
     CHILDREN_OPEN = "ouvertes"
-    OTHER_CHILDREN = (("motifs_sortie", "Des motifs de sortie", "ouverts"),)
+    OTHER_CHILDREN = (
+        ("motifs_sortie", "Des motifs de sortie", "ouverts"),
+        ("types_suspension", "Des types de suspension", "ouverts"),
+    )
 
     code = models.CharField("code", max_length=20)
     nom = models.CharField("nom", max_length=150)
@@ -897,6 +900,11 @@ class PieceRequise(ClassificationRules, BaseModel):
 RETRAITE_ET_DECES = "Un motif ne peut pas être à la fois une retraite et un décès."
 
 
+DUREE_NULLE = (
+    "La durée maximale doit être d'au moins un mois ; laissez vide si la décision la fixe."
+)
+
+
 class DocumentRules(FlatListRules):
     """Flat lists whose rows rest on a document type: exit reasons and suspension
     types (exit reasons D9, D12). A row stays within its document type's period."""
@@ -987,4 +995,84 @@ class MotifSortie(DocumentRules, BaseModel):
     def clean(self):
         if self.retraite and self.deces:
             raise ValidationError({"deces": [RETRAITE_ET_DECES]})
+        super().clean()
+
+
+class TypeSuspension(DocumentRules, BaseModel):
+    """A position that suspends a career without ending it, such as Détachement
+    (exit reasons D1, D3, D4).
+
+    Phase 3.4 records suspensions of this type, enforcing the maximum length and
+    renewals; phase 3.5 counts their periods toward seniority when the flag is on.
+    A type whose rules change is closed and a successor opened (D8).
+    """
+
+    module = "referentiels"
+    SUBJECT = "Le type de suspension"
+
+    code = models.CharField("code", max_length=20)
+    nom = models.CharField("nom", max_length=150)
+    type_document = models.ForeignKey(
+        TypeDocument,
+        verbose_name="pièce exigée",
+        on_delete=models.PROTECT,
+        related_name="types_suspension",
+        help_text="La pièce sur laquelle repose la suspension.",
+    )
+    compte_anciennete = models.BooleanField(
+        "compte dans l'ancienneté",
+        help_text="La période compte dans l'ancienneté et dans les 30 ans de carrière.",
+    )
+    duree_max_mois = models.PositiveSmallIntegerField(
+        "durée maximale (mois)",
+        null=True,
+        blank=True,
+        help_text="Durée la plus longue d'une période. Vide : fixée par la décision.",
+    )
+    renouvellements_max = models.PositiveSmallIntegerField(
+        "renouvellements maximum",
+        null=True,
+        blank=True,
+        help_text="Nombre de renouvellements permis. Vide : sans limite.",
+    )
+    date_ouverture = models.DateField("date d'ouverture")
+    date_fermeture = models.DateField(
+        "date de fermeture",
+        null=True,
+        blank=True,
+        help_text="Premier jour où le type n'existe plus.",
+    )
+
+    objects = ClassificationQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "type de suspension"
+        verbose_name_plural = "types de suspension"
+        ordering = ["nom", "date_ouverture"]
+        default_permissions = NO_DELETE
+        constraints = [
+            closing_after_opening("typesuspension_fermeture_apres_ouverture"),
+            unique_per_period(
+                "typesuspension_code_unique_par_periode",
+                "code",
+                message=(
+                    "Un autre type de suspension porte déjà ce code sur une partie de cette "
+                    "période."
+                ),
+            ),
+            models.CheckConstraint(
+                condition=Q(duree_max_mois__isnull=True) | Q(duree_max_mois__gt=0),
+                name="typesuspension_duree_positive",
+                violation_error_message=DUREE_NULLE,
+            ),
+            models.CheckConstraint(
+                condition=Q(renouvellements_max__isnull=True) | Q(renouvellements_max__gte=0),
+                name="typesuspension_renouvellements_positifs",
+                violation_error_message="Le nombre de renouvellements ne peut pas être négatif.",
+            ),
+        ]
+
+    def clean(self):
+        if self.duree_max_mois == 0:
+            raise ValidationError({"duree_max_mois": [DUREE_NULLE]})
         super().clean()
