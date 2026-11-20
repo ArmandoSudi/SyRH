@@ -3,6 +3,16 @@
 All notable changes to SyRH, newest first. Each section is written from the git history before
 the work is merged.
 
+## 2026-11-20
+
+- General parameters (roadmap 1.8): the child age limit, the maximum number of children covered,
+  the retirement age and the career length, as dated values of a fixed list of keys, each with a
+  unit and bounds checked by the database; later phases read them with `Parametre.valeur_au()`.
+  Same editors as the other reference data in Django admin; a new read-only "Paramètres" tab,
+  described in the user guide. Run `migrate`; `create_demo_parametres` loads 25, 65 and 30 and a
+  fictional maximum of children. The real values are open question `Q34`.
+<!-- commits: 11ea6fa c754996 fd0bef7 e440d45 c5d0c4d ce6e21c d5f68c9 -->
+
 ## 2026-11-19
 
 - Fonctions (roadmap 1.3): job functions as dated reference data, each with a code, a name and
