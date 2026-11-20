@@ -185,16 +185,18 @@ you leave a shared computer.
 
 **Référentiels** holds the reference data the other modules rely on: the organisation chart, the
 sites, the job classification, the job functions, the contract types, the supporting documents
-each event requires, the reasons a career stops or is suspended, and the banks agents are paid
-through. Every profile can open it.
+each event requires, the reasons a career stops or is suspended, the banks agents are paid
+through, and the general parameters (age limits, career length). Every profile can open it.
 
 The screen is **read-only**: it shows the data but does not change it. Changes are made by the
 **Administrateur système** and **Gestion de carrière** profiles, and the banks by
 **Rémunération**, in the administration site
 (see [Who changes the reference data](#who-changes-the-reference-data)).
 
-The screen has eight tabs: **Organisation**, **Sites**, **Classification**, **Fonctions**,
-**Types de contrat**, **Pièces justificatives**, **Sorties et suspensions** and **Banques**.
+The screen has nine tabs: **Organisation**, **Sites**, **Classification**, **Fonctions**,
+**Types de contrat**, **Pièces justificatives**, **Sorties et suspensions**, **Banques** and
+**Paramètres**. On a narrow window, use the arrows at either end of the tab bar to reach the last
+ones.
 
 ### Organisation
 
@@ -385,12 +387,34 @@ demonstration data, the **Union des Banques du Kasaï** became the **Union Bank 
 
 ![The banks on 31 December 2021, before the merger](./screenshots/14m-banques-2021.png)
 
+### Paramètres
+
+The **Paramètres** tab shows the numbers SyRH's rules rely on, with their unit:
+
+- **Âge limite des enfants à charge**: the age at which a child stops being a dependant;
+- **Nombre maximal d'enfants pris en charge**: how many children at most count for the family
+  allowances;
+- **Âge de la retraite**: the age at which an agent retires;
+- **Durée de carrière avant la retraite**: the years of career, from the hiring date, after which
+  an agent retires (whichever of the two comes first).
+
+These values will be used by the dependants, retirement and payroll features of later versions.
+A parameter shown as **Non renseigné** has no value at that date.
+
+![The Paramètres tab](./screenshots/14n-parametres.png)
+
+**See the values at another date.** When a value changes, the old one is closed on the day the
+new one starts. Change the **Paramètres au** date to see the values as they were: in the
+demonstration data, the maximum number of children was 4 until 1 January 2020.
+
+![The parameters on 1 June 2019](./screenshots/14o-parametres-2019.png)
+
 ### Who changes the reference data
 
 Accounts with the **Administrateur système** or **Gestion de carrière** profile, and with
 staff status (**Statut équipe**), change the reference data (units, sites, the classification,
-the fonctions, the contract types, the documents each event requires, the exit reasons and the
-suspension positions) in the administration site, at `/admin/` (the same address as SyRH,
+the fonctions, the contract types, the documents each event requires, the exit reasons, the
+suspension positions and the general parameters) in the administration site, at `/admin/` (the same address as SyRH,
 followed by `/admin/`). The **banks** are changed by the **Rémunération** profiles and the
 **Administrateur système**, not by Gestion de carrière. A reorganisation, a reform, a rename or a
 merger is recorded by closing the old row on a date and opening the new one, never by deleting

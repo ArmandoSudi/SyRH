@@ -138,3 +138,5 @@ others follow from the cahier des charges, `missions.md`, `tech-stack.md` and ph
 
 | # | Decision | Reason |
 | --- | --- | --- |
+| D24 | `Cle` and the `DEFINITIONS` of each key's unit and bounds are declared at module level (`Parametre.Cle` is an alias), and the bounds constraint is built from `DEFINITIONS`. | One list feeds the choices, the database check, the admin help and the messages, as the event kinds of 1.5 (D27 there). |
+| D25 | The tab shows no row at all when the values cannot be loaded, rather than four "Non renseigné". | "Non renseigné" would wrongly say the values are missing. |

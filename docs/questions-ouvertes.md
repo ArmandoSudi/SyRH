@@ -129,6 +129,15 @@ En attendant, le MVP traite chaque point comme un **paramètre** ou applique l'h
   - Hypothèse en attendant : une liste fictive de démonstration ; la Rémunération et
     l'administrateur saisissent la liste réelle dans l'administration. Le modèle du fichier de
     virement attend la réponse à Q16.
+- [ ] **Q34 — Valeurs des paramètres généraux.** Quel est le nombre maximal d'enfants pris en
+  charge, et depuis quand chaque valeur (âge limite des enfants, nombre maximal, âge de la
+  retraite, durée de carrière) s'applique-t-elle ? L'Administration du personnel ou la
+  Rémunération doivent-elles modifier elles-mêmes les paramètres des dépendants ? Les délais
+  d'alerte (12, 6 et 3 mois) doivent-ils être des paramètres ?
+  - Concerne : sections 2.2 et 4.1, ADM-15 à ADM-17, CAR-14, roadmap 1.8.
+  - Hypothèse en attendant : 25, 65 et 30 ans ; un nombre maximal fictif en démonstration ; la
+    Gestion de carrière et l'administrateur saisissent les valeurs dans l'administration ; les
+    délais d'alerte sont tranchés par la roadmap 4.2.
 
 ## 6. Circuits de validation
 
