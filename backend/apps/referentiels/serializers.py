@@ -4,6 +4,7 @@ from rest_framework import serializers
 from apps.core.models import BASE_FIELDS
 from apps.core.serializers import BaseModelSerializer
 
+from .edition import ModelRulesSerializerMixin
 from .models import (
     Banque,
     Categorie,
@@ -90,7 +91,7 @@ class EchelonSerializer(BaseModelSerializer):
         ]
 
 
-class FonctionSerializer(BaseModelSerializer):
+class FonctionSerializer(ModelRulesSerializerMixin, BaseModelSerializer):
     """A job function with its nature and the nature's French label (fonctions D16)."""
 
     nature_libelle = serializers.CharField(source="get_nature_display", read_only=True)

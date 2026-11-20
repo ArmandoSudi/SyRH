@@ -1218,13 +1218,15 @@ class FonctionApiTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("date", response.json())
 
-    def test_writes_are_refused(self):
+    def test_readers_cannot_write_and_nobody_puts_or_deletes(self):
+        # Editors write since phase 1.9 (test_edition.py); readers do not.
         client = APIClient()
-        client.force_authenticate(self.users["Gestion de carrière"])
+        client.force_authenticate(self.users["Auditeur"])
         detail = f"{FONCTIONS}{self.jur.pk}/"
-        self.assertEqual(client.post(FONCTIONS, {}).status_code, 405)
+        self.assertEqual(client.post(FONCTIONS, {}).status_code, 403)
+        self.assertEqual(client.patch(detail, {}).status_code, 403)
+        client.force_authenticate(self.users["Gestion de carrière"])
         self.assertEqual(client.put(detail, {}).status_code, 405)
-        self.assertEqual(client.patch(detail, {}).status_code, 405)
         self.assertEqual(client.delete(detail).status_code, 405)
 
 
