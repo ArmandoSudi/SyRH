@@ -69,8 +69,9 @@ These steps were done by hand the first time; they don't need repeating for an u
    done
    ```
 
-   The demo accounts' password is `DEMO` in `~/syrh-secrets.env` on the server, different from
-   the one on development machines.
+   The demo accounts' password is `DEMO` in `~/syrh-secrets.env` on the server. It is the same
+   as in the developer's local `demo-users.md`, so that list works on the test server too, with
+   <http://192.168.1.67:8080> in place of `localhost:5173`.
 
 ## Troubleshooting
 
