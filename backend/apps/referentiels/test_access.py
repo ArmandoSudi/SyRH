@@ -1965,3 +1965,38 @@ class DemoBanquesTests(TestCase):
         before = (Banque.objects.count(), EntreeAudit.objects.count())
         self.assertIn("0 créées", self.run_command())
         self.assertEqual((Banque.objects.count(), EntreeAudit.objects.count()), before)
+
+
+class DemoParametresTests(TestCase):
+    """create_demo_parametres (general parameters D21)."""
+
+    def run_command(self):
+        out = StringIO()
+        call_command("create_demo_parametres", stdout=out)
+        return out.getvalue()
+
+    @override_settings(DEBUG=False)
+    def test_refuses_without_debug(self):
+        with self.assertRaises(CommandError):
+            self.run_command()
+        self.assertFalse(Parametre.objects.exists())
+
+    @override_settings(DEBUG=True)
+    def test_creates_valid_rows_once(self):
+        self.assertIn("5 créés", self.run_command())
+        for obj in Parametre.objects.all():
+            obj.full_clean()  # every rule holds
+
+        today = timezone.localdate()
+        self.assertEqual(Parametre.valeur_au("age_limite_enfant", today), 25)
+        self.assertEqual(Parametre.valeur_au("age_retraite", today), 65)
+        self.assertEqual(Parametre.valeur_au("duree_carriere", today), 30)
+        self.assertEqual(Parametre.valeur_au("enfants_max", date(2019, 6, 1)), 4)
+        self.assertEqual(Parametre.valeur_au("enfants_max", today), 6)
+        self.assertFalse(
+            EntreeAudit.objects.filter(table__model="parametre").exclude(auteur=None).exists()
+        )
+
+        before = (Parametre.objects.count(), EntreeAudit.objects.count())
+        self.assertIn("0 créés", self.run_command())
+        self.assertEqual((Parametre.objects.count(), EntreeAudit.objects.count()), before)
