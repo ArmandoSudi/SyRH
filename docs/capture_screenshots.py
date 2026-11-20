@@ -9,9 +9,12 @@ From the repository root:
     uv run --no-project --with playwright python docs/capture_screenshots.py
 
 Pass screenshot names (without .png) to retake only those, e.g. `... 05-password 12-sites`.
+The editing shots (14p to 14s) only submit forms the server refuses, but take them against the
+scratch servers anyway (SYRH_BASE=http://localhost:5174, see the phase 1.9 validation).
 The demo password is read from demo-users.md.
 """
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -20,7 +23,8 @@ from playwright.sync_api import Page, sync_playwright
 
 REPO = Path(__file__).resolve().parent.parent
 OUT = REPO / "docs" / "screenshots"
-BASE = "http://localhost:5173"
+# SYRH_BASE points at another frontend, such as the scratch one used for the editing shots.
+BASE = os.environ.get("SYRH_BASE", "http://localhost:5173")
 PASSWORD = re.search(r"`(Demo-[^`]+)`", (REPO / "demo-users.md").read_text()).group(1)
 
 OUT.mkdir(parents=True, exist_ok=True)
@@ -74,7 +78,7 @@ def login(page: Page, username: str) -> None:
     page.fill("#username", username)
     page.fill("#password", PASSWORD)
     page.get_by_role("button", name="Se connecter").click()
-    page.wait_for_url(re.compile(r"localhost:5173/(?!connexion)"))
+    page.wait_for_url(re.compile(re.escape(BASE) + r"/(?!connexion)"))
     page.wait_for_load_state("networkidle")
 
 
@@ -256,6 +260,42 @@ with sync_playwright() as p:
     page.locator("[data-test=parametres] tbody tr", has_text="4 enfants").wait_for()
     shot(page, "14o-parametres-2019")
     store_set(page, "referentiels", "s.parametres.date = new Date()")
+
+    # --- Editing the reference data (Gestion de carrière) ----------------------
+    if not only or only & {"14p-edition-ajouter", "14q-edition-erreur", "14r-edition-menu",
+                           "14s-edition-remplacer"}:  # fmt: skip
+        logout(page)
+        login(page, "demo.carriere")
+        page.goto(f"{BASE}/referentiels")
+        page.locator("[data-test=tab-fonctions]").click()
+        page.locator("[data-test=fonctions] tbody tr", has_text="Juriste").wait_for()
+        page.wait_for_load_state("networkidle")
+
+        page.locator("[data-test=fonctions-ajouter]").click()
+        dialog = page.locator("[data-test=edition-dialog]")
+        dialog.wait_for()
+        page.fill("#champ-code", "AUD")
+        page.fill("#champ-nom", "Auditeur interne")
+        shot(page, "14p-edition-ajouter")
+
+        page.fill("#champ-code", "CS")  # already used: the server refuses, nothing is saved
+        page.locator("[data-test=edition-enregistrer]").click()
+        page.locator("[data-test=edition-erreur]").wait_for()
+        shot(page, "14q-edition-erreur")
+        page.locator("[data-test=edition-annuler]").click()
+        dialog.wait_for(state="hidden")
+
+        row = page.locator("[data-test=fonctions] tbody tr", has_text="Juriste").first
+        row.locator("[data-test=ligne-actions]").click()
+        page.locator("[data-test=ligne-menu]").wait_for()
+        shot(page, "14r-edition-menu")
+        page.get_by_role("menuitem", name="Remplacer à une date").click()
+        dialog.wait_for()
+        shot(page, "14s-edition-remplacer")
+        page.locator("[data-test=edition-annuler]").click()
+        dialog.wait_for(state="hidden")
+        logout(page)
+        login(page, "demo.direction")
 
     # --- Access denied (Social cannot open Paie) -----------------------------
     logout(page)

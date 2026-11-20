@@ -188,10 +188,10 @@ sites, the job classification, the job functions, the contract types, the suppor
 each event requires, the reasons a career stops or is suspended, the banks agents are paid
 through, and the general parameters (age limits, career length). Every profile can open it.
 
-The screen is **read-only**: it shows the data but does not change it. Changes are made by the
-**Administrateur système** and **Gestion de carrière** profiles, and the banks by
-**Rémunération**, in the administration site
-(see [Who changes the reference data](#who-changes-the-reference-data)).
+Most people only read this screen. The editors of a list (see
+[Who changes the reference data](#who-changes-the-reference-data)) also change it here, on the
+**Fonctions**, **Types de contrat**, **Sorties et suspensions**, **Banques** and **Paramètres**
+tabs (see [Change the reference data](#change-the-reference-data)).
 
 The screen has nine tabs: **Organisation**, **Sites**, **Classification**, **Fonctions**,
 **Types de contrat**, **Pièces justificatives**, **Sorties et suspensions**, **Banques** and
@@ -409,14 +409,48 @@ demonstration data, the maximum number of children was 4 until 1 January 2020.
 
 ![The parameters on 1 June 2019](./screenshots/14o-parametres-2019.png)
 
+### Change the reference data
+
+If you may change a list, its tab shows an **Ajouter** button and, at the end of each row, a
+**⋮** menu. Other users see neither.
+
+![The row menu](./screenshots/14r-edition-menu.png)
+
+Choose the action that matches what happened:
+
+- **Ajouter**: a new row, for example a new fonction. Fill in the form and click
+  **Enregistrer**.
+- **Corriger**: fix a typing error in a row. The row is changed in place, as if it had always
+  been right.
+- **Remplacer à une date**: something really changed, for example a fonction renamed or a new
+  retirement age. Give the **Date d'effet** and the new values: the current row closes on that
+  day and the new one applies from it, so the old values stay visible at earlier dates.
+- **Fermer**: the row no longer applies from a date, with nothing to replace it.
+
+![Adding a fonction](./screenshots/14p-edition-ajouter.png)
+
+![Replacing a fonction from a date](./screenshots/14s-edition-remplacer.png)
+
+**When SyRH refuses.** The form says what is wrong next to the field concerned, or at the top
+when it is about the whole row, for example a code already used by another open row. Nothing is
+saved until every message is resolved.
+
+![A code already used](./screenshots/14q-edition-erreur.png)
+
+Nothing is ever deleted: a row that no longer applies is closed. Every change is recorded in the
+audit log, with your name.
+
 ### Who changes the reference data
 
-Accounts with the **Administrateur système** or **Gestion de carrière** profile, and with
-staff status (**Statut équipe**), change the reference data (units, sites, the classification,
-the fonctions, the contract types, the documents each event requires, the exit reasons, the
-suspension positions and the general parameters) in the administration site, at `/admin/` (the same address as SyRH,
-followed by `/admin/`). The **banks** are changed by the **Rémunération** profiles and the
-**Administrateur système**, not by Gestion de carrière. A reorganisation, a reform, a rename or a
+The **Gestion de carrière** profiles (its agents and its Chef de service) and the
+**Administrateur système** change the fonctions, contract types, exit reasons, suspension
+positions and general parameters, in SyRH as described above. The **banks** are changed by the
+**Rémunération** profiles and the **Administrateur système**, not by Gestion de carrière.
+
+The other reference data (units, sites, the classification and the documents each event
+requires) are still changed in the administration site, at `/admin/` (the same address as SyRH,
+followed by `/admin/`), by the same profiles with staff status (**Statut équipe**); a later
+version brings them into SyRH too. A reorganisation, a reform, a rename or a
 merger is recorded by closing the old row on a date and opening the new one, never by deleting
 it, so the history stays readable. Every change is recorded in the
 [audit log](#6-the-audit-log-journal-daudit).

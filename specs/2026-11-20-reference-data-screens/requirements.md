@@ -97,3 +97,6 @@ which this phase makes possible in the app.
 
 | # | Decision | Reason |
 | --- | --- | --- |
+| D17 | `ModelPermission` lets `PUT` and `DELETE` through, so that they answer `405` rather than `403` for every signed-in profile; the router maps no handler for them. | W7 asks for `405` for every profile. |
+| D18 | The dialog focuses its first field on the dialog's `show` event, and its date pickers do not open on focus. | PrimeVue focuses its own close button after showing; a date picker opening on focus covered the form's buttons. |
+| D19 | `.claude/launch.json` gains `backend-scratch` (port 8001, database `syrh_walkthrough`, its URL derived from `backend/.env` at start) and `frontend-scratch` (port 5174); `vite.config.ts` reads `SYRH_API` and `docs/capture_screenshots.py` reads `SYRH_BASE`. | Validation part 3: real saves on a scratch database, without stopping the usual servers or writing a password in the repository. |

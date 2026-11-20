@@ -40,7 +40,10 @@ Small tables first, each with model, constraints, admin, API and tests.
 - [x] **1.7 Banks** — name, code (`REM-28`).
 - [x] **1.8 General parameters** — dated key/value settings: child age limit (25), maximum
   children, retirement age (65), career length (30).
-- [ ] **1.9 Reference data screens** — one generic list/edit screen for administrators.
+- [x] **1.9 Reference data screens** — one generic list/edit screen for administrators: the six
+  flat lists (fonctions, contract types, banks, exit reasons, suspension types, parameters).
+- [ ] **1.10 Tree reference data screens** — the same editing for sites, organisation units,
+  the classification, document types and required documents.
 
 ## Milestone 2 — Agent record (MVP)
 

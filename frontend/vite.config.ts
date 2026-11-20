@@ -4,7 +4,8 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 
-const DJANGO = 'http://127.0.0.1:8000'
+// SYRH_API points the proxy at another backend, such as the scratch one of a walkthrough.
+const DJANGO = process.env.SYRH_API ?? 'http://127.0.0.1:8000'
 
 // https://vite.dev/config/
 export default defineConfig({
