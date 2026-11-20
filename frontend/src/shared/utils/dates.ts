@@ -11,3 +11,10 @@ export function formatDate(iso: string | null | undefined): string {
   const [year, month, day] = iso.split('-')
   return `${day}/${month}/${year}`
 }
+
+/** An ISO date (YYYY-MM-DD) as a local Date at midnight; empty values as null. */
+export function parseDate(iso: string | null | undefined): Date | null {
+  if (!iso) return null
+  const [year, month, day] = iso.split('-').map(Number)
+  return new Date(year!, month! - 1, day!)
+}
