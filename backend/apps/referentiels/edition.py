@@ -6,8 +6,11 @@ are the models' own: the serializer runs full_clean() and returns its messages p
 field, so the API says exactly what Django admin says.
 """
 
+from dataclasses import dataclass, field
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
+from django.db.models import Model
 from rest_framework import mixins, serializers, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import MethodNotAllowed
@@ -17,7 +20,7 @@ from rest_framework.response import Response
 from apps.accounts.roles import module_permission
 from apps.core.mixins import AuthorMixin, request_author
 
-from .models import fr
+from .models import UniteOrganisationnelle, fr, still_open_after
 
 # Set by the system, never by the client: the successor gets its own dates.
 DATES = ("date_ouverture", "date_fermeture")
@@ -75,13 +78,120 @@ class ModelPermission(BasePermission):
             return False
         if not user.has_perm(module_permission("referentiels")):
             return False
-        if request.method in SAFE_METHODS:
+        action_name = getattr(view, "action", None)
+        if request.method in SAFE_METHODS and action_name != "suite":
             return True
         needs = self.NEEDS.get(request.method, ())
-        if getattr(view, "action", None) == "successeur":
+        if action_name in ("successeur", "suite"):  # the preview needs the right to replace
             needs = ("add", "change")
         opts = view.queryset.model._meta
         return all(user.has_perm(f"{opts.app_label}.{need}_{opts.model_name}") for need in needs)
+
+
+# What follows a parent when it is replaced at a date: the related names of its child
+# rows, per model (tree reference screens D5). Sites carry nothing (D6).
+SUITES: dict[str, tuple[str, ...]] = {
+    "uniteorganisationnelle": ("enfants",),
+    "categorie": ("grades",),
+    "grade": ("echelons",),
+    "typedocument": ("pieces_requises", "motifs_sortie", "types_suspension"),
+}
+
+# How a kind of row is counted in the preview; units by their type (D9).
+PLURIELS_UNITES = {
+    "direction": "directions",
+    "departement": "départements",
+    "service": "services",
+    "bureau": "bureaux",
+}
+
+
+@dataclass
+class Suivant:
+    """A child row that follows its parent, the key pointing to that parent, and its own
+    followers."""
+
+    row: Model
+    cle: str
+    suivants: list["Suivant"] = field(default_factory=list)
+
+
+def suivants(row: Model, jour, bloquants: list[Model]) -> list[Suivant]:
+    """The rows still open after jour that follow row, down the whole subtree. A child
+    opening on or after jour cannot be carried over: it goes to bloquants (D7)."""
+    found = []
+    for related in SUITES.get(row._meta.model_name, ()):
+        cle = row._meta.get_field(related).field.name
+        for child in getattr(row, related).filter(still_open_after(jour)).order_by("pk"):
+            if child.date_ouverture >= jour:
+                bloquants.append(child)
+            else:
+                found.append(Suivant(child, cle, suivants(child, jour, bloquants)))
+    return found
+
+
+def a_plat(liste: list[Suivant]):
+    for suivant in liste:
+        yield suivant
+        yield from a_plat(suivant.suivants)
+
+
+def genre(row: Model) -> str:
+    if isinstance(row, UniteOrganisationnelle):
+        return PLURIELS_UNITES[row.type]
+    return str(row._meta.verbose_name_plural)
+
+
+def errors_on(row: Model, error: DjangoValidationError) -> serializers.ValidationError:
+    """A child's refusal, naming the row so the user knows which one to fix (D4)."""
+    messages = [message for messages in as_drf_errors(error).values() for message in messages]
+    return serializers.ValidationError(
+        {"non_field_errors": [f"{row} : {message}" for message in messages]}
+    )
+
+
+def fermer(liste: list[Suivant], jour, author) -> None:
+    """Close the followers on jour, deepest first: a parent cannot close before them."""
+    for suivant in liste:
+        fermer(suivant.suivants, jour, author)
+        row = suivant.row
+        row.date_fermeture = jour
+        row.modifie_par = author
+        try:
+            row.save()
+        except DjangoValidationError as error:
+            raise errors_on(row, error) from error
+
+
+def recopier(liste: list[Suivant], parent: Model, jour, author) -> None:
+    """Reopen a copy of each follower under its new parent from jour, top-down."""
+    for suivant in liste:
+        old = suivant.row
+        copie = type(old)._base_manager.get(pk=old.pk)
+        copie.pk = None
+        copie._state.adding = True
+        setattr(copie, suivant.cle, parent)
+        copie.date_ouverture = jour
+        copie.date_fermeture = None
+        copie.cree_par = copie.modifie_par = author
+        try:
+            copie.full_clean()
+            copie.save()
+        except DjangoValidationError as error:
+            raise errors_on(old, error) from error
+        recopier(suivant.suivants, copie, jour, author)
+
+
+def bloquants_error(bloquants: list[Model]) -> serializers.ValidationError:
+    names = ", ".join(str(row) for row in bloquants[:5])
+    return serializers.ValidationError(
+        {
+            "date_effet": [
+                f"Des lignes rattachées ouvrent à cette date ou après : {names}. "
+                "Corrigez-les ou fermez-les d'abord."
+            ]
+        }
+    )
 
 
 class SuccesseurSerializer(serializers.Serializer):
@@ -146,8 +256,15 @@ class EditionMixin(AuthorMixin, mixins.CreateModelMixin):
         data.update({k: v for k, v in request.data.items() if k in writable})
         data.update(date_ouverture=date_effet, date_fermeture=None)
 
+        bloquants: list[Model] = []
+        followers = suivants(current, date_effet, bloquants)
+        if bloquants:
+            raise bloquants_error(bloquants)
+
         author = request_author(request)
-        with transaction.atomic():  # an invalid successor leaves the current row open
+        # One act: if anything is refused, nothing is closed and nothing is created (D4).
+        with transaction.atomic():
+            fermer(followers, date_effet, author)
             current.date_fermeture = date_effet
             current.modifie_par = author
             try:
@@ -157,4 +274,28 @@ class EditionMixin(AuthorMixin, mixins.CreateModelMixin):
             successor = self.get_serializer(data=data)
             successor.is_valid(raise_exception=True)
             successor.save(cree_par=author, modifie_par=author)
+            recopier(followers, successor.instance, date_effet, author)
         return Response(successor.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["get"])
+    def suite(self, request, pk=None):
+        """What a replacement on date_effet would carry over, by kind, and what blocks it
+        (D9)."""
+        if not self.REMPLACABLE:
+            raise MethodNotAllowed(request.method)
+        current = self.get_object()
+        effet = SuccesseurSerializer(data=request.query_params)
+        effet.is_valid(raise_exception=True)
+        bloquants: list[Model] = []
+        followers = list(a_plat(suivants(current, effet.validated_data["date_effet"], bloquants)))
+        counts: dict[str, int] = {}
+        for suivant in followers:
+            kind = genre(suivant.row)
+            counts[kind] = counts.get(kind, 0) + 1
+        return Response(
+            {
+                "total": len(followers),
+                "par_genre": [{"libelle": k, "nombre": n} for k, n in counts.items()],
+                "bloquants": [str(row) for row in bloquants],
+            }
+        )
