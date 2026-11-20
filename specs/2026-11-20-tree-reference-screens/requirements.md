@@ -102,3 +102,8 @@ None new.
 
 | # | Decision | Reason |
 | --- | --- | --- |
+| D20 | A site has no opening date (organisation D5), so it has no "Remplacer à une date": `successeur` and `suite` answer `405` on sites, and the screen offers Corriger and Fermer only. | A successor opens on the date of effect; a site has none to give, and its code is unique for ever. |
+| D21 | A unit's site is written as `site_id` and still read as the nested summary `site`; the dialog reads it back from `site.id`. A successor's starting values come from each writable field on the row, write-only ones included. | Keeps the read shape the Organisation tab already uses. |
+| D22 | The preview gives each kind singular or plural from the server ("1 bureau", "3 départements"). | French plurals are irregular (bureaux). |
+| D23 | After a save, the opened rows are found again by code (organisation) or by level and code (classification), since carried-over rows have new ids. | D17. |
+| D24 | When replacing, the fixed fields are editable (a unit may move to another parent or site), except the ones kept for the successor's meaning: a parameter's key and a requirement's event. | D2: a move is a replacement. |

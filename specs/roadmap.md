@@ -42,7 +42,7 @@ Small tables first, each with model, constraints, admin, API and tests.
   children, retirement age (65), career length (30).
 - [x] **1.9 Reference data screens** — one generic list/edit screen for administrators: the six
   flat lists (fonctions, contract types, banks, exit reasons, suspension types, parameters).
-- [ ] **1.10 Tree reference data screens** — the same editing for sites, organisation units,
+- [x] **1.10 Tree reference data screens** — the same editing for sites, organisation units,
   the classification, document types and required documents.
 
 ## Milestone 2 — Agent record (MVP)

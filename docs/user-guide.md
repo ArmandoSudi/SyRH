@@ -189,9 +189,8 @@ each event requires, the reasons a career stops or is suspended, the banks agent
 through, and the general parameters (age limits, career length). Every profile can open it.
 
 Most people only read this screen. The editors of a list (see
-[Who changes the reference data](#who-changes-the-reference-data)) also change it here, on the
-**Fonctions**, **Types de contrat**, **Sorties et suspensions**, **Banques** and **Paramètres**
-tabs (see [Change the reference data](#change-the-reference-data)).
+[Who changes the reference data](#who-changes-the-reference-data)) also change it here, on every
+tab (see [Change the reference data](#change-the-reference-data)).
 
 The screen has nine tabs: **Organisation**, **Sites**, **Classification**, **Fonctions**,
 **Types de contrat**, **Pièces justificatives**, **Sorties et suspensions**, **Banques** and
@@ -440,19 +439,49 @@ saved until every message is resolved.
 Nothing is ever deleted: a row that no longer applies is closed. Every change is recorded in the
 audit log, with your name.
 
+#### In the trees: organisation, classification, documents
+
+The **Organisation**, **Classification** and **Pièces justificatives** tabs work the same way,
+with a **+** at the end of a row to add something under it:
+
+- in **Organisation**, **Ajouter une direction** above the tree, and **+** on a unit to add a
+  sub-unit: its parent, site and type (the level below) are filled in for you;
+- in **Classification**, **Ajouter une catégorie**, then **+** on a catégorie to add a grade, and
+  on a grade to add an échelon with the next number;
+- in **Pièces justificatives**, **+** on an event to add a document it requires; the document
+  types themselves are listed and changed in the **Types de pièce** table under the tree.
+
+![Adding a département under a direction](./screenshots/14t-organisation-sous-unite.png)
+
+**Replacing a row that has rows under it.** When you replace a direction, a catégorie, a grade or
+a document type at a date, everything still open under it follows: the départements, services
+and bureaux of the direction, the grades and échelons of the catégorie, the documents required,
+exit reasons and suspension positions that use the document type. They close on the same date
+and reopen, unchanged, under the new row. Before you save, the form says how many rows will
+follow and asks you to confirm:
+
+![Replacing a direction: six rows will follow](./screenshots/14u-organisation-apercu.png)
+
+If a row under it only opens on or after that date, the replacement is refused and the form
+names it: correct or close that row first.
+
+**Closing is stricter.** **Fermer** on a unit, catégorie, grade or document type that still has
+open rows under it is refused, and the message names them: close those first, or replace the row
+instead. In the same way, a site cannot close while units on it stay open. A site has no
+**Remplacer à une date**: correct it, or close it and add a new one.
+
+![The Types de pièce table](./screenshots/14v-types-piece.png)
+
 ### Who changes the reference data
 
 The **Gestion de carrière** profiles (its agents and its Chef de service) and the
-**Administrateur système** change the fonctions, contract types, exit reasons, suspension
-positions and general parameters, in SyRH as described above. The **banks** are changed by the
-**Rémunération** profiles and the **Administrateur système**, not by Gestion de carrière.
+**Administrateur système** change all the reference data in SyRH, as described above. The
+**banks** are changed by the **Rémunération** profiles and the **Administrateur système**, not by
+Gestion de carrière.
 
-The other reference data (units, sites, the classification and the documents each event
-requires) are still changed in the administration site, at `/admin/` (the same address as SyRH,
-followed by `/admin/`), by the same profiles with staff status (**Statut équipe**); a later
-version brings them into SyRH too. A reorganisation, a reform, a rename or a
-merger is recorded by closing the old row on a date and opening the new one, never by deleting
-it, so the history stays readable. Every change is recorded in the
+A reorganisation, a reform, a rename or a merger is recorded by closing the old row on a date and
+opening the new one, never by deleting it, so the history stays readable. The administration site
+(`/admin/`) still offers the same lists to the administrator, as a fallback. Every change is recorded in the
 [audit log](#6-the-audit-log-journal-daudit).
 
 ## 6. The audit log (Journal d'audit)
@@ -531,8 +560,10 @@ The server did not answer. Wait a moment and try again. If it continues, tell th
 administrator.
 
 **I cannot change anything in Référentiels.**
-That is expected: the screen is read-only. Changes are made in the administration site by the
-Administrateur système and Gestion de carrière profiles.
+Only the editors of a list see **Ajouter** and the **⋮** menu: Gestion de carrière and the
+Administrateur système for most lists, Rémunération for the banks (see
+[Who changes the reference data](#who-changes-the-reference-data)). Ask one of them if a value is
+wrong.
 
 **Can I change or delete an audit log entry?**
 No. The log is permanent, and nobody can change it, not even the administrator.

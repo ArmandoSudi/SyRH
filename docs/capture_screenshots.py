@@ -263,7 +263,8 @@ with sync_playwright() as p:
 
     # --- Editing the reference data (Gestion de carrière) ----------------------
     if not only or only & {"14p-edition-ajouter", "14q-edition-erreur", "14r-edition-menu",
-                           "14s-edition-remplacer"}:  # fmt: skip
+                           "14s-edition-remplacer", "14t-organisation-sous-unite",
+                           "14u-organisation-apercu", "14v-types-piece"}:  # fmt: skip
         logout(page)
         login(page, "demo.carriere")
         page.goto(f"{BASE}/referentiels")
@@ -294,6 +295,36 @@ with sync_playwright() as p:
         shot(page, "14s-edition-remplacer")
         page.locator("[data-test=edition-annuler]").click()
         dialog.wait_for(state="hidden")
+
+        # Trees (phase 1.10): add under a unit, the preview of a replacement, document types.
+        page.locator("[data-test=tab-organisation]").click()
+        page.locator("[data-test=expand-all]").click()
+        dt = page.locator("[data-test=tree] tbody tr", has_text="Direction technique").first
+        dt.wait_for()
+        dt.locator("[data-test=ajouter-sous]").click()
+        dialog.wait_for()
+        page.fill("#champ-code", "DT-NUM")
+        page.fill("#champ-nom", "Département du numérique")
+        shot(page, "14t-organisation-sous-unite")
+        page.locator("[data-test=edition-annuler]").click()
+        dialog.wait_for(state="hidden")
+
+        dt.locator("[data-test=ligne-actions]").click()
+        page.get_by_role("menuitem", name="Remplacer à une date").click()
+        dialog.wait_for()
+        page.fill("#champ-date_effet", "01/01/2028")
+        page.keyboard.press("Tab")
+        page.locator("[data-test=edition-apercu]").wait_for()
+        page.wait_for_load_state("networkidle")
+        shot(page, "14u-organisation-apercu")
+        page.locator("[data-test=edition-annuler]").click()
+        dialog.wait_for(state="hidden")
+
+        page.locator("[data-test=tab-pieces]").click()
+        page.locator("[data-test=types-document] tbody tr", has_text="Décision").first.wait_for()
+        page.wait_for_load_state("networkidle")
+        page.locator("[data-test=types-document]").scroll_into_view_if_needed()
+        shot(page, "14v-types-piece")
         logout(page)
         login(page, "demo.direction")
 

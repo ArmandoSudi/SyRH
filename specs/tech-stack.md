@@ -46,7 +46,8 @@ backend/            Django project
     audit/          audit log: entries, capture service, read-only API
     referentiels/   reference data: sites, units, classification, fonctions, contract and
                     document types, exit reasons, suspension types, banks and general
-                    parameters; the six flat lists are written through the API (edition.py)
+                    parameters; every table is written through the API (edition.py), parents carrying
+                    their children over when replaced at a date
 frontend/           Vue application, organised by feature (see "Frontend folder layout")
 docs/               stakeholder input (French)
 specs/              this constitution
@@ -217,7 +218,7 @@ frontend/src/
 │   ├── dashboard/
 │   ├── systeme/                 # system status (health check)
 │   ├── audit/                   # audit log screen (read-only)
-│   ├── referentiels/            # reference data: organisation, sites, classification, fonctions, contract types, documents, exits and suspensions, banks, general parameters (six lists editable)
+│   ├── referentiels/            # reference data: organisation, sites, classification, fonctions, contract types, documents, exits and suspensions, banks, general parameters (editable by their editors)
 │   ├── design/                  # design guide page
 │   ├── agents/                  # then one folder per module as the roadmap reaches it:
 │   └── ...                      # carriere, personnel, paie, social, formation
