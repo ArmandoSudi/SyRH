@@ -22,3 +22,6 @@ dist/
 
 # Local demo accounts and their password (see create_demo_users)
 demo-users.md
+
+# Stakeholder test guide: carries the demo password (docs/build_test_guide.py)
+docs/test-guide/
