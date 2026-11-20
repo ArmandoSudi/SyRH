@@ -1140,5 +1140,49 @@ describe('ReferentielsView', () => {
       expect(wrapper.get('[data-test="edition-ligne"]').text()).toBe('DIR — Échelon 2')
       expect(wrapper.get('[data-test="champ-grade"]').classes()).toContain('p-disabled')
     })
+
+    it('adds a required document under an event, and lists the document types to edit', async () => {
+      signIn(...CARRIERE)
+      useReferentielsStore().onglet = 'pieces'
+      vi.mocked(editionApi.creer).mockResolvedValue({ id: 80 })
+      const wrapper = await mountView()
+
+      const types = wrapper.findAll('[data-test="types-document"] tbody tr').map((tr) =>
+        tr
+          .findAll('td')
+          .map((td) => td.text())
+          .slice(0, 2),
+      )
+      expect(types).toEqual([
+        ['CTR', 'Contrat signé'],
+        ['DEC', 'Décision'],
+      ])
+      expect(wrapper.find('[data-test="types-document-ajouter"]').exists()).toBe(true)
+      expect(
+        wrapper.get('[data-test="types-document"]').findAll('[data-test="ligne-actions"]'),
+      ).toHaveLength(2)
+
+      const sous = wrapper.findAll('[data-test="ajouter-sous"]')
+      expect(sous).toHaveLength(14) // one per event kind
+      const mariage = sous.find((b) => b.attributes('aria-label')?.endsWith('Mariage'))!
+      await mariage.trigger('click')
+      await flushPromises()
+      expect(wrapper.text()).toContain('Ajouter une pièce exigée')
+      await wrapper.get('[data-test="edition-dialog"] form').trigger('submit')
+      await flushPromises()
+      expect(editionApi.creer).toHaveBeenCalledWith(
+        'pieces-requises',
+        expect.objectContaining({ evenement: 'mariage', obligatoire: true }),
+      )
+      expect(api.fetchPiecesRequises).toHaveBeenCalledTimes(2)
+    })
+
+    it('shows the document types to readers, without actions', async () => {
+      signIn()
+      useReferentielsStore().onglet = 'pieces'
+      const wrapper = await mountView()
+      expect(wrapper.findAll('[data-test="types-document"] tbody tr')).toHaveLength(2)
+      expect(wrapper.find('[data-test="types-document-ajouter"]').exists()).toBe(false)
+    })
   })
 })
