@@ -25,11 +25,21 @@ import {
   searchText,
   type Niveau,
 } from '@/features/referentiels/components/classification'
-import { expandedKeys, filterTree } from '@/features/referentiels/components/tree'
+import {
+  clesPourIdentites,
+  expandedKeys,
+  filterTree,
+  identitesOuvertes,
+} from '@/features/referentiels/components/tree'
+import type { Valeurs } from '@/features/referentiels/api/edition'
+import ActionsLigne from '@/features/referentiels/components/edition/ActionsLigne.vue'
+import EditionDialog from '@/features/referentiels/components/edition/EditionDialog.vue'
+import { useEdition } from '@/features/referentiels/components/edition/useEdition'
+import type { LigneClassification } from '@/features/referentiels/components/classification'
 import { useReferentielsStore } from '@/features/referentiels/stores/referentiels'
 import { formatDate, localDate } from '@/shared/utils/dates'
 
-// Read-only: the grid is edited in Django admin until roadmap 1.9 (classification D30).
+// Editors change the grid here, one level at a time (tree reference screens D14).
 const store = useReferentielsStore()
 const state = store.classification
 
@@ -94,6 +104,65 @@ watch(
   () => void load(),
 )
 onMounted(load)
+
+const identite = (n: { data: LigneClassification }) => `${n.data.niveau}:${n.data.code}`
+
+/** Reload after a save, keeping open the rows that were, carried-over ones included (D17). */
+async function reload() {
+  const ouverts = identitesOuvertes(tree.value, state.expanded, identite)
+  await load()
+  state.expanded = clesPourIdentites(tree.value, ouverts, identite)
+}
+
+const editions = {
+  categorie: useEdition('categories', reload),
+  grade: useEdition('grades', reload),
+  echelon: useEdition('echelons', reload),
+}
+const { droits: droitsCategorie, ouvrir: ouvrirCategorie } = editions.categorie
+const { droits: droitsGrade } = editions.grade
+const { droits: droitsEchelon } = editions.echelon
+const dialogues = Object.entries(editions).map(([niveau, e]) => ({ niveau, ...e }))
+
+/** The API row behind a tree row: the dialog needs its own fields (grade, numero...). */
+function ligneApi(data: LigneClassification): Valeurs | undefined {
+  const list = { categorie: lists.value.categories, grade: lists.value.grades,
+                 echelon: lists.value.echelons }[data.niveau] // prettier-ignore
+  return (list as unknown as Valeurs[]).find((row) => row.id === data.id)
+}
+
+function agir(data: LigneClassification, mode: Parameters<typeof ouvrirCategorie>[0]) {
+  editions[data.niveau].ouvrir(mode, ligneApi(data) ?? null)
+}
+
+function ajouterSous(data: LigneClassification) {
+  if (data.niveau === 'categorie') {
+    editions.grade.ouvrir('ajouter', null, { categorie: data.id })
+  } else if (data.niveau === 'grade') {
+    const numeros = lists.value.echelons.filter((e) => e.grade === data.id).map((e) => e.numero)
+    editions.echelon.ouvrir('ajouter', null, {
+      grade: data.id,
+      numero: Math.max(0, ...numeros) + 1,
+    })
+  }
+}
+
+function peutAjouterSous(data: LigneClassification): boolean {
+  if (data.date_fermeture !== null) return false
+  if (data.niveau === 'categorie') return droitsGrade.value.ajouter
+  if (data.niveau === 'grade') return droitsEchelon.value.ajouter
+  return false
+}
+
+const LIBELLE_SOUS: Record<Niveau, string> = {
+  categorie: 'Ajouter un grade',
+  grade: 'Ajouter un échelon',
+  echelon: '',
+}
+const droitsParNiveau = { categorie: droitsCategorie, grade: droitsGrade, echelon: droitsEchelon }
+const peutAgir = computed(() =>
+  Object.values(droitsParNiveau).some((d) => d.value.modifier || d.value.ajouter),
+)
 </script>
 
 <template>
@@ -120,6 +189,14 @@ onMounted(load)
       />
     </IconField>
     <div class="actions">
+      <Button
+        v-if="droitsCategorie.ajouter"
+        type="button"
+        label="Ajouter une catégorie"
+        icon="pi pi-plus"
+        data-test="categories-ajouter"
+        @click="ouvrirCategorie('ajouter')"
+      />
       <Button
         type="button"
         label="Tout déplier"
@@ -194,10 +271,54 @@ onMounted(load)
         <span class="sy-num nowrap">{{ formatDate(node.data.date_fermeture) }}</span>
       </template>
     </Column>
+    <Column v-if="peutAgir" class="actions-col">
+      <template #body="{ node }">
+        <span class="row-actions">
+          <Button
+            v-if="peutAjouterSous(node.data)"
+            icon="pi pi-plus"
+            text
+            rounded
+            size="small"
+            severity="secondary"
+            :aria-label="`${LIBELLE_SOUS[node.data.niveau as Niveau]} à ${node.data.code}`"
+            data-test="ajouter-sous"
+            @click="ajouterSous(node.data)"
+          />
+          <ActionsLigne
+            :ferme="node.data.date_fermeture !== null"
+            :peut-modifier="droitsParNiveau[node.data.niveau as Niveau].value.modifier"
+            :peut-remplacer="droitsParNiveau[node.data.niveau as Niveau].value.remplacer"
+            :libelle="node.data.code || node.data.nom"
+            @action="(m) => agir(node.data, m)"
+          />
+        </span>
+      </template>
+    </Column>
   </TreeTable>
+
+  <EditionDialog
+    v-for="d in dialogues"
+    :key="d.niveau"
+    v-model:visible="d.visible.value"
+    :edition="d.edition"
+    :mode="d.mode.value"
+    :ligne="d.ligne.value"
+    :initial="d.initial.value"
+    @enregistre="d.enregistre"
+  />
 </template>
 
 <style scoped>
+.actions-col {
+  width: 6rem;
+}
+
+.row-actions {
+  display: inline-flex;
+  gap: var(--sy-space-1);
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;

@@ -1098,5 +1098,47 @@ describe('ReferentielsView', () => {
       await flushPromises()
       expect(store.expanded).toEqual({ '11': true })
     })
+
+    it('adds a grade under a catégorie and an échelon under a grade, numbered next', async () => {
+      signIn(...CARRIERE)
+      useReferentielsStore().onglet = 'classification'
+      vi.mocked(editionApi.creer).mockResolvedValue({ id: 70 })
+      const wrapper = await mountView()
+
+      expect(wrapper.find('[data-test="categories-ajouter"]').exists()).toBe(true)
+      await wrapper.get('[data-test="classification-expand-all"]').trigger('click')
+      const sous = wrapper.findAll('[data-test="ajouter-sous"]')
+      // Two catégories and two grades can have children; échelons cannot.
+      expect(sous).toHaveLength(4)
+
+      const directeur = sous.find((b) => b.attributes('aria-label')?.endsWith('à DIR'))!
+      expect(directeur.attributes('aria-label')).toBe('Ajouter un échelon à DIR')
+      await directeur.trigger('click')
+      await flushPromises()
+      expect(wrapper.text()).toContain('Ajouter un échelon')
+      await wrapper.get('[data-test="edition-dialog"] form').trigger('submit')
+      await flushPromises()
+      expect(editionApi.creer).toHaveBeenCalledWith(
+        'echelons',
+        expect.objectContaining({ grade: 1, numero: 3 }),
+      )
+      expect(api.fetchEchelons).toHaveBeenCalledTimes(2)
+    })
+
+    it('corrects an échelon from its own row, with its grade fixed', async () => {
+      signIn(...CARRIERE)
+      useReferentielsStore().onglet = 'classification'
+      const wrapper = await mountView()
+      await wrapper.get('[data-test="classification-expand-all"]').trigger('click')
+      const echelonRow = wrapper
+        .findAll('[data-test="classification"] tbody tr')
+        .find((tr) => tr.text().includes('Échelon 2'))!
+      await echelonRow.get('[data-test="ligne-actions"]').trigger('click')
+      await flushPromises()
+      await wrapper.findAll('[data-test="ligne-menu"] .p-menu-item-content')[0]!.trigger('click')
+      await flushPromises()
+      expect(wrapper.get('[data-test="edition-ligne"]').text()).toBe('DIR — Échelon 2')
+      expect(wrapper.get('[data-test="champ-grade"]').classes()).toContain('p-disabled')
+    })
   })
 })
