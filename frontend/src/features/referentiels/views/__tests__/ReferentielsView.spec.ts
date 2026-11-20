@@ -11,6 +11,7 @@ import type {
   Fonction,
   Grade,
   MotifSortie,
+  Parametre,
   PieceRequise,
   TypeContrat,
   TypeDocument,
@@ -221,6 +222,25 @@ const BANQUES: Banque[] = [
   },
 ]
 
+const PARAMETRES: Parametre[] = [
+  {
+    id: 1,
+    cle: 'age_limite_enfant',
+    cle_libelle: 'Âge limite des enfants à charge',
+    unite: 'ans',
+    valeur: 25,
+    ...PERIODE,
+  },
+  {
+    id: 2,
+    cle: 'age_retraite',
+    cle_libelle: 'Âge de la retraite',
+    unite: 'ans',
+    valeur: 65,
+    ...PERIODE,
+  },
+]
+
 async function mountView() {
   const wrapper = mount(ReferentielsView, {
     global: { plugins: [PrimeVue], stubs: { teleport: true } },
@@ -278,6 +298,7 @@ describe('ReferentielsView', () => {
     vi.mocked(api.fetchMotifsSortie).mockResolvedValue(MOTIFS)
     vi.mocked(api.fetchTypesSuspension).mockResolvedValue(SUSPENSIONS)
     vi.mocked(api.fetchBanques).mockResolvedValue(BANQUES)
+    vi.mocked(api.fetchParametres).mockResolvedValue(PARAMETRES)
   })
 
   it('shows the organisation of today as a tree', async () => {
@@ -781,11 +802,10 @@ describe('ReferentielsView', () => {
       useReferentielsStore().onglet = 'banques'
     })
 
-    it('comes last, after the exit and suspension tab', async () => {
+    it('comes after the exit and suspension tab', async () => {
       const wrapper = await mountView()
       const tabs = wrapper.findAll('[role="tab"]').map((tab) => tab.text())
-      expect(tabs).toHaveLength(8)
-      expect(tabs.slice(-2)).toEqual(['Sorties et suspensions', 'Banques'])
+      expect(tabs.slice(6, 8)).toEqual(['Sorties et suspensions', 'Banques'])
     })
 
     it('lists the banks of today with their SWIFT/BIC, or a dash', async () => {
@@ -834,6 +854,61 @@ describe('ReferentielsView', () => {
     it('offers no action that changes data', async () => {
       const wrapper = await mountView()
       expect(wrapper.get('[data-test="banques"]').findAll('button')).toHaveLength(0)
+    })
+  })
+
+  describe('parameters tab', () => {
+    function table(wrapper: Awaited<ReturnType<typeof mountView>>) {
+      return wrapper
+        .findAll('[data-test="parametres"] tbody tr')
+        .map((tr) => tr.findAll('td').map((td) => td.text()))
+    }
+
+    beforeEach(() => {
+      useReferentielsStore().onglet = 'parametres'
+    })
+
+    it('comes last, after the banks tab', async () => {
+      const wrapper = await mountView()
+      const tabs = wrapper.findAll('[role="tab"]').map((tab) => tab.text())
+      expect(tabs).toHaveLength(9)
+      expect(tabs.slice(-2)).toEqual(['Banques', 'Paramètres'])
+    })
+
+    it('lists every parameter of today, in order, with "Non renseigné" when missing', async () => {
+      const wrapper = await mountView()
+
+      expect(api.fetchParametres).toHaveBeenCalledWith({ date: localDate(new Date()) })
+      expect(table(wrapper)).toEqual([
+        ['Âge limite des enfants à charge', '25 ans', '01/01/2015', '—'],
+        ["Nombre maximal d'enfants pris en charge", 'Non renseigné', '', ''],
+        ['Âge de la retraite', '65 ans', '01/01/2015', '—'],
+        ['Durée de carrière avant la retraite', 'Non renseigné', '', ''],
+      ])
+    })
+
+    it('reloads at the chosen date, leaving the other dates alone', async () => {
+      await mountView()
+      const store = useReferentielsStore()
+
+      store.parametres.date = new Date(2019, 5, 1)
+      await flushPromises()
+
+      expect(api.fetchParametres).toHaveBeenLastCalledWith({ date: '2019-06-01' })
+      expect(localDate(store.banques.date)).toBe(localDate(new Date()))
+    })
+
+    it('shows an error, and no rows, when the values cannot be loaded', async () => {
+      vi.mocked(api.fetchParametres).mockRejectedValue(new Error('HTTP 502'))
+      const wrapper = await mountView()
+
+      expect(wrapper.get('[data-test="parametres-error"]').text()).toContain('HTTP 502')
+      expect(table(wrapper)).toEqual([['Aucun paramètre à afficher.']])
+    })
+
+    it('offers no action that changes data', async () => {
+      const wrapper = await mountView()
+      expect(wrapper.get('[data-test="parametres"]').findAll('button')).toHaveLength(0)
     })
   })
 })

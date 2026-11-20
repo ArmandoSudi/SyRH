@@ -10,12 +10,13 @@ export type Onglet =
   | 'pieces'
   | 'sorties'
   | 'banques'
+  | 'parametres'
 
 /**
  * What the reader chose on the Référentiels screen, kept in Pinia so it
  * survives leaving the screen and coming back (organisation D27,
  * classification D30, fonctions D20, contract types D21, document
- * types D22, exit reasons D22, banks D20).
+ * types D22, exit reasons D22, banks D20, general parameters D20).
  */
 export const useReferentielsStore = defineStore('referentiels', () => {
   const onglet = ref<Onglet>('organisation')
@@ -44,6 +45,9 @@ export const useReferentielsStore = defineStore('referentiels', () => {
 
   const banques = ref({ date: new Date(), texte: '' })
 
+  // Four rows: a date, no text filter.
+  const parametres = ref({ date: new Date() })
+
   return {
     onglet,
     date,
@@ -56,5 +60,6 @@ export const useReferentielsStore = defineStore('referentiels', () => {
     pieces,
     sorties,
     banques,
+    parametres,
   }
 })

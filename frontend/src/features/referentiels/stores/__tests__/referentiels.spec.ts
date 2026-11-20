@@ -139,4 +139,16 @@ describe('referentiels store', () => {
       'fleuve',
     ])
   })
+
+  it('keeps the parameters date apart from the other tabs', () => {
+    const store = useReferentielsStore()
+    expect(localDate(store.parametres.date)).toBe(localDate(new Date()))
+
+    store.onglet = 'parametres'
+    store.parametres.date = new Date(2019, 5, 1)
+
+    expect(localDate(store.banques.date)).toBe(localDate(new Date()))
+    const again = useReferentielsStore()
+    expect([again.onglet, localDate(again.parametres.date)]).toEqual(['parametres', '2019-06-01'])
+  })
 })

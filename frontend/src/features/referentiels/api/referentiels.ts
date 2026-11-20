@@ -235,3 +235,8 @@ export function fetchTypesSuspension(options: PeriodeOptions = {}): Promise<Type
 export function fetchBanques(options: PeriodeOptions = {}): Promise<Banque[]> {
   return request<Banque[]>(`/api/referentiels/banques/${periode(options)}`)
 }
+
+/** General parameter values open on a date (the API defaults to today), in key order, or all. */
+export function fetchParametres(options: PeriodeOptions = {}): Promise<Parametre[]> {
+  return request<Parametre[]>(`/api/referentiels/parametres/${periode(options)}`)
+}
