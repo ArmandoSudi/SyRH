@@ -10,6 +10,7 @@ from .models import (
     Fonction,
     Grade,
     MotifSortie,
+    Parametre,
     PieceRequise,
     Site,
     TypeContrat,
@@ -200,3 +201,21 @@ class BanqueAdmin(BaseModelAdmin, admin.ModelAdmin):
     list_filter = [OuvertFilter]
     search_fields = ["code", "nom", "swift"]
     fields = ["code", "nom", "swift", "date_ouverture", "date_fermeture"]
+
+
+@admin.register(Parametre)
+class ParametreAdmin(BaseModelAdmin, admin.ModelAdmin):
+    """General parameters (general parameters D14). A new value closes the current row
+    and opens another; the key is read-only once saved (D7)."""
+
+    list_display = ["cle", "valeur", "unite", "date_ouverture", "date_fermeture"]
+    list_filter = ["cle", OuvertFilter]
+    fields = ["cle", "valeur", "date_ouverture", "date_fermeture"]
+
+    @admin.display(description="unité")
+    def unite(self, obj):
+        return obj.unite
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = list(super().get_readonly_fields(request, obj))
+        return [*fields, "cle"] if obj is not None else fields

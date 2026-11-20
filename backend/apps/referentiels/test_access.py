@@ -17,6 +17,7 @@ from apps.accounts.roles import (
     FONCTION_EDIT_PERMISSIONS,
     GROUPS,
     ORGANISATION_EDIT_PERMISSIONS,
+    PARAMETRE_EDIT_PERMISSIONS,
     SORTIE_EDIT_PERMISSIONS,
     TYPE_CONTRAT_EDIT_PERMISSIONS,
     sync_groups,
@@ -30,6 +31,7 @@ from .models import (
     Fonction,
     Grade,
     MotifSortie,
+    Parametre,
     PieceRequise,
     Site,
     TypeContrat,
@@ -194,6 +196,26 @@ class PermissionTests(TestCase):
         )
         self.assertEqual(staff, EDITORS | BANK_EDITORS)
         self.assertTrue(EDITORS | BANK_EDITORS <= set(GROUPS))
+
+    def test_editors_hold_view_add_change_on_parameters(self):
+        self.assertEqual(len(PARAMETRE_EDIT_PERMISSIONS), 3)
+        for permission in PARAMETRE_EDIT_PERMISSIONS:
+            with self.subTest(permission):
+                self.assertEqual(self.holders(permission), EDITORS)
+
+    def test_group_setup_regrants_parameter_permissions_and_keeps_hand_made_ones(self):
+        carriere = Group.objects.get(name="Gestion de carrière")
+        carriere.permissions.remove(*Permission.objects.filter(codename__endswith="_parametre"))
+        personnel = Group.objects.get(name="Administration du personnel")
+        personnel.permissions.add(Permission.objects.get(codename="view_parametre"))
+
+        sync_groups()
+
+        self.assertEqual(self.holders("referentiels.change_parametre"), EDITORS)
+        self.assertEqual(
+            self.holders("referentiels.view_parametre"),
+            EDITORS | {"Administration du personnel"},
+        )
 
     def test_bank_editors_hold_view_add_change_and_nobody_else_edits(self):
         self.assertEqual(len(BANQUE_EDIT_PERMISSIONS), 3)
@@ -823,6 +845,74 @@ class BanquesAdminTests(TestCase):
         self.assertEqual(self.client.get(self.BANQUES).status_code, 403)
         self.assertEqual(self.client.get(f"{self.BANQUES}add/").status_code, 403)
         self.assertEqual(self.client.get("/admin/referentiels/fonction/").status_code, 200)
+
+
+class ParametresAdminTests(TestCase):
+    """General parameters in Django admin (general parameters D12, D14)."""
+
+    PARAMETRES = "/admin/referentiels/parametre/"
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.carriere = member("carriere", "Gestion de carrière", is_staff=True)
+        cls.remuneration = member("remuneration", "Rémunération", is_staff=True)
+        cls.age = Parametre.objects.create(cle="age_limite_enfant", valeur=25, date_ouverture=D2015)
+
+    def setUp(self):
+        self.client.force_login(self.carriere)
+
+    def add(self, **values):
+        data = {"cle": "age_retraite", "valeur": "65", "date_ouverture": "2015-01-01",
+                "date_fermeture": "", **values}  # fmt: skip
+        return self.client.post(f"{self.PARAMETRES}add/", data)
+
+    def test_list_and_filters_open(self):
+        urls = (self.PARAMETRES, self.PARAMETRES + "?cle__exact=age_limite_enfant",
+                self.PARAMETRES + "?statut=ouvert")  # fmt: skip
+        for url in urls:
+            with self.subTest(url):
+                self.assertEqual(self.client.get(url).status_code, 200)
+        self.assertContains(self.client.get(self.PARAMETRES), "Âge limite des enfants à charge")
+
+    def test_editor_adds_a_value_and_is_its_author(self):
+        self.assertEqual(self.add().status_code, 302)
+        row = Parametre.objects.get(cle="age_retraite")
+        self.assertEqual(row.cree_par, self.carriere)
+        entry = EntreeAudit.objects.get(table__model="parametre", objet_id=row.pk)
+        self.assertEqual((entry.auteur, entry.objet_libelle),
+                         (self.carriere, "Âge de la retraite : 65 ans"))  # fmt: skip
+
+    def test_out_of_bounds_shows_next_to_the_value(self):
+        response = self.add(valeur="650")
+        self.assertEqual(response.status_code, 200)
+        errors = response.context["adminform"].form.errors
+        self.assertEqual(errors["valeur"], ["Entre 55 et 75 ans."])
+
+    def test_overlapping_value_shows_at_the_top(self):
+        response = self.add(cle="age_limite_enfant", valeur="21", date_ouverture="2020-01-01")
+        self.assertEqual(response.status_code, 200)
+        errors = response.context["adminform"].form.non_field_errors()
+        self.assertIn("a déjà une valeur", errors[0])
+
+    def test_key_is_read_only_on_change(self):
+        page = self.client.get(f"{self.PARAMETRES}{self.age.pk}/change/").content.decode()
+        self.assertNotIn('name="cle"', page)
+        self.assertIn('name="valeur"', page)
+        response = self.client.post(f"{self.PARAMETRES}{self.age.pk}/change/", {
+            "cle": "age_retraite", "valeur": "24", "date_ouverture": "2015-01-01",
+            "date_fermeture": ""})  # fmt: skip
+        self.assertEqual(response.status_code, 302)
+        self.age.refresh_from_db()
+        self.assertEqual((self.age.cle, self.age.valeur), ("age_limite_enfant", 24))
+
+    def test_editor_cannot_delete(self):
+        response = self.client.post(f"{self.PARAMETRES}{self.age.pk}/delete/", {"post": "yes"})
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Parametre.objects.filter(pk=self.age.pk).exists())
+
+    def test_other_profiles_cannot_open_the_admin_pages(self):
+        self.client.force_login(self.remuneration)
+        self.assertEqual(self.client.get(self.PARAMETRES).status_code, 403)
 
 
 class ApiTests(TestCase):

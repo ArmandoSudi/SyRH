@@ -116,6 +116,11 @@ SORTIE_EDIT_PERMISSIONS = tuple(
     for action in ("view", "add", "change")
 )
 
+# Editing the general parameters, never deleted (general parameters D12, D13).
+PARAMETRE_EDIT_PERMISSIONS = tuple(
+    f"referentiels.{action}_parametre" for action in ("view", "add", "change")
+)
+
 # Reference data the Gestion de carrière profiles and the administrator edit.
 REFERENTIELS_EDIT_PERMISSIONS = (
     ORGANISATION_EDIT_PERMISSIONS
@@ -124,6 +129,7 @@ REFERENTIELS_EDIT_PERMISSIONS = (
     + TYPE_CONTRAT_EDIT_PERMISSIONS
     + DOCUMENT_EDIT_PERMISSIONS
     + SORTIE_EDIT_PERMISSIONS
+    + PARAMETRE_EDIT_PERMISSIONS
 )
 
 # Editing the banks, never deleted: they belong to pay, so Rémunération edits them
