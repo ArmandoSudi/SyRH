@@ -143,6 +143,17 @@ export interface Banque extends Periode {
   swift: string
 }
 
+/** The general parameters later phases read (general parameters D2). */
+export type CleParametre = 'age_limite_enfant' | 'enfants_max' | 'age_retraite' | 'duree_carriere'
+
+/** A dated value of one general parameter (general parameters D17). */
+export interface Parametre extends Periode {
+  cle: CleParametre
+  cle_libelle: string
+  unite: string
+  valeur: number
+}
+
 export interface PeriodeOptions {
   date?: string
   toutes?: boolean

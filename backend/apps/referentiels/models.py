@@ -7,14 +7,18 @@ Contract types (specs/2026-11-19-contract-types).
 Document types and the documents each event requires (specs/2026-11-19-document-types).
 Exit reasons and suspension types (specs/2026-11-19-exit-suspension-reasons).
 Banks (specs/2026-11-19-banks).
+General parameters (specs/2026-11-20-general-parameters).
 
 Rules that only read the row itself are database constraints; rules that read
 other rows (levels, periods, fixed fields) live in check_rules(), called by
 clean() and save().
 """
 
+import functools
+import operator
 import re
 from datetime import date
+from typing import NamedTuple
 
 from django.contrib.postgres.constraints import ExclusionConstraint
 from django.contrib.postgres.fields import DateRangeField, RangeOperators
@@ -1142,3 +1146,152 @@ class Banque(FlatListRules, BaseModel):
         super().clean()
         if self.swift and not re.fullmatch(SWIFT_PATTERN, self.swift):
             raise ValidationError({"swift": [SWIFT_INVALIDE]})
+
+
+class Cle(models.TextChoices):
+    """The general parameters later phases read, in display order (general parameters D2).
+    The frontend mirrors this list."""
+
+    AGE_LIMITE_ENFANT = "age_limite_enfant", "Âge limite des enfants à charge"
+    ENFANTS_MAX = "enfants_max", "Nombre maximal d'enfants pris en charge"
+    AGE_RETRAITE = "age_retraite", "Âge de la retraite"
+    DUREE_CARRIERE = "duree_carriere", "Durée de carrière avant la retraite"
+
+
+class Definition(NamedTuple):
+    unite: str
+    minimum: int
+    maximum: int
+
+
+# Each key's unit and bounds: the bounds catch a typing error (D2, D9).
+DEFINITIONS: dict[str, Definition] = {
+    Cle.AGE_LIMITE_ENFANT: Definition("ans", 18, 30),
+    Cle.ENFANTS_MAX: Definition("enfants", 1, 20),
+    Cle.AGE_RETRAITE: Definition("ans", 55, 75),
+    Cle.DUREE_CARRIERE: Definition("ans", 20, 45),
+}
+
+
+class ParametreManquant(LookupError):
+    """No value of a parameter is open on the day asked (general parameters D5)."""
+
+
+class Parametre(BaseModel):
+    """A dated integer value of one general parameter, such as the retirement age
+    (general parameters D1 to D3).
+
+    One value per key at a time; a new value closes the current row and opens
+    another from its effective date (D7). Later phases read it with valeur_au().
+    """
+
+    module = "referentiels"
+
+    Cle = Cle
+
+    cle = models.CharField("paramètre", max_length=30, choices=Cle.choices)
+    valeur = models.PositiveSmallIntegerField(
+        "valeur",
+        help_text=" ; ".join(
+            f"{Cle(cle).label} : de {d.minimum} à {d.maximum} {d.unite}"
+            for cle, d in DEFINITIONS.items()
+        )
+        + ".",
+    )
+    date_ouverture = models.DateField("date d'ouverture")
+    date_fermeture = models.DateField(
+        "date de fermeture",
+        null=True,
+        blank=True,
+        help_text="Premier jour où la valeur ne s'applique plus.",
+    )
+
+    objects = ClassificationQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "paramètre"
+        verbose_name_plural = "paramètres"
+        # The key in the order of D2, then the opening date (D4).
+        ordering = [
+            Case(
+                *(
+                    When(cle=value, then=Value(position))
+                    for position, value in enumerate(Cle.values)
+                ),
+                output_field=IntegerField(),
+            ),
+            "date_ouverture",
+        ]
+        default_permissions = NO_DELETE
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(cle__in=Cle.values),
+                name="parametre_cle_valide",
+                violation_error_message="Paramètre inconnu.",
+            ),
+            models.CheckConstraint(
+                condition=functools.reduce(
+                    operator.or_,
+                    (
+                        Q(cle=cle, valeur__gte=d.minimum, valeur__lte=d.maximum)
+                        for cle, d in DEFINITIONS.items()
+                    ),
+                ),
+                name="parametre_valeur_dans_les_bornes",
+                violation_error_message="Valeur hors des bornes du paramètre.",
+            ),
+            closing_after_opening("parametre_fermeture_apres_ouverture"),
+            unique_per_period(
+                "parametre_une_valeur_par_periode",
+                "cle",
+                message="Ce paramètre a déjà une valeur sur une partie de cette période.",
+            ),
+        ]
+
+    def __str__(self):
+        libelle = self.get_cle_display() if self.cle else "?"
+        return f"{libelle} : {self.valeur} {self.unite}".rstrip()
+
+    @property
+    def unite(self) -> str:
+        definition = DEFINITIONS.get(self.cle)
+        return definition.unite if definition else ""
+
+    @classmethod
+    def valeur_au(cls, cle: str, jour: date) -> int:
+        """The value of a parameter open on a day (D5); raises ParametreManquant."""
+        row = cls.objects.ouvertes(jour).filter(cle=cle).first()
+        if row is None:
+            raise ParametreManquant(
+                f"Aucune valeur du paramètre « {Cle(cle).label} » au {fr(jour)}."
+            )
+        return row.valeur
+
+    def check_rules(self) -> None:
+        check_closing_after_opening(self)
+        errors: dict[str, list[str]] = {}
+        definition = DEFINITIONS.get(self.cle)
+        if (
+            definition
+            and self.valeur is not None
+            and not (definition.minimum <= self.valeur <= definition.maximum)
+        ):
+            errors["valeur"] = [
+                f"Entre {definition.minimum} et {definition.maximum} {definition.unite}."
+            ]
+        if self.pk is not None:
+            old = type(self)._base_manager.filter(pk=self.pk).values_list("cle", flat=True).first()
+            if old is not None and old != self.cle:
+                errors["cle"] = [
+                    "Ne peut pas être modifié : fermez la valeur et ouvrez-en une pour l'autre "
+                    "paramètre."
+                ]
+        raise_if(errors)
+
+    def clean(self):
+        super().clean()
+        self.check_rules()
+
+    def save(self, **kwargs):
+        self.check_rules()
+        super().save(**kwargs)
