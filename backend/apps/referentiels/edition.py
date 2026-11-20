@@ -10,6 +10,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from rest_framework import mixins, serializers, status
 from rest_framework.decorators import action
+from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 from rest_framework.response import Response
 
@@ -20,6 +21,13 @@ from .models import fr
 
 # Set by the system, never by the client: the successor gets its own dates.
 DATES = ("date_ouverture", "date_fermeture")
+
+
+def current_value(field, instance):
+    """A writable field's value on a row, as the client would send it back (a key as its
+    id), write-only fields included."""
+    value = field.get_attribute(instance)
+    return None if value is None else field.to_representation(value)
 
 
 def as_drf_errors(error: DjangoValidationError) -> dict[str, list[str]]:
@@ -98,8 +106,13 @@ class EditionMixin(AuthorMixin, mixins.CreateModelMixin):
         self.perform_update(serializer)
         return Response(serializer.data)
 
+    # False for a table whose rows have no opening date (sites): no successor.
+    REMPLACABLE = True
+
     @action(detail=True, methods=["post"])
     def successeur(self, request, pk=None):
+        if not self.REMPLACABLE:
+            raise MethodNotAllowed(request.method)
         current = self.get_object()
         effet = SuccesseurSerializer(data=request.data)
         effet.is_valid(raise_exception=True)
@@ -129,7 +142,7 @@ class EditionMixin(AuthorMixin, mixins.CreateModelMixin):
             for name, field in reader.fields.items()
             if not field.read_only and name not in DATES
         ]
-        data = {name: reader.data[name] for name in writable}
+        data = {name: current_value(reader.fields[name], current) for name in writable}
         data.update({k: v for k, v in request.data.items() if k in writable})
         data.update(date_ouverture=date_effet, date_fermeture=None)
 

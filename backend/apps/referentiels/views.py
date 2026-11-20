@@ -49,10 +49,11 @@ class PeriodeMixin:
         return self.open_on(queryset, periode.validated_data["date"])
 
 
-class SiteViewSet(PeriodeMixin, viewsets.ReadOnlyModelViewSet):
-    """ARPTC sites, read-only: they are edited in Django admin until phase 1.9."""
+class SiteViewSet(EditionMixin, PeriodeMixin, viewsets.ReadOnlyModelViewSet):
+    """ARPTC sites. Editors create, correct and close them; a site has no opening date,
+    so it has no successor (tree reference screens D1)."""
 
-    permission_classes = [HasModuleAccess("referentiels")]
+    REMPLACABLE = False
     serializer_class = SiteSerializer
     queryset = Site.objects.all()
 
@@ -60,10 +61,10 @@ class SiteViewSet(PeriodeMixin, viewsets.ReadOnlyModelViewSet):
         return queryset.ouverts(day)
 
 
-class UniteOrganisationnelleViewSet(PeriodeMixin, viewsets.ReadOnlyModelViewSet):
-    """Organisation units as a flat list with parent ids; the client builds the tree (D20)."""
+class UniteOrganisationnelleViewSet(EditionMixin, PeriodeMixin, viewsets.ReadOnlyModelViewSet):
+    """Organisation units as a flat list with parent ids; the client builds the tree (D20).
+    Editors write them (tree reference screens D1)."""
 
-    permission_classes = [HasModuleAccess("referentiels")]
     serializer_class = UniteOrganisationnelleSerializer
     queryset = UniteOrganisationnelle.objects.select_related("site")
 
@@ -72,8 +73,8 @@ class UniteOrganisationnelleViewSet(PeriodeMixin, viewsets.ReadOnlyModelViewSet)
 
 
 class ClassificationViewSet(PeriodeMixin, viewsets.ReadOnlyModelViewSet):
-    """Classification rows as flat lists with parent ids, in grid order (classification
-    D24, D25). Read-only: they are edited in Django admin until phase 1.9."""
+    """Reference rows as flat lists with parent ids, in their model's order (classification
+    D24, D25), open at a date."""
 
     permission_classes = [HasModuleAccess("referentiels")]
 
@@ -81,17 +82,17 @@ class ClassificationViewSet(PeriodeMixin, viewsets.ReadOnlyModelViewSet):
         return queryset.ouvertes(day)
 
 
-class CategorieViewSet(ClassificationViewSet):
+class CategorieViewSet(EditionMixin, ClassificationViewSet):
     serializer_class = CategorieSerializer
     queryset = Categorie.objects.all()
 
 
-class GradeViewSet(ClassificationViewSet):
+class GradeViewSet(EditionMixin, ClassificationViewSet):
     serializer_class = GradeSerializer
     queryset = Grade.objects.all()
 
 
-class EchelonViewSet(ClassificationViewSet):
+class EchelonViewSet(EditionMixin, ClassificationViewSet):
     serializer_class = EchelonSerializer
     queryset = Echelon.objects.select_related("grade")  # the label shows the grade code
 
@@ -118,14 +119,14 @@ class TypeContratViewSet(EditionMixin, PeriodeMixin, viewsets.ReadOnlyModelViewS
         return queryset.ouvertes(day)
 
 
-class TypeDocumentViewSet(ClassificationViewSet):
+class TypeDocumentViewSet(EditionMixin, ClassificationViewSet):
     """Kinds of supporting document, by name (document types D18, D19)."""
 
     serializer_class = TypeDocumentSerializer
     queryset = TypeDocument.objects.all()
 
 
-class PieceRequiseViewSet(ClassificationViewSet):
+class PieceRequiseViewSet(EditionMixin, ClassificationViewSet):
     """The documents each event kind requires, in event order (document types D18, D19).
     The ordering joins the type for its name; the type itself is returned as an id."""
 

@@ -999,15 +999,16 @@ class ApiTests(TestCase):
             self.ids(self.get(user, SITES, toutes="1")), {self.kin.pk, self.old_site.pk}
         )
 
-    def test_writes_are_refused(self):
+    def test_readers_cannot_write_and_nobody_puts_or_deletes(self):
+        # Editors write since phase 1.10 (test_edition_arbres.py); readers do not.
         client = APIClient()
-        client.force_authenticate(self.users["Gestion de carrière"])
+        client.force_authenticate(self.users["Auditeur"])
         for url in (UNITES, SITES):
             detail = f"{url}{self.dt.pk if url == UNITES else self.kin.pk}/"
             with self.subTest(url):
-                self.assertEqual(client.post(url, {}).status_code, 405)
+                self.assertEqual(client.post(url, {}).status_code, 403)
                 self.assertEqual(client.put(detail, {}).status_code, 405)
-                self.assertEqual(client.patch(detail, {}).status_code, 405)
+                self.assertEqual(client.patch(detail, {}).status_code, 403)
                 self.assertEqual(client.delete(detail).status_code, 405)
 
     def test_query_count_does_not_grow_with_units(self):
@@ -1128,15 +1129,16 @@ class ClassificationApiTests(TestCase):
                 self.assertEqual(response.status_code, 400)
                 self.assertIn("date", response.json())
 
-    def test_writes_are_refused(self):
+    def test_readers_cannot_write_and_nobody_puts_or_deletes(self):
+        # Editors write since phase 1.10 (test_edition_arbres.py); readers do not.
         client = APIClient()
-        client.force_authenticate(self.users["Gestion de carrière"])
+        client.force_authenticate(self.users["Auditeur"])
         for url, obj in zip(CLASSIFICATION, (self.cd, self.a2, self.steps[0]), strict=True):
             detail = f"{url}{obj.pk}/"
             with self.subTest(url):
-                self.assertEqual(client.post(url, {}).status_code, 405)
+                self.assertEqual(client.post(url, {}).status_code, 403)
                 self.assertEqual(client.put(detail, {}).status_code, 405)
-                self.assertEqual(client.patch(detail, {}).status_code, 405)
+                self.assertEqual(client.patch(detail, {}).status_code, 403)
                 self.assertEqual(client.delete(detail).status_code, 405)
 
     def test_query_count_does_not_grow_with_rows(self):
@@ -1375,15 +1377,16 @@ class PiecesApiTests(TestCase):
                 self.assertEqual(response.status_code, 400)
                 self.assertIn("date", response.json())
 
-    def test_writes_are_refused(self):
+    def test_readers_cannot_write_and_nobody_puts_or_deletes(self):
+        # Editors write since phase 1.10 (test_edition_arbres.py); readers do not.
         client = APIClient()
-        client.force_authenticate(self.users["Gestion de carrière"])
+        client.force_authenticate(self.users["Auditeur"])
         for url, obj in ((TYPES_DOCUMENT, self.dec), (PIECES, self.promotion)):
             detail = f"{url}{obj.pk}/"
             with self.subTest(url):
-                self.assertEqual(client.post(url, {}).status_code, 405)
+                self.assertEqual(client.post(url, {}).status_code, 403)
                 self.assertEqual(client.put(detail, {}).status_code, 405)
-                self.assertEqual(client.patch(detail, {}).status_code, 405)
+                self.assertEqual(client.patch(detail, {}).status_code, 403)
                 self.assertEqual(client.delete(detail).status_code, 405)
 
     def test_query_count_does_not_grow_with_requirements(self):

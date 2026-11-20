@@ -22,7 +22,7 @@ from .models import (
 )
 
 
-class SiteSerializer(BaseModelSerializer):
+class SiteSerializer(ModelRulesSerializerMixin, BaseModelSerializer):
     class Meta:
         model = Site
         fields = ["id", "code", "nom", "ville", "siege", "date_fermeture", *BASE_FIELDS]
@@ -34,9 +34,13 @@ class SiteResumeSerializer(serializers.ModelSerializer):
         fields = ["id", "code", "nom"]
 
 
-class UniteOrganisationnelleSerializer(BaseModelSerializer):
+class UniteOrganisationnelleSerializer(ModelRulesSerializerMixin, BaseModelSerializer):
     type_libelle = serializers.CharField(source="get_type_display", read_only=True)
     site = SiteResumeSerializer(read_only=True)
+    # Written as an id; read as the nested summary above (tree reference screens D1).
+    site_id = serializers.PrimaryKeyRelatedField(
+        source="site", queryset=Site.objects.all(), write_only=True
+    )
 
     class Meta:
         model = UniteOrganisationnelle
@@ -48,19 +52,20 @@ class UniteOrganisationnelleSerializer(BaseModelSerializer):
             "type_libelle",
             "parent",
             "site",
+            "site_id",
             "date_ouverture",
             "date_fermeture",
             *BASE_FIELDS,
         ]
 
 
-class CategorieSerializer(BaseModelSerializer):
+class CategorieSerializer(ModelRulesSerializerMixin, BaseModelSerializer):
     class Meta:
         model = Categorie
         fields = ["id", "code", "nom", "rang", "date_ouverture", "date_fermeture", *BASE_FIELDS]
 
 
-class GradeSerializer(BaseModelSerializer):
+class GradeSerializer(ModelRulesSerializerMixin, BaseModelSerializer):
     class Meta:
         model = Grade
         fields = [
@@ -75,7 +80,7 @@ class GradeSerializer(BaseModelSerializer):
         ]
 
 
-class EchelonSerializer(BaseModelSerializer):
+class EchelonSerializer(ModelRulesSerializerMixin, BaseModelSerializer):
     libelle = serializers.CharField(read_only=True)
 
     class Meta:
@@ -127,13 +132,13 @@ class TypeContratSerializer(ModelRulesSerializerMixin, BaseModelSerializer):
         ]
 
 
-class TypeDocumentSerializer(BaseModelSerializer):
+class TypeDocumentSerializer(ModelRulesSerializerMixin, BaseModelSerializer):
     class Meta:
         model = TypeDocument
         fields = ["id", "code", "nom", "date_ouverture", "date_fermeture", *BASE_FIELDS]
 
 
-class PieceRequiseSerializer(BaseModelSerializer):
+class PieceRequiseSerializer(ModelRulesSerializerMixin, BaseModelSerializer):
     """A document an event kind requires; the client joins it to its type by id
     (document types D19)."""
 
