@@ -62,6 +62,7 @@ PIECES = "/api/referentiels/pieces-requises/"
 MOTIFS = "/api/referentiels/motifs-sortie/"
 SUSPENSIONS = "/api/referentiels/types-suspension/"
 BANQUES = "/api/referentiels/banques/"
+PARAMETRES = "/api/referentiels/parametres/"
 D2020 = date(2020, 1, 1)
 D2015 = date(2015, 1, 1)
 D2025 = date(2025, 7, 1)
@@ -1579,6 +1580,75 @@ class BanquesApiTests(TestCase):
         client.force_authenticate(self.users["Rémunération"])
         detail = f"{BANQUES}{self.bcf.pk}/"
         self.assertEqual(client.post(BANQUES, {}).status_code, 405)
+        self.assertEqual(client.put(detail, {}).status_code, 405)
+        self.assertEqual(client.patch(detail, {}).status_code, 405)
+        self.assertEqual(client.delete(detail).status_code, 405)
+
+
+class ParametresApiTests(TestCase):
+    """GET /api/referentiels/parametres/ (general parameters D16, D17)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        def create(cle, valeur, debut=D2015, fin=None):
+            return Parametre.objects.create(
+                cle=cle, valeur=valeur, date_ouverture=debut, date_fermeture=fin
+            )
+
+        cls.carriere = create("duree_carriere", 30)
+        cls.retraite = create("age_retraite", 65)
+        cls.old = create("enfants_max", 4, fin=D2020)
+        cls.new = create("enfants_max", 6, debut=D2020)
+        cls.users = {name: member(slug, name) for name, (slug, _) in GROUPS.items()}
+        cls.nobody = member("personne")
+
+    def get(self, user="Auditeur", **params):
+        client = APIClient()
+        if user is not None:
+            client.force_authenticate(self.users.get(user, user))
+        return client.get(PARAMETRES, params)
+
+    def ids(self, **params):
+        return [row["id"] for row in self.get(**params).json()]
+
+    def test_access(self):
+        self.assertEqual(self.get(None).status_code, 401)
+        self.assertEqual(self.get(self.nobody).status_code, 403)
+        for name in self.users:
+            with self.subTest(name):
+                self.assertEqual(self.get(name).status_code, 200)
+
+    def test_open_today_by_default_at_a_date_or_all_in_key_order(self):
+        self.assertEqual(self.ids(), [self.new.pk, self.retraite.pk, self.carriere.pk])
+        self.assertEqual(
+            self.ids(date="2019-12-31"), [self.old.pk, self.retraite.pk, self.carriere.pk]
+        )
+        self.assertEqual(
+            self.ids(toutes="1"), [self.old.pk, self.new.pk, self.retraite.pk, self.carriere.pk]
+        )
+
+    def test_fields(self):
+        row = self.get().json()[0]
+        self.assertEqual(
+            {k: row[k] for k in ("id", "cle", "cle_libelle", "unite", "valeur",
+                                 "date_ouverture", "date_fermeture")},
+            {"id": self.new.pk, "cle": "enfants_max",
+             "cle_libelle": "Nombre maximal d'enfants pris en charge", "unite": "enfants",
+             "valeur": 6, "date_ouverture": "2020-01-01", "date_fermeture": None},
+        )  # fmt: skip
+        self.assertIn("cree_par", row)
+        self.assertIn("date_modification", row)
+
+    def test_invalid_date_is_refused_per_field(self):
+        response = self.get(date="31/12/2025")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("date", response.json())
+
+    def test_writes_are_refused(self):
+        client = APIClient()
+        client.force_authenticate(self.users["Gestion de carrière"])
+        detail = f"{PARAMETRES}{self.retraite.pk}/"
+        self.assertEqual(client.post(PARAMETRES, {}).status_code, 405)
         self.assertEqual(client.put(detail, {}).status_code, 405)
         self.assertEqual(client.patch(detail, {}).status_code, 405)
         self.assertEqual(client.delete(detail).status_code, 405)

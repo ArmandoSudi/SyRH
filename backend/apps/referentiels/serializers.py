@@ -11,6 +11,7 @@ from .models import (
     Fonction,
     Grade,
     MotifSortie,
+    Parametre,
     PieceRequise,
     Site,
     TypeContrat,
@@ -199,6 +200,27 @@ class BanqueSerializer(BaseModelSerializer):
     class Meta:
         model = Banque
         fields = ["id", "code", "nom", "swift", "date_ouverture", "date_fermeture", *BASE_FIELDS]
+
+
+class ParametreSerializer(BaseModelSerializer):
+    """A dated value of a general parameter, with its label and unit (general parameters
+    D17)."""
+
+    cle_libelle = serializers.CharField(source="get_cle_display", read_only=True)
+    unite = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = Parametre
+        fields = [
+            "id",
+            "cle",
+            "cle_libelle",
+            "unite",
+            "valeur",
+            "date_ouverture",
+            "date_fermeture",
+            *BASE_FIELDS,
+        ]
 
 
 class PeriodeSerializer(serializers.Serializer):

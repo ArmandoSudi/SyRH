@@ -7,6 +7,7 @@ from .views import (
     FonctionViewSet,
     GradeViewSet,
     MotifSortieViewSet,
+    ParametreViewSet,
     PieceRequiseViewSet,
     SiteViewSet,
     TypeContratViewSet,
@@ -28,5 +29,6 @@ router.register("pieces-requises", PieceRequiseViewSet, basename="referentiels-p
 router.register("motifs-sortie", MotifSortieViewSet, basename="referentiels-motifsortie")
 router.register("types-suspension", TypeSuspensionViewSet, basename="referentiels-typesuspension")
 router.register("banques", BanqueViewSet, basename="referentiels-banque")
+router.register("parametres", ParametreViewSet, basename="referentiels-parametre")
 
 urlpatterns = router.urls

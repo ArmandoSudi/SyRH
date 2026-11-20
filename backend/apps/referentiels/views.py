@@ -9,6 +9,7 @@ from .models import (
     Fonction,
     Grade,
     MotifSortie,
+    Parametre,
     PieceRequise,
     Site,
     TypeContrat,
@@ -23,6 +24,7 @@ from .serializers import (
     FonctionSerializer,
     GradeSerializer,
     MotifSortieSerializer,
+    ParametreSerializer,
     PeriodeSerializer,
     PieceRequiseSerializer,
     SiteSerializer,
@@ -151,3 +153,10 @@ class BanqueViewSet(ClassificationViewSet):
 
     serializer_class = BanqueSerializer
     queryset = Banque.objects.all()
+
+
+class ParametreViewSet(ClassificationViewSet):
+    """General parameters in key order (general parameters D16, D17)."""
+
+    serializer_class = ParametreSerializer
+    queryset = Parametre.objects.all()
