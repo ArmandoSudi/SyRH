@@ -17,7 +17,13 @@ the work is merged.
   French messages as Django admin) and the existing permissions; nothing is deleted. The other
   reference tables follow in a new phase 1.10. For walkthroughs that save rows,
   `.claude/launch.json` has scratch servers on ports 8001 and 5174.
-<!-- commits: 11ea6fa c754996 fd0bef7 e440d45 c5d0c4d ce6e21c d5f68c9 9a86341 2bbab6b 43b8abd 71d0617 4852398 33c6f03 021cc46 -->
+- Tree reference data screens (roadmap 1.10), closing Milestone 1: sites, the organisation, the
+  classification, document types and required documents are now edited in SyRH too, with "add
+  under this row" actions in the trees and a new "Types de pièce" table. Replacing a direction,
+  catégorie, grade or document type at a date carries everything open under it over to the new
+  row in one step, after a preview of the rows that follow; closing a parent with open children
+  stays refused. Django admin remains as a fallback.
+<!-- commits: 11ea6fa c754996 fd0bef7 e440d45 c5d0c4d ce6e21c d5f68c9 9a86341 2bbab6b 43b8abd 71d0617 4852398 33c6f03 021cc46 f44e3f1 b5aa5f2 ba76474 6297472 8b3adb6 60a849e 67c4b73 beb125e -->
 
 ## 2026-11-19
 
