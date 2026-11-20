@@ -19,6 +19,9 @@ environ.Env.read_env(BASE_DIR / ".env")
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env("DJANGO_DEBUG")
 ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS")
+# Cookies travel over HTTPS only, except in development. A test server on the
+# local network without HTTPS sets DJANGO_SECURE_COOKIES=False (see docs/deployment.md).
+SECURE_COOKIES = env.bool("DJANGO_SECURE_COOKIES", default=not DEBUG)
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -72,13 +75,13 @@ AUTH_USER_MODEL = "accounts.User"
 
 # Session cookie + CSRF, no token in the browser. The session cookie is hidden
 # from JavaScript; the CSRF cookie is readable so the SPA can echo it back in
-# the X-CSRFToken header. Both travel over HTTPS only outside development.
+# the X-CSRFToken header. Both travel over HTTPS only (SECURE_COOKIES).
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
-SESSION_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SECURE = SECURE_COOKIES
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = "Lax"
-CSRF_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = SECURE_COOKIES
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

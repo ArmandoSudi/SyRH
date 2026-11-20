@@ -1,0 +1,16 @@
+# systemd unit for the SyRH backend (gunicorn). Installed by deploy/update.sh as
+# /etc/systemd/system/syrh.service. See docs/deployment.md.
+[Unit]
+Description=SyRH backend (gunicorn)
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+User=armando
+Group=armando
+WorkingDirectory=/srv/syrh/backend
+ExecStart=/srv/syrh/backend/.venv/bin/gunicorn config.wsgi --bind 127.0.0.1:8001 --workers 3 --access-logfile -
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

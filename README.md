@@ -6,6 +6,7 @@ Système de gestion des ressources humaines de l'ARPTC.
 - `frontend/` — Vue 3 + TypeScript + Vite (Vue Router, Pinia)
 - `docs/` — [cahier des charges](docs/cahier-des-charges-sirh-arptc.md) et
   [questions ouvertes](docs/questions-ouvertes.md)
+- `deploy/` — test server configuration, see [docs/deployment.md](docs/deployment.md)
 
 ## Prerequisites
 
