@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import DatePicker from 'primevue/datepicker'
@@ -10,6 +11,9 @@ import Message from 'primevue/message'
 
 import { fetchBanques, type Banque } from '@/features/referentiels/api/referentiels'
 import { filterByCodeAndName } from '@/features/referentiels/components/lists'
+import ActionsLigne from '@/features/referentiels/components/edition/ActionsLigne.vue'
+import EditionDialog from '@/features/referentiels/components/edition/EditionDialog.vue'
+import { useEdition } from '@/features/referentiels/components/edition/useEdition'
 import { useReferentielsStore } from '@/features/referentiels/stores/referentiels'
 import { formatDate, localDate } from '@/shared/utils/dates'
 
@@ -49,6 +53,18 @@ watch(
   () => void load(),
 )
 onMounted(load)
+
+// Editors add, correct, replace and close rows here (reference data screens D10 to D13).
+const {
+  edition,
+  droits,
+  visible: dialogue,
+  mode,
+  ligne,
+  initial,
+  ouvrir,
+  enregistre,
+} = useEdition('banques', load)
 </script>
 
 <template>
@@ -74,6 +90,14 @@ onMounted(load)
         data-test="banques-search"
       />
     </IconField>
+    <Button
+      v-if="droits.ajouter"
+      label="Ajouter"
+      icon="pi pi-plus"
+      class="ajouter"
+      data-test="banques-ajouter"
+      @click="ouvrir('ajouter')"
+    />
   </div>
 
   <Message v-if="error" severity="error" :closable="false" data-test="banques-error">
@@ -111,10 +135,38 @@ onMounted(load)
         <span class="sy-num nowrap">{{ formatDate(data.date_fermeture) }}</span>
       </template>
     </Column>
+    <Column v-if="droits.modifier" class="actions-col">
+      <template #body="{ data }">
+        <ActionsLigne
+          :ferme="data.date_fermeture !== null"
+          :peut-modifier="droits.modifier"
+          :peut-remplacer="droits.remplacer"
+          :libelle="data.code"
+          @action="(m) => ouvrir(m, data)"
+        />
+      </template>
+    </Column>
   </DataTable>
+
+  <EditionDialog
+    v-model:visible="dialogue"
+    :edition="edition"
+    :mode="mode"
+    :ligne="ligne"
+    :initial="initial"
+    @enregistre="enregistre"
+  />
 </template>
 
 <style scoped>
+.ajouter {
+  margin-left: auto;
+}
+
+.actions-col {
+  width: 3rem;
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;

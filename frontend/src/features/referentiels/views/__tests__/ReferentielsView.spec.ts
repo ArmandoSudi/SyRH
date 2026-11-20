@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import PrimeVue from 'primevue/config'
+import ToastService from 'primevue/toastservice'
 
+import { useAuthStore } from '@/features/auth/stores/auth'
+import * as editionApi from '@/features/referentiels/api/edition'
 import * as api from '@/features/referentiels/api/referentiels'
 import type {
   Banque,
@@ -25,6 +28,7 @@ import { localDate } from '@/shared/utils/dates'
 import ReferentielsView from '../ReferentielsView.vue'
 
 vi.mock('@/features/referentiels/api/referentiels')
+vi.mock('@/features/referentiels/api/edition')
 
 const SITE = { id: 1, code: 'KIN', nom: 'Siège — Kinshasa' }
 
@@ -243,7 +247,7 @@ const PARAMETRES: Parametre[] = [
 
 async function mountView() {
   const wrapper = mount(ReferentielsView, {
-    global: { plugins: [PrimeVue], stubs: { teleport: true } },
+    global: { plugins: [PrimeVue, ToastService], stubs: { teleport: true } },
     attachTo: document.body,
   })
   await flushPromises()
@@ -909,6 +913,115 @@ describe('ReferentielsView', () => {
     it('offers no action that changes data', async () => {
       const wrapper = await mountView()
       expect(wrapper.get('[data-test="parametres"]').findAll('button')).toHaveLength(0)
+    })
+  })
+
+  describe('editing', () => {
+    function signIn(...permissions: string[]) {
+      useAuthStore().user = {
+        id: 1,
+        username: 'editeur',
+        first_name: '',
+        last_name: '',
+        email: '',
+        groups: ['Gestion de carrière'],
+        permissions,
+      }
+    }
+
+    const CARRIERE = [
+      'fonction',
+      'typecontrat',
+      'motifsortie',
+      'typesuspension',
+      'parametre',
+    ].flatMap((m) => [`referentiels.add_${m}`, `referentiels.change_${m}`])
+    const REMUNERATION = ['referentiels.add_banque', 'referentiels.change_banque']
+
+    it('shows no edit action to a reader', async () => {
+      signIn()
+      for (const onglet of ['fonctions', 'typesContrat', 'banques', 'sorties', 'parametres']) {
+        useReferentielsStore().onglet = onglet as never
+        const wrapper = await mountView()
+        const actions = wrapper.findAll('[data-test$="-ajouter"], [data-test="ligne-actions"]')
+        expect(actions.map(() => onglet)).toEqual([])
+        wrapper.unmount()
+      }
+    })
+
+    it('shows Ajouter and a row menu to an editor, and reloads after a save', async () => {
+      signIn(...CARRIERE)
+      useReferentielsStore().onglet = 'fonctions'
+      vi.mocked(editionApi.creer).mockResolvedValue({ id: 99 })
+      const wrapper = await mountView()
+
+      expect(wrapper.findAll('[data-test="ligne-actions"]')).toHaveLength(FONCTIONS.length)
+      await wrapper.get('[data-test="fonctions-ajouter"]').trigger('click')
+      await flushPromises()
+      expect(wrapper.text()).toContain('Ajouter une fonction')
+      await wrapper.get('[data-test="champ-code"]').setValue('CPT')
+      await wrapper.get('[data-test="champ-nom"]').setValue('Comptable')
+      await wrapper.get('[data-test="edition-dialog"] form').trigger('submit')
+      await flushPromises()
+
+      expect(editionApi.creer).toHaveBeenCalledWith(
+        'fonctions',
+        expect.objectContaining({ code: 'CPT' }),
+      )
+      expect(api.fetchFonctions).toHaveBeenCalledTimes(2)
+    })
+
+    it('offers Corriger, Remplacer and Fermer on an open row', async () => {
+      signIn(...CARRIERE)
+      useReferentielsStore().onglet = 'typesContrat'
+      const wrapper = await mountView()
+      await wrapper.findAll('[data-test="ligne-actions"]')[0]!.trigger('click')
+      await flushPromises()
+      const items = wrapper.findAll('[data-test="ligne-menu"] .p-menu-item').map((i) => i.text())
+      expect(items).toEqual(['Corriger', 'Remplacer à une date', 'Fermer'])
+    })
+
+    it('follows the bank permissions on the Banques tab, and the others elsewhere', async () => {
+      signIn(...REMUNERATION)
+      useReferentielsStore().onglet = 'banques'
+      let wrapper = await mountView()
+      expect(wrapper.find('[data-test="banques-ajouter"]').exists()).toBe(true)
+      wrapper.unmount()
+
+      useReferentielsStore().onglet = 'fonctions'
+      wrapper = await mountView()
+      expect(wrapper.find('[data-test="fonctions-ajouter"]').exists()).toBe(false)
+      wrapper.unmount()
+
+      signIn(...CARRIERE)
+      useReferentielsStore().onglet = 'banques'
+      wrapper = await mountView()
+      expect(wrapper.find('[data-test="banques-ajouter"]').exists()).toBe(false)
+    })
+
+    it('gives each table of Sorties et suspensions its own actions', async () => {
+      signIn(...CARRIERE)
+      useReferentielsStore().onglet = 'sorties'
+      const wrapper = await mountView()
+      expect(wrapper.find('[data-test="motifs-ajouter"]').exists()).toBe(true)
+      expect(wrapper.find('[data-test="suspensions-ajouter"]').exists()).toBe(true)
+      expect(wrapper.findAll('[data-test="ligne-actions"]')).toHaveLength(
+        MOTIFS.length + SUSPENSIONS.length,
+      )
+    })
+
+    it('offers to add a value for a parameter with none at the date', async () => {
+      signIn(...CARRIERE)
+      useReferentielsStore().onglet = 'parametres'
+      vi.mocked(editionApi.creer).mockResolvedValue({})
+      const wrapper = await mountView()
+
+      expect(wrapper.findAll('[data-test="ligne-actions"]')).toHaveLength(2)
+      await wrapper.get('[data-test="ajouter-enfants_max"]').trigger('click')
+      await flushPromises()
+      await wrapper.get('[data-test="edition-dialog"] form').trigger('submit')
+      await flushPromises()
+      expect(vi.mocked(editionApi.creer).mock.calls[0]![1]).toMatchObject({ cle: 'enfants_max' })
     })
   })
 })

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import DatePicker from 'primevue/datepicker'
@@ -7,6 +8,9 @@ import Message from 'primevue/message'
 
 import { fetchParametres, type Parametre } from '@/features/referentiels/api/referentiels'
 import { buildParametres, valeurLibelle } from '@/features/referentiels/components/parametres'
+import ActionsLigne from '@/features/referentiels/components/edition/ActionsLigne.vue'
+import EditionDialog from '@/features/referentiels/components/edition/EditionDialog.vue'
+import { useEdition } from '@/features/referentiels/components/edition/useEdition'
 import { useReferentielsStore } from '@/features/referentiels/stores/referentiels'
 import { formatDate, localDate } from '@/shared/utils/dates'
 
@@ -46,6 +50,19 @@ watch(
   () => void load(),
 )
 onMounted(load)
+
+// Editors correct, replace and close values, and add one for a key with none at the
+// date (reference data screens D10 to D13).
+const {
+  edition,
+  droits,
+  visible: dialogue,
+  mode,
+  ligne,
+  initial,
+  ouvrir,
+  enregistre,
+} = useEdition('parametres', load)
 </script>
 
 <template>
@@ -100,10 +117,45 @@ onMounted(load)
         }}</span>
       </template>
     </Column>
+    <Column v-if="droits.modifier || droits.ajouter" class="actions-col">
+      <template #body="{ data }">
+        <ActionsLigne
+          v-if="data.parametre"
+          :ferme="data.parametre.date_fermeture !== null"
+          :peut-modifier="droits.modifier"
+          :peut-remplacer="droits.remplacer"
+          :libelle="data.libelle"
+          @action="(m) => ouvrir(m, data.parametre)"
+        />
+        <Button
+          v-else-if="droits.ajouter"
+          icon="pi pi-plus"
+          text
+          rounded
+          size="small"
+          :aria-label="`Ajouter une valeur pour ${data.libelle}`"
+          :data-test="`ajouter-${data.cle}`"
+          @click="ouvrir('ajouter', null, { cle: data.cle })"
+        />
+      </template>
+    </Column>
   </DataTable>
+
+  <EditionDialog
+    v-model:visible="dialogue"
+    :edition="edition"
+    :mode="mode"
+    :ligne="ligne"
+    :initial="initial"
+    @enregistre="enregistre"
+  />
 </template>
 
 <style scoped>
+.actions-col {
+  width: 3rem;
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;

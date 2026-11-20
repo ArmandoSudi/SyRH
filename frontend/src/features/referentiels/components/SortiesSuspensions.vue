@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import DatePicker from 'primevue/datepicker'
@@ -18,6 +19,9 @@ import {
 } from '@/features/referentiels/api/referentiels'
 import { filterByCodeAndName } from '@/features/referentiels/components/lists'
 import { dureeLibelle, renouvellementsLibelle } from '@/features/referentiels/components/sorties'
+import ActionsLigne from '@/features/referentiels/components/edition/ActionsLigne.vue'
+import EditionDialog from '@/features/referentiels/components/edition/EditionDialog.vue'
+import { useEdition } from '@/features/referentiels/components/edition/useEdition'
 import { useReferentielsStore } from '@/features/referentiels/stores/referentiels'
 import { formatDate, localDate } from '@/shared/utils/dates'
 
@@ -77,6 +81,24 @@ function load() {
 
 watch(() => state.date, load)
 onMounted(load)
+
+// Each table has its own editors and dialog (reference data screens D10 to D13).
+const motifs = useEdition('motifs-sortie', loadMotifs)
+const suspensions = useEdition('types-suspension', loadSuspensions)
+const {
+  droits: droitsMotifs,
+  visible: dialogueMotifs,
+  mode: modeMotifs,
+  ligne: ligneMotifs,
+  ouvrir: ouvrirMotifs,
+} = motifs
+const {
+  droits: droitsSuspensions,
+  visible: dialogueSuspensions,
+  mode: modeSuspensions,
+  ligne: ligneSuspensions,
+  ouvrir: ouvrirSuspensions,
+} = suspensions
 </script>
 
 <template>
@@ -104,7 +126,17 @@ onMounted(load)
     </IconField>
   </div>
 
-  <h3 class="section-title">Motifs de sortie</h3>
+  <div class="section">
+    <h3 class="section-title">Motifs de sortie</h3>
+    <Button
+      v-if="droitsMotifs.ajouter"
+      label="Ajouter"
+      icon="pi pi-plus"
+      size="small"
+      data-test="motifs-ajouter"
+      @click="ouvrirMotifs('ajouter')"
+    />
+  </div>
   <Message v-if="motifsError" severity="error" :closable="false" data-test="motifs-error">
     Les motifs de sortie n'ont pas pu être chargés : {{ motifsError }}
   </Message>
@@ -149,9 +181,30 @@ onMounted(load)
         <span class="sy-num nowrap">{{ formatDate(data.date_fermeture) }}</span>
       </template>
     </Column>
+    <Column v-if="droitsMotifs.modifier" class="actions-col">
+      <template #body="{ data }">
+        <ActionsLigne
+          :ferme="data.date_fermeture !== null"
+          :peut-modifier="droitsMotifs.modifier"
+          :peut-remplacer="droitsMotifs.remplacer"
+          :libelle="data.code"
+          @action="(m) => ouvrirMotifs(m, data)"
+        />
+      </template>
+    </Column>
   </DataTable>
 
-  <h3 class="section-title">Positions de suspension</h3>
+  <div class="section">
+    <h3 class="section-title">Positions de suspension</h3>
+    <Button
+      v-if="droitsSuspensions.ajouter"
+      label="Ajouter"
+      icon="pi pi-plus"
+      size="small"
+      data-test="suspensions-ajouter"
+      @click="ouvrirSuspensions('ajouter')"
+    />
+  </div>
   <Message v-if="suspensionsError" severity="error" :closable="false" data-test="suspensions-error">
     Les positions de suspension n'ont pas pu être chargées : {{ suspensionsError }}
   </Message>
@@ -204,7 +257,33 @@ onMounted(load)
         <span class="sy-num nowrap">{{ formatDate(data.date_fermeture) }}</span>
       </template>
     </Column>
+    <Column v-if="droitsSuspensions.modifier" class="actions-col">
+      <template #body="{ data }">
+        <ActionsLigne
+          :ferme="data.date_fermeture !== null"
+          :peut-modifier="droitsSuspensions.modifier"
+          :peut-remplacer="droitsSuspensions.remplacer"
+          :libelle="data.code"
+          @action="(m) => ouvrirSuspensions(m, data)"
+        />
+      </template>
+    </Column>
   </DataTable>
+
+  <EditionDialog
+    v-model:visible="dialogueMotifs"
+    :edition="motifs.edition"
+    :mode="modeMotifs"
+    :ligne="ligneMotifs"
+    @enregistre="motifs.enregistre"
+  />
+  <EditionDialog
+    v-model:visible="dialogueSuspensions"
+    :edition="suspensions.edition"
+    :mode="modeSuspensions"
+    :ligne="ligneSuspensions"
+    @enregistre="suspensions.enregistre"
+  />
 </template>
 
 <style scoped>
@@ -229,6 +308,22 @@ onMounted(load)
 
 .search :deep(input) {
   width: 100%;
+}
+
+.section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sy-space-2);
+  margin: var(--sy-space-4) 0 var(--sy-space-2);
+}
+
+.section .section-title {
+  margin: 0;
+}
+
+.actions-col {
+  width: 3rem;
 }
 
 .section-title {
