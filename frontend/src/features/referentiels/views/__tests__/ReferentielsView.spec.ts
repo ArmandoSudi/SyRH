@@ -935,15 +935,34 @@ describe('ReferentielsView', () => {
       'motifsortie',
       'typesuspension',
       'parametre',
+      'site',
+      'uniteorganisationnelle',
+      'categorie',
+      'grade',
+      'echelon',
+      'typedocument',
+      'piecerequise',
     ].flatMap((m) => [`referentiels.add_${m}`, `referentiels.change_${m}`])
     const REMUNERATION = ['referentiels.add_banque', 'referentiels.change_banque']
 
     it('shows no edit action to a reader', async () => {
       signIn()
-      for (const onglet of ['fonctions', 'typesContrat', 'banques', 'sorties', 'parametres']) {
+      for (const onglet of [
+        'organisation',
+        'sites',
+        'classification',
+        'fonctions',
+        'typesContrat',
+        'pieces',
+        'sorties',
+        'banques',
+        'parametres',
+      ]) {
         useReferentielsStore().onglet = onglet as never
         const wrapper = await mountView()
-        const actions = wrapper.findAll('[data-test$="-ajouter"], [data-test="ligne-actions"]')
+        const actions = wrapper.findAll(
+          '[data-test$="-ajouter"], [data-test="ligne-actions"], [data-test^="ajouter-"]',
+        )
         expect(actions.map(() => onglet)).toEqual([])
         wrapper.unmount()
       }
@@ -1022,6 +1041,62 @@ describe('ReferentielsView', () => {
       await wrapper.get('[data-test="edition-dialog"] form').trigger('submit')
       await flushPromises()
       expect(vi.mocked(editionApi.creer).mock.calls[0]![1]).toMatchObject({ cle: 'enfants_max' })
+    })
+
+    it('offers Ajouter and the row menu on sites, without Remplacer', async () => {
+      signIn(...CARRIERE)
+      useReferentielsStore().onglet = 'sites'
+      const wrapper = await mountView()
+      expect(wrapper.find('[data-test="sites-ajouter"]').exists()).toBe(true)
+      await wrapper.findAll('[data-test="ligne-actions"]')[0]!.trigger('click')
+      await flushPromises()
+      const items = wrapper.findAll('[data-test="ligne-menu"] .p-menu-item').map((i) => i.text())
+      expect(items).toEqual(['Corriger', 'Fermer'])
+    })
+
+    it('adds a direction, or a sub-unit with its parent, site and next type', async () => {
+      signIn(...CARRIERE)
+      vi.mocked(editionApi.creer).mockResolvedValue({ id: 50 })
+      const wrapper = await mountView()
+
+      expect(wrapper.find('[data-test="unites-ajouter"]').exists()).toBe(true)
+      await wrapper.get('[data-test="expand-all"]').trigger('click')
+      const sous = wrapper.findAll('[data-test="ajouter-sous"]')
+      expect(sous).toHaveLength(3) // two directions and a service: each has a level below
+      await sous[0]!.trigger('click')
+      await flushPromises()
+      expect(wrapper.text()).toContain('Ajouter une unité')
+      await wrapper.get('[data-test="champ-code"]').setValue('DRH-NEW')
+      await wrapper.get('[data-test="champ-nom"]').setValue('Département nouveau')
+      await wrapper.get('[data-test="edition-dialog"] form').trigger('submit')
+      await flushPromises()
+
+      expect(editionApi.creer).toHaveBeenCalledWith(
+        'unites',
+        expect.objectContaining({ type: 'departement', parent: 1, site_id: SITE.id }),
+      )
+      // The tree, the dialog's parent choices, then the reload after saving.
+      expect(api.fetchUnites).toHaveBeenCalledTimes(3)
+    })
+
+    it('keeps the opened units open after a save that gives them new ids', async () => {
+      signIn(...CARRIERE)
+      const store = useReferentielsStore()
+      store.expanded = { '1': true }
+      vi.mocked(editionApi.creer).mockResolvedValue({ id: 50 })
+      const wrapper = await mountView()
+      vi.mocked(api.fetchUnites).mockResolvedValue([
+        unite(11, 'DRH', 'direction', null, 'Direction des ressources humaines'),
+        unite(12, 'DRH-FOR', 'service', 11, 'Service Formation'),
+        unite(3, 'DT', 'direction', null, 'Direction technique'),
+      ])
+      await wrapper.get('[data-test="unites-ajouter"]').trigger('click')
+      await flushPromises()
+      await wrapper.get('[data-test="champ-code"]').setValue('DG')
+      await wrapper.get('[data-test="champ-nom"]').setValue('Direction générale')
+      await wrapper.get('[data-test="edition-dialog"] form').trigger('submit')
+      await flushPromises()
+      expect(store.expanded).toEqual({ '11': true })
     })
   })
 })

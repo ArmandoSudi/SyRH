@@ -100,3 +100,40 @@ export function expandedKeys<N extends Branch<N>>(nodes: N[]): Record<string, bo
   walk(nodes)
   return keys
 }
+
+/**
+ * The opened rows, by what identifies them across a replacement (their code): carried-over
+ * rows get new ids, so the keys alone would close them (tree reference screens D17).
+ */
+export function identitesOuvertes<N extends Branch<N>>(
+  nodes: N[],
+  expanded: Record<string, boolean>,
+  identite: (node: N) => string = (node) => node.data.code,
+): Set<string> {
+  const found = new Set<string>()
+  const walk = (list: N[]) => {
+    for (const node of list) {
+      if (expanded[node.key]) found.add(identite(node))
+      walk((node.children ?? []) as N[])
+    }
+  }
+  walk(nodes)
+  return found
+}
+
+/** The keys of the rows whose identity was opened before the reload. */
+export function clesPourIdentites<N extends Branch<N>>(
+  nodes: N[],
+  identites: Set<string>,
+  identite: (node: N) => string = (node) => node.data.code,
+): Record<string, boolean> {
+  const keys: Record<string, boolean> = {}
+  const walk = (list: N[]) => {
+    for (const node of list) {
+      if (identites.has(identite(node))) keys[node.key] = true
+      walk((node.children ?? []) as N[])
+    }
+  }
+  walk(nodes)
+  return keys
+}

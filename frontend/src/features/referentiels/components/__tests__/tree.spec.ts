@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest'
 
 import type { Unite } from '@/features/referentiels/api/referentiels'
 
-import { buildTree, expandedKeys, filterTree, type UniteNode } from '../tree'
+import {
+  buildTree,
+  clesPourIdentites,
+  expandedKeys,
+  filterTree,
+  identitesOuvertes,
+  type UniteNode,
+} from '../tree'
 
 const SITE = { id: 1, code: 'KIN', nom: 'Siège' }
 
@@ -58,5 +65,30 @@ describe('organisation tree', () => {
 
   it('lists the keys of every unit that has children', () => {
     expect(expandedKeys(buildTree(UNITES))).toEqual({ '2': true, '6': true })
+  })
+})
+
+describe('opened rows across a reload', () => {
+  it('finds the opened rows by code and gives back the keys of the same codes', () => {
+    type N = { key: string; data: { code: string; nom: string }; children: N[] }
+    const before: N[] = [
+      {
+        key: '1',
+        data: { code: 'DRH', nom: '' },
+        children: [{ key: '2', data: { code: 'DRH-CAR', nom: '' }, children: [] }],
+      },
+      { key: '3', data: { code: 'DT', nom: '' }, children: [] },
+    ]
+    const after: N[] = [
+      {
+        key: '11',
+        data: { code: 'DRH', nom: '' },
+        children: [{ key: '12', data: { code: 'DRH-CAR', nom: '' }, children: [] }],
+      },
+      { key: '3', data: { code: 'DT', nom: '' }, children: [] },
+    ]
+    const opened = identitesOuvertes(before, { '1': true, '2': true })
+    expect([...opened]).toEqual(['DRH', 'DRH-CAR'])
+    expect(clesPourIdentites(after, opened)).toEqual({ '11': true, '12': true })
   })
 })

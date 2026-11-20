@@ -13,10 +13,16 @@ import TreeTable from 'primevue/treetable'
 import { fetchUnites, type Unite } from '@/features/referentiels/api/referentiels'
 import {
   buildTree,
+  clesPourIdentites,
   expandedKeys,
   filterTree,
+  identitesOuvertes,
   TYPE_SEVERITY,
 } from '@/features/referentiels/components/tree'
+import { NIVEAUX, TYPES_UNITE } from '@/features/referentiels/components/edition/champs'
+import ActionsLigne from '@/features/referentiels/components/edition/ActionsLigne.vue'
+import EditionDialog from '@/features/referentiels/components/edition/EditionDialog.vue'
+import { useEdition } from '@/features/referentiels/components/edition/useEdition'
 import { useReferentielsStore } from '@/features/referentiels/stores/referentiels'
 import { formatDate, localDate } from '@/shared/utils/dates'
 
@@ -72,6 +78,35 @@ watch(
   () => void load(),
 )
 onMounted(load)
+
+/** Reload after a save, keeping open the rows that were, carried-over ones included (D17). */
+async function reload() {
+  const ouverts = identitesOuvertes(tree.value, store.expanded)
+  await load()
+  store.expanded = clesPourIdentites(tree.value, ouverts)
+}
+
+// Editors add, correct, replace and close units here (tree reference screens D13).
+const {
+  edition,
+  droits,
+  visible: dialogue,
+  mode,
+  ligne,
+  initial,
+  ouvrir,
+  enregistre,
+} = useEdition('unites', reload)
+
+/** The type one level below a unit's, or null for a bureau. */
+function typeEnfant(unite: Unite): string | null {
+  const niveau = NIVEAUX[unite.type] ?? 0
+  return TYPES_UNITE.find((t) => NIVEAUX[t.value] === niveau + 1)?.value ?? null
+}
+
+function ajouterSous(unite: Unite) {
+  ouvrir('ajouter', null, { type: typeEnfant(unite), parent: unite.id, site_id: unite.site.id })
+}
 </script>
 
 <template>
@@ -98,6 +133,14 @@ onMounted(load)
       />
     </IconField>
     <div class="actions">
+      <Button
+        v-if="droits.ajouter"
+        type="button"
+        label="Ajouter une direction"
+        icon="pi pi-plus"
+        data-test="unites-ajouter"
+        @click="ouvrir('ajouter', null, { type: 'direction' })"
+      />
       <Button
         type="button"
         label="Tout déplier"
@@ -132,7 +175,9 @@ onMounted(load)
   >
     <template #empty>
       <p class="sy-muted empty">
-        {{ filtering ? 'Aucune unité ne correspond à cette recherche.' : 'Aucune unité à cette date.' }}
+        {{
+          filtering ? 'Aucune unité ne correspond à cette recherche.' : 'Aucune unité à cette date.'
+        }}
       </p>
     </template>
     <Column field="nom" header="Nom" expander header-class="name-col" body-class="name-col">
@@ -147,7 +192,10 @@ onMounted(load)
     </Column>
     <Column header="Type">
       <template #body="{ node }">
-        <Tag :value="node.data.type_libelle" :severity="TYPE_SEVERITY[node.data.type as Unite['type']]" />
+        <Tag
+          :value="node.data.type_libelle"
+          :severity="TYPE_SEVERITY[node.data.type as Unite['type']]"
+        />
       </template>
     </Column>
     <Column header="Site">
@@ -163,10 +211,52 @@ onMounted(load)
         <span class="sy-num nowrap">{{ formatDate(node.data.date_fermeture) }}</span>
       </template>
     </Column>
+    <Column v-if="droits.modifier || droits.ajouter" class="actions-col">
+      <template #body="{ node }">
+        <span class="row-actions">
+          <Button
+            v-if="droits.ajouter && typeEnfant(node.data) && node.data.date_fermeture === null"
+            icon="pi pi-plus"
+            text
+            rounded
+            size="small"
+            severity="secondary"
+            :aria-label="`Ajouter une sous-unité à ${node.data.code}`"
+            data-test="ajouter-sous"
+            @click="ajouterSous(node.data)"
+          />
+          <ActionsLigne
+            :ferme="node.data.date_fermeture !== null"
+            :peut-modifier="droits.modifier"
+            :peut-remplacer="droits.remplacer"
+            :libelle="node.data.code"
+            @action="(m) => ouvrir(m, node.data)"
+          />
+        </span>
+      </template>
+    </Column>
   </TreeTable>
+
+  <EditionDialog
+    v-model:visible="dialogue"
+    :edition="edition"
+    :mode="mode"
+    :ligne="ligne"
+    :initial="initial"
+    @enregistre="enregistre"
+  />
 </template>
 
 <style scoped>
+.actions-col {
+  width: 6rem;
+}
+
+.row-actions {
+  display: inline-flex;
+  gap: var(--sy-space-1);
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;
