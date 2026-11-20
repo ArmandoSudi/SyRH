@@ -110,7 +110,7 @@ class FonctionSerializer(ModelRulesSerializerMixin, BaseModelSerializer):
         ]
 
 
-class TypeContratSerializer(BaseModelSerializer):
+class TypeContratSerializer(ModelRulesSerializerMixin, BaseModelSerializer):
     """A contract type with the two rules phase 2.3 reads (contract types D17)."""
 
     class Meta:
@@ -153,7 +153,7 @@ class PieceRequiseSerializer(BaseModelSerializer):
         ]
 
 
-class DocumentRowSerializer(BaseModelSerializer):
+class DocumentRowSerializer(ModelRulesSerializerMixin, BaseModelSerializer):
     """A row that rests on a document type, named so the screen needs no second list
     (exit reasons D19)."""
 
@@ -195,7 +195,7 @@ class TypeSuspensionSerializer(DocumentRowSerializer):
         ]
 
 
-class BanqueSerializer(BaseModelSerializer):
+class BanqueSerializer(ModelRulesSerializerMixin, BaseModelSerializer):
     """A bank (banks D17); swift is "" when unknown."""
 
     class Meta:
@@ -203,7 +203,7 @@ class BanqueSerializer(BaseModelSerializer):
         fields = ["id", "code", "nom", "swift", "date_ouverture", "date_fermeture", *BASE_FIELDS]
 
 
-class ParametreSerializer(BaseModelSerializer):
+class ParametreSerializer(ModelRulesSerializerMixin, BaseModelSerializer):
     """A dated value of a general parameter, with its label and unit (general parameters
     D17)."""
 

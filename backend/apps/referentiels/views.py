@@ -107,11 +107,10 @@ class FonctionViewSet(EditionMixin, PeriodeMixin, viewsets.ReadOnlyModelViewSet)
         return queryset.ouvertes(day)
 
 
-class TypeContratViewSet(PeriodeMixin, viewsets.ReadOnlyModelViewSet):
+class TypeContratViewSet(EditionMixin, PeriodeMixin, viewsets.ReadOnlyModelViewSet):
     """Contract types by name, with their rules (contract types D16 to D18).
-    Read-only: they are edited in Django admin until phase 1.9."""
+    Editors create, correct and replace them (reference data screens D3)."""
 
-    permission_classes = [HasModuleAccess("referentiels")]
     serializer_class = TypeContratSerializer
     queryset = TypeContrat.objects.all()
 
@@ -134,28 +133,28 @@ class PieceRequiseViewSet(ClassificationViewSet):
     queryset = PieceRequise.objects.all()
 
 
-class MotifSortieViewSet(ClassificationViewSet):
+class MotifSortieViewSet(EditionMixin, ClassificationViewSet):
     """Exit reasons by name, with their document and flags (exit reasons D18, D19)."""
 
     serializer_class = MotifSortieSerializer
     queryset = MotifSortie.objects.select_related("type_document")
 
 
-class TypeSuspensionViewSet(ClassificationViewSet):
+class TypeSuspensionViewSet(EditionMixin, ClassificationViewSet):
     """Suspension types by name, with their document and rules (exit reasons D18, D19)."""
 
     serializer_class = TypeSuspensionSerializer
     queryset = TypeSuspension.objects.select_related("type_document")
 
 
-class BanqueViewSet(ClassificationViewSet):
-    """Banks by name (banks D16, D17). Read-only: edited in Django admin by Rémunération."""
+class BanqueViewSet(EditionMixin, ClassificationViewSet):
+    """Banks by name (banks D16, D17), written by Rémunération and the administrator."""
 
     serializer_class = BanqueSerializer
     queryset = Banque.objects.all()
 
 
-class ParametreViewSet(ClassificationViewSet):
+class ParametreViewSet(EditionMixin, ClassificationViewSet):
     """General parameters in key order (general parameters D16, D17)."""
 
     serializer_class = ParametreSerializer

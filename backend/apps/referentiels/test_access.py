@@ -1287,13 +1287,14 @@ class TypeContratApiTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("date", response.json())
 
-    def test_writes_are_refused(self):
+    def test_readers_cannot_write_and_nobody_puts_or_deletes(self):
+        # Editors write since phase 1.9 (test_edition.py); readers do not.
         client = APIClient()
-        client.force_authenticate(self.users["Gestion de carrière"])
+        client.force_authenticate(self.users["Auditeur"])
         detail = f"{TYPES_CONTRAT}{self.cdi.pk}/"
-        self.assertEqual(client.post(TYPES_CONTRAT, {}).status_code, 405)
+        self.assertEqual(client.post(TYPES_CONTRAT, {}).status_code, 403)
         self.assertEqual(client.put(detail, {}).status_code, 405)
-        self.assertEqual(client.patch(detail, {}).status_code, 405)
+        self.assertEqual(client.patch(detail, {}).status_code, 403)
         self.assertEqual(client.delete(detail).status_code, 405)
 
 
@@ -1489,15 +1490,16 @@ class SortiesApiTests(TestCase):
                 self.assertEqual(response.status_code, 400)
                 self.assertIn("date", response.json())
 
-    def test_writes_are_refused(self):
+    def test_readers_cannot_write_and_nobody_puts_or_deletes(self):
+        # Editors write since phase 1.9 (test_edition.py); readers do not.
         client = APIClient()
-        client.force_authenticate(self.users["Gestion de carrière"])
+        client.force_authenticate(self.users["Auditeur"])
         for url, obj in ((MOTIFS, self.dem), (SUSPENSIONS, self.deta)):
             detail = f"{url}{obj.pk}/"
             with self.subTest(url):
-                self.assertEqual(client.post(url, {}).status_code, 405)
+                self.assertEqual(client.post(url, {}).status_code, 403)
                 self.assertEqual(client.put(detail, {}).status_code, 405)
-                self.assertEqual(client.patch(detail, {}).status_code, 405)
+                self.assertEqual(client.patch(detail, {}).status_code, 403)
                 self.assertEqual(client.delete(detail).status_code, 405)
 
     def test_query_count_does_not_grow_with_rows(self):
@@ -1577,13 +1579,14 @@ class BanquesApiTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("date", response.json())
 
-    def test_writes_are_refused(self):
+    def test_readers_cannot_write_and_nobody_puts_or_deletes(self):
+        # Editors write since phase 1.9 (test_edition.py); readers do not.
         client = APIClient()
-        client.force_authenticate(self.users["Rémunération"])
+        client.force_authenticate(self.users["Auditeur"])
         detail = f"{BANQUES}{self.bcf.pk}/"
-        self.assertEqual(client.post(BANQUES, {}).status_code, 405)
+        self.assertEqual(client.post(BANQUES, {}).status_code, 403)
         self.assertEqual(client.put(detail, {}).status_code, 405)
-        self.assertEqual(client.patch(detail, {}).status_code, 405)
+        self.assertEqual(client.patch(detail, {}).status_code, 403)
         self.assertEqual(client.delete(detail).status_code, 405)
 
 
@@ -1646,13 +1649,14 @@ class ParametresApiTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("date", response.json())
 
-    def test_writes_are_refused(self):
+    def test_readers_cannot_write_and_nobody_puts_or_deletes(self):
+        # Editors write since phase 1.9 (test_edition.py); readers do not.
         client = APIClient()
-        client.force_authenticate(self.users["Gestion de carrière"])
+        client.force_authenticate(self.users["Auditeur"])
         detail = f"{PARAMETRES}{self.retraite.pk}/"
-        self.assertEqual(client.post(PARAMETRES, {}).status_code, 405)
+        self.assertEqual(client.post(PARAMETRES, {}).status_code, 403)
         self.assertEqual(client.put(detail, {}).status_code, 405)
-        self.assertEqual(client.patch(detail, {}).status_code, 405)
+        self.assertEqual(client.patch(detail, {}).status_code, 403)
         self.assertEqual(client.delete(detail).status_code, 405)
 
 

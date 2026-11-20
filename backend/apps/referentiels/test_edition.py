@@ -9,7 +9,15 @@ from rest_framework.test import APIClient
 
 from apps.audit.models import EntreeAudit
 
-from .models import Fonction
+from .models import (
+    Banque,
+    Fonction,
+    MotifSortie,
+    Parametre,
+    TypeContrat,
+    TypeDocument,
+    TypeSuspension,
+)
 
 FONCTIONS = "/api/referentiels/fonctions/"
 D2015 = date(2015, 1, 1)
@@ -212,3 +220,119 @@ class FonctionEditionTests(EditionTestCase):
         response = client.post(FONCTIONS, {"code": "X"}, format="json")
         self.assertEqual(response.status_code, 403)
         self.assertIn("CSRF", response.json()["detail"])
+
+
+class OtherListsEditionTests(EditionTestCase):
+    """The same three writes on the five other flat lists, with one rule each coming
+    back on its field, and the editors of each (D3 to D8)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.ldm = TypeDocument.objects.create(code="LDM", nom="Lettre", date_ouverture=D2015)
+        cls.dec = TypeDocument.objects.create(code="DEC", nom="Décision", date_ouverture=D2015)
+        cls.cdi = TypeContrat.objects.create(code="CDI", nom="CDI", duree_determinee=False,
+                                             periode_essai=True, date_ouverture=D2015)  # fmt: skip
+        cls.bcf = Banque.objects.create(code="BCF", nom="Fleuve", swift="BCFLCDKI",
+                                        date_ouverture=D2015)  # fmt: skip
+        cls.dem = MotifSortie.objects.create(code="DEM", nom="Démission", type_document=cls.ldm,
+                                             date_ouverture=D2015)  # fmt: skip
+        cls.deta = TypeSuspension.objects.create(code="DETA", nom="Détachement",
+                                                 type_document=cls.dec, compte_anciennete=True,
+                                                 date_ouverture=D2015)  # fmt: skip
+        cls.retraite = Parametre.objects.create(cle="age_retraite", valeur=65,
+                                                date_ouverture=D2015)  # fmt: skip
+
+    def post(self, user, url, data):
+        return self.client_for(user).post(url, data, format="json")
+
+    def patch(self, user, url, data):
+        return self.client_for(user).patch(url, data, format="json")
+
+    def test_contract_types(self):
+        url = "/api/referentiels/types-contrat/"
+        created = self.post(self.carriere, url, {"code": "stg", "nom": "Stage",
+                            "duree_determinee": True, "periode_essai": False,
+                            "date_ouverture": "2015-01-01"})  # fmt: skip
+        self.assertEqual(created.status_code, 201)
+        self.assertEqual(created.json()["code"], "STG")
+        corrected = self.patch(self.carriere, f"{url}{self.cdi.pk}/", {"periode_essai": False})
+        self.assertFalse(corrected.json()["periode_essai"])
+        succ = self.post(self.carriere, f"{url}{self.cdi.pk}/successeur/",
+                         {"date_effet": "2020-01-01", "periode_essai": True})  # fmt: skip
+        self.assertEqual((succ.status_code, succ.json()["code"]), (201, "CDI"))
+
+    def test_banks_and_their_swift_rule(self):
+        url = "/api/referentiels/banques/"
+        refused = self.post(self.remuneration, url, {"code": "X", "nom": "X", "swift": "ABC",
+                                                     "date_ouverture": "2015-01-01"})  # fmt: skip
+        self.assertEqual(refused.status_code, 400)
+        self.assertIn("Code SWIFT/BIC invalide", refused.json()["swift"][0])
+        created = self.post(self.remuneration, url, {"code": "trc", "nom": "Trésor",
+                            "swift": "trcrcdki", "date_ouverture": "2015-01-01"})  # fmt: skip
+        self.assertEqual((created.status_code, created.json()["swift"]), (201, "TRCRCDKI"))
+        merged = self.post(self.remuneration, f"{url}{self.bcf.pk}/successeur/",
+                           {"date_effet": "2022-01-01", "nom": "Fleuve Union"})  # fmt: skip
+        self.assertEqual((merged.status_code, merged.json()["swift"]), (201, "BCFLCDKI"))
+        self.assertEqual(Banque.objects.get(pk=created.json()["id"]).cree_par, self.remuneration)
+
+    def test_exit_reasons_and_the_retirement_and_death_rule(self):
+        url = "/api/referentiels/motifs-sortie/"
+        refused = self.post(self.carriere, url, {"code": "X", "nom": "X",
+                            "type_document": self.ldm.pk, "retraite": True, "deces": True,
+                            "date_ouverture": "2015-01-01"})  # fmt: skip
+        self.assertEqual(refused.status_code, 400)
+        self.assertIn("à la fois une retraite et un décès", refused.json()["deces"][0])
+        moved = self.patch(self.carriere, f"{url}{self.dem.pk}/", {"type_document": self.dec.pk})
+        self.assertEqual(moved.json()["type_document_libelle"], "DEC — Décision")
+        succ = self.post(self.carriere, f"{url}{self.dem.pk}/successeur/",
+                         {"date_effet": "2020-01-01", "type_document": self.ldm.pk})  # fmt: skip
+        self.assertEqual((succ.status_code, succ.json()["type_document"]), (201, self.ldm.pk))
+
+    def test_suspension_types_and_the_zero_months_rule(self):
+        url = "/api/referentiels/types-suspension/"
+        refused = self.post(self.carriere, url, {"code": "X", "nom": "X",
+                            "type_document": self.dec.pk, "compte_anciennete": False,
+                            "duree_max_mois": 0, "date_ouverture": "2015-01-01"})  # fmt: skip
+        self.assertEqual(refused.status_code, 400)
+        self.assertIn("au moins un mois", refused.json()["duree_max_mois"][0])
+        created = self.post(self.carriere, url, {"code": "dispo", "nom": "Disponibilité",
+                            "type_document": self.dec.pk, "compte_anciennete": False,
+                            "duree_max_mois": 24, "renouvellements_max": 1,
+                            "date_ouverture": "2015-01-01"})  # fmt: skip
+        self.assertEqual(created.status_code, 201)
+        self.assertEqual(self.patch(self.carriere, f"{url}{self.deta.pk}/",
+                                    {"duree_max_mois": None}).status_code, 200)  # fmt: skip
+
+    def test_parameters_bounds_and_fixed_key(self):
+        url = "/api/referentiels/parametres/"
+        refused = self.patch(self.carriere, f"{url}{self.retraite.pk}/", {"valeur": 650})
+        self.assertEqual(refused.status_code, 400)
+        self.assertEqual(refused.json()["valeur"], ["Entre 55 et 75 ans."])
+        key = self.patch(self.carriere, f"{url}{self.retraite.pk}/", {"cle": "duree_carriere"})
+        self.assertEqual(key.status_code, 400)
+        self.assertIn("Ne peut pas être modifié", key.json()["cle"][0])
+        succ = self.post(self.carriere, f"{url}{self.retraite.pk}/successeur/",
+                         {"date_effet": "2025-01-01", "valeur": 63})  # fmt: skip
+        self.assertEqual(succ.status_code, 201)
+        self.assertEqual(Parametre.valeur_au("age_retraite", date(2024, 12, 31)), 65)
+        self.assertEqual(Parametre.valeur_au("age_retraite", date(2025, 1, 1)), 63)
+        self.assertEqual(succ.json()["cle_libelle"], "Âge de la retraite")
+
+    def test_each_table_is_written_by_its_own_editors(self):
+        tables = {
+            "/api/referentiels/types-contrat/": self.cdi,
+            "/api/referentiels/motifs-sortie/": self.dem,
+            "/api/referentiels/types-suspension/": self.deta,
+            "/api/referentiels/parametres/": self.retraite,
+            "/api/referentiels/banques/": self.bcf,
+        }
+        banks = "/api/referentiels/banques/"
+        for url, obj in tables.items():
+            detail = f"{url}{obj.pk}/"
+            allowed = {self.admin} | ({self.remuneration} if url == banks else {self.carriere})
+            for user in (self.carriere, self.remuneration, self.admin, self.auditeur):
+                with self.subTest(url=url, user=user.username):
+                    status = self.patch(user, detail, {}).status_code
+                    self.assertEqual(status, 200 if user in allowed else 403)
+                    self.assertEqual(self.client_for(user).delete(detail).status_code, 405)
