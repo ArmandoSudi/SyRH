@@ -23,7 +23,8 @@ Push the branch to GitHub, then on the server:
 
 The script resets `/srv/syrh` to `origin/<branch>`, installs the backend dependencies, migrates,
 collects the static files, builds the frontend, reinstalls the systemd unit and the nginx site,
-and restarts both. It stops at the first error. A branch other than `main` can be shown to the
+and restarts both. It stops at the first error. Django's `check --deploy` only prints a note:
+it reports the missing HTTPS and the console email backend, both expected on this server for now. A branch other than `main` can be shown to the
 stakeholders the same way.
 
 ## What was installed once
