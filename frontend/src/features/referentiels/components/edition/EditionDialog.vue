@@ -126,13 +126,21 @@ const optionsPieces = computed(() =>
   types.value.map((t) => ({ value: t.id, label: `${t.code} — ${t.nom}` })),
 )
 
-watch(visible, async (open) => {
-  if (!open) return
-  reset()
-  void loadTypes()
+watch(
+  visible,
+  (open) => {
+    if (!open) return
+    reset()
+    void loadTypes()
+  },
+  { immediate: true },
+)
+
+/** Once the dialog is shown (it focuses its close button itself), focus the first field. */
+async function focusFirstField() {
   await nextTick()
   form.value?.querySelector<HTMLElement>('input:not([disabled]), [tabindex="0"]')?.focus()
-})
+}
 
 function versServeur(champ: Champ): unknown {
   const value = valeurs[champ.nom]
@@ -206,6 +214,7 @@ function isDisabled(champ: Champ): boolean {
     :style="{ width: '32rem' }"
     :breakpoints="{ '640px': '94vw' }"
     data-test="edition-dialog"
+    @show="focusFirstField"
   >
     <form ref="form" class="form" novalidate @submit.prevent="save">
       <p v-if="sousTitre" class="sous-titre" data-test="edition-ligne">{{ sousTitre }}</p>
@@ -223,6 +232,7 @@ function isDisabled(champ: Champ): boolean {
           date-format="dd/mm/yy"
           show-icon
           icon-display="input"
+          :show-on-focus="false"
           :invalid="Boolean(errors.date_effet)"
           data-test="champ-date_effet"
         />
@@ -289,6 +299,7 @@ function isDisabled(champ: Champ): boolean {
           date-format="dd/mm/yy"
           show-icon
           icon-display="input"
+          :show-on-focus="false"
           :show-button-bar="!champ.requis"
           :invalid="Boolean(errors[champ.nom])"
           :data-test="`champ-${champ.nom}`"

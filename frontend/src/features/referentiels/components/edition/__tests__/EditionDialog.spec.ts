@@ -196,6 +196,9 @@ describe('EditionDialog', () => {
     // PrimeVue's Dialog closes on Escape (closeOnEscape, on by default); the walkthrough
     // checks it in a real browser.
     const wrapper = await open('fonctions', 'corriger', JUR)
+    // jsdom runs no transition: send the "shown" event the browser would.
+    wrapper.findComponent({ name: 'Dialog' }).vm.$emit('show')
+    await flushPromises()
     expect(document.activeElement?.id).toBe('champ-code')
     expect(wrapper.findComponent({ name: 'Dialog' }).props('closeOnEscape')).toBe(true)
   })
