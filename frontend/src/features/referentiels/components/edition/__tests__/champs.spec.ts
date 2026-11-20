@@ -15,12 +15,28 @@ describe('edit rights', () => {
     expect(peutAjouter(both, EDITIONS.fonctions)).toBe(false)
   })
 
-  it('describes the six tables, each with a code or a key', () => {
-    expect(Object.keys(EDITIONS)).toHaveLength(6)
+  it('describes the thirteen tables, each with what identifies a row', () => {
+    expect(Object.keys(EDITIONS)).toHaveLength(13)
     for (const edition of Object.values(EDITIONS)) {
       const names = edition.champs.map((c) => c.nom)
-      expect(names.includes('code') || names.includes('cle')).toBe(true)
+      expect(['code', 'cle', 'numero', 'evenement'].some((n) => names.includes(n))).toBe(true)
       expect(edition.confirmation).toMatch(/enregistrée?\.$/)
     }
+  })
+
+  it('offers no replacement on sites, which have no opening date', () => {
+    const all = () => true
+    expect(peutRemplacer(all, EDITIONS.sites)).toBe(false)
+    expect(peutRemplacer(all, EDITIONS.unites)).toBe(true)
+    expect(EDITIONS.sites.dates?.map((d) => d.nom)).toEqual(['date_fermeture'])
+  })
+
+  it('lets a unit pick only a parent of a higher level', () => {
+    const parent = EDITIONS.unites.champs.find((c) => c.nom === 'parent')!
+    const direction = { type: 'direction' }
+    const service = { type: 'service' }
+    expect(parent.filtre!(direction, { type: 'departement' })).toBe(true)
+    expect(parent.filtre!(service, { type: 'departement' })).toBe(false)
+    expect(parent.filtre!(direction, { type: 'direction' })).toBe(false)
   })
 })

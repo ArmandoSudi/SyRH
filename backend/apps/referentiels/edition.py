@@ -97,12 +97,12 @@ SUITES: dict[str, tuple[str, ...]] = {
     "typedocument": ("pieces_requises", "motifs_sortie", "types_suspension"),
 }
 
-# How a kind of row is counted in the preview; units by their type (D9).
-PLURIELS_UNITES = {
-    "direction": "directions",
-    "departement": "départements",
-    "service": "services",
-    "bureau": "bureaux",
+# How a kind of row is counted in the preview, singular and plural; units by their type (D9).
+GENRES_UNITES = {
+    "direction": ("direction", "directions"),
+    "departement": ("département", "départements"),
+    "service": ("service", "services"),
+    "bureau": ("bureau", "bureaux"),
 }
 
 
@@ -136,10 +136,10 @@ def a_plat(liste: list[Suivant]):
         yield from a_plat(suivant.suivants)
 
 
-def genre(row: Model) -> str:
+def genre(row: Model) -> tuple[str, str]:
     if isinstance(row, UniteOrganisationnelle):
-        return PLURIELS_UNITES[row.type]
-    return str(row._meta.verbose_name_plural)
+        return GENRES_UNITES[row.type]
+    return str(row._meta.verbose_name), str(row._meta.verbose_name_plural)
 
 
 def errors_on(row: Model, error: DjangoValidationError) -> serializers.ValidationError:
@@ -288,14 +288,17 @@ class EditionMixin(AuthorMixin, mixins.CreateModelMixin):
         effet.is_valid(raise_exception=True)
         bloquants: list[Model] = []
         followers = list(a_plat(suivants(current, effet.validated_data["date_effet"], bloquants)))
-        counts: dict[str, int] = {}
+        counts: dict[tuple[str, str], int] = {}
         for suivant in followers:
             kind = genre(suivant.row)
             counts[kind] = counts.get(kind, 0) + 1
         return Response(
             {
                 "total": len(followers),
-                "par_genre": [{"libelle": k, "nombre": n} for k, n in counts.items()],
+                "par_genre": [
+                    {"libelle": plural if n > 1 else singular, "nombre": n}
+                    for (singular, plural), n in counts.items()
+                ],
                 "bloquants": [str(row) for row in bloquants],
             }
         )

@@ -292,8 +292,8 @@ class CarryOverTests(TreeFixtures):
         self.assertEqual(preview.status_code, 200)
         self.assertEqual(preview.json(), {
             "total": 2,
-            "par_genre": [{"libelle": "départements", "nombre": 1},
-                          {"libelle": "services", "nombre": 1}],
+            "par_genre": [{"libelle": "département", "nombre": 1},
+                          {"libelle": "service", "nombre": 1}],
             "bloquants": [],
         })  # fmt: skip
         documents = (
@@ -303,7 +303,7 @@ class CarryOverTests(TreeFixtures):
         )
         self.assertEqual(
             {g["libelle"]: g["nombre"] for g in documents["par_genre"]},
-            {"pièces exigées": 1, "motifs de sortie": 1, "types de suspension": 1},
+            {"pièce exigée": 1, "motif de sortie": 1, "type de suspension": 1},
         )
         leaf = (
             self.client_for(self.carriere)
@@ -311,6 +311,18 @@ class CarryOverTests(TreeFixtures):
             .json()
         )
         self.assertEqual(leaf["total"], 0)
+
+    def test_the_preview_uses_the_plural_from_two_rows(self):
+        UniteOrganisationnelle.objects.create(
+            code="DRH-FOR", nom="Département Formation", type=T.DEPARTEMENT, parent=self.drh,
+            site=self.kin, date_ouverture=D2015,
+        )  # fmt: skip
+        preview = (
+            self.client_for(self.carriere)
+            .get(f"{API}unites/{self.drh.pk}/suite/", {"date_effet": "2020-01-01"})
+            .json()
+        )
+        self.assertIn({"libelle": "départements", "nombre": 2}, preview["par_genre"])
 
     def test_the_preview_needs_the_right_to_replace(self):
         url = f"{API}unites/{self.drh.pk}/suite/"

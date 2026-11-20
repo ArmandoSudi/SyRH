@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import Button from 'primevue/button'
+import Checkbox from 'primevue/checkbox'
 import DatePicker from 'primevue/datepicker'
 import Dialog from 'primevue/dialog'
 import InputNumber from 'primevue/inputnumber'
@@ -9,16 +10,35 @@ import Message from 'primevue/message'
 import Select from 'primevue/select'
 import ToggleSwitch from 'primevue/toggleswitch'
 
-import { corriger, creer, remplacer, type Valeurs } from '@/features/referentiels/api/edition'
-import { fetchTypesDocument, type TypeDocument } from '@/features/referentiels/api/referentiels'
-import { DATES, type Champ, type Edition } from '@/features/referentiels/components/edition/champs'
+import {
+  corriger,
+  creer,
+  remplacer,
+  suite,
+  type Suite,
+  type Valeurs,
+} from '@/features/referentiels/api/edition'
+import {
+  fetchCategories,
+  fetchGrades,
+  fetchSites,
+  fetchTypesDocument,
+  fetchUnites,
+} from '@/features/referentiels/api/referentiels'
+import {
+  DATES,
+  type Champ,
+  type Edition,
+  type Source,
+} from '@/features/referentiels/components/edition/champs'
 import { localDate, parseDate } from '@/shared/utils/dates'
 import { ApiError, type FieldErrors } from '@/shared/utils/http'
 
 export type Mode = 'ajouter' | 'corriger' | 'remplacer' | 'fermer'
 
 /**
- * One dialog for the six flat lists (reference data screens D11 to D14): add a row,
+ * One dialog for every reference table (reference data screens D11 to D14, tree reference
+ * screens D11 and D16): add a row,
  * correct it, replace it from a date (close and open a successor), or close it. The
  * fields come from the table's description; the rules and their messages from the
  * server, shown under each field.
@@ -40,8 +60,12 @@ const dateEffet = ref<Date | null>(null)
 const errors = ref<FieldErrors>({})
 const topError = ref<string | null>(null)
 const saving = ref(false)
-const types = ref<TypeDocument[]>([])
+const parents = reactive<Partial<Record<Source, Valeurs[]>>>({})
+const apercu = ref<Suite | null>(null)
+const confirme = ref(false)
 const form = ref<HTMLFormElement | null>(null)
+
+const dates = computed(() => props.edition.dates ?? DATES)
 
 /** The fields this mode shows, in order. */
 const champs = computed<Champ[]>(() => {
@@ -49,9 +73,10 @@ const champs = computed<Champ[]>(() => {
   switch (props.mode) {
     case 'ajouter':
     case 'corriger':
-      return [...own, ...DATES]
+      return [...own, ...dates.value]
     case 'remplacer':
-      return own.filter((c) => !c.fixe)
+      // A successor is a new row: it may change a fixed field (a unit moving), not a kept one.
+      return own.filter((c) => !c.garde)
     case 'fermer':
       return DATES.filter((c) => c.nom === 'date_fermeture')
   }
@@ -72,7 +97,7 @@ const sousTitre = computed(() => {
   const row = props.ligne
   if (!row) return ''
   if (row.code) return `${String(row.code)} — ${String(row.nom ?? '')}`
-  return String(row.cle_libelle ?? '')
+  return String(row.libelle ?? row.cle_libelle ?? row.evenement_libelle ?? '')
 })
 
 const explication = computed(
@@ -104,26 +129,67 @@ function reset() {
   for (const key of Object.keys(valeurs)) delete valeurs[key]
   for (const champ of [...props.edition.champs, ...DATES]) {
     const source = props.mode === 'ajouter' ? props.initial : props.ligne
-    valeurs[champ.nom] =
-      source && champ.nom in source ? depuis(champ, source[champ.nom]) : vide(champ)
+    if (source && champ.nom in source) valeurs[champ.nom] = depuis(champ, source[champ.nom])
+    else if (source && champ.lire && props.mode !== 'ajouter')
+      valeurs[champ.nom] = champ.lire(source)
+    else valeurs[champ.nom] = vide(champ)
   }
   if (props.mode === 'fermer') valeurs.date_fermeture = valeurs.date_fermeture ?? new Date()
   dateEffet.value = null
+  apercu.value = null
+  confirme.value = false
   errors.value = {}
   topError.value = null
 }
 
-async function loadTypes() {
-  if (!props.edition.champs.some((c) => c.genre === 'piece')) return
-  try {
-    types.value = await fetchTypesDocument({ date: localDate(new Date()) })
-  } catch {
-    types.value = []
-  }
+const FETCH: Record<Source, (date: string) => Promise<unknown[]>> = {
+  sites: () => fetchSites(),
+  unites: (date) => fetchUnites({ date }),
+  categories: (date) => fetchCategories({ date }),
+  grades: (date) => fetchGrades({ date }),
+  'types-document': (date) => fetchTypesDocument({ date }),
 }
 
-const optionsPieces = computed(() =>
-  types.value.map((t) => ({ value: t.id, label: `${t.code} — ${t.nom}` })),
+/** The rows the parent fields pick from: open today (tree reference screens D11). */
+async function loadParents() {
+  const today = localDate(new Date())
+  const sources = new Set(props.edition.champs.flatMap((c) => (c.source ? [c.source] : [])))
+  await Promise.all(
+    [...sources].map(async (source) => {
+      try {
+        parents[source] = (await FETCH[source](today)) as Valeurs[]
+      } catch {
+        parents[source] = []
+      }
+    }),
+  )
+}
+
+function optionsFor(champ: Champ) {
+  const rows = (champ.source && parents[champ.source]) || []
+  return rows
+    .filter((row) => !champ.filtre || champ.filtre(row, valeurs))
+    .map((row) => ({ value: row.id, label: `${String(row.code)} — ${String(row.nom)}` }))
+}
+
+/** What replacing on the chosen date would carry over (tree reference screens D9, D16). */
+watch(dateEffet, async (date) => {
+  apercu.value = null
+  confirme.value = false
+  if (props.mode !== 'remplacer' || !props.edition.suite || !date || !props.ligne) return
+  try {
+    apercu.value = await suite(props.edition.table, Number(props.ligne.id), localDate(date))
+  } catch {
+    apercu.value = null
+  }
+})
+
+const detailSuite = computed(() =>
+  (apercu.value?.par_genre ?? []).map((g) => `${g.nombre} ${g.libelle}`).join(', '),
+)
+const bloque = computed(
+  () =>
+    Boolean(apercu.value?.bloquants.length) || (Boolean(apercu.value?.total) && !confirme.value),
 )
 
 watch(
@@ -131,7 +197,7 @@ watch(
   (open) => {
     if (!open) return
     reset()
-    void loadTypes()
+    void loadParents()
   },
   { immediate: true },
 )
@@ -167,6 +233,7 @@ async function save() {
     errors.value = { date_effet: ['Indiquez la date à partir de laquelle la ligne change.'] }
     return
   }
+  if (bloque.value) return
   saving.value = true
   const { table } = props.edition
   const id = Number(props.ligne?.id)
@@ -239,6 +306,32 @@ function isDisabled(champ: Champ): boolean {
         <small v-for="m in errors.date_effet" :key="m" class="erreur" data-test="erreur-date_effet">
           {{ m }}
         </small>
+        <div v-if="apercu" class="apercu" data-test="edition-apercu">
+          <Message v-if="apercu.bloquants.length" severity="error" :closable="false">
+            Ces lignes rattachées ouvrent à cette date ou après et ne peuvent pas suivre :
+            {{ apercu.bloquants.join(', ') }}. Corrigez-les ou fermez-les d'abord.
+          </Message>
+          <template v-else-if="apercu.total">
+            <p class="suite">
+              {{
+                apercu.total === 1
+                  ? 'La ligne rattachée suivra'
+                  : `Les ${apercu.total} lignes rattachées suivront`
+              }}
+              : {{ detailSuite }}.
+            </p>
+            <label class="confirme" for="edition-confirme">
+              <Checkbox
+                v-model="confirme"
+                binary
+                input-id="edition-confirme"
+                data-test="edition-confirme"
+              />
+              Je confirme : elles seront fermées à cette date et recréées sous la nouvelle ligne.
+            </label>
+          </template>
+          <p v-else class="sy-muted suite">Aucune ligne rattachée ne suit.</p>
+        </div>
       </div>
 
       <div v-for="champ in champs" :key="champ.nom" class="champ" :class="champ.genre">
@@ -272,14 +365,16 @@ function isDisabled(champ: Champ): boolean {
           :data-test="`champ-${champ.nom}`"
         />
         <Select
-          v-else-if="champ.genre === 'piece'"
+          v-else-if="champ.genre === 'parent'"
           v-model="valeurs[champ.nom]"
           :input-id="`champ-${champ.nom}`"
-          :options="optionsPieces"
+          :options="optionsFor(champ)"
           option-label="label"
           option-value="value"
           filter
-          placeholder="Choisir un type de pièce"
+          :show-clear="!champ.requis"
+          :placeholder="champ.requis ? 'Choisir' : 'Aucune'"
+          :disabled="isDisabled(champ)"
           :invalid="Boolean(errors[champ.nom])"
           :data-test="`champ-${champ.nom}`"
         />
@@ -330,6 +425,7 @@ function isDisabled(champ: Champ): boolean {
           label="Enregistrer"
           icon="pi pi-check"
           :loading="saving"
+          :disabled="bloque"
           data-test="edition-enregistrer"
         />
       </div>
@@ -379,6 +475,25 @@ function isDisabled(champ: Champ): boolean {
 .erreur {
   color: var(--p-red-500, #d33);
   font-size: 0.8rem;
+}
+
+.apercu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sy-space-2);
+  margin-top: var(--sy-space-2);
+}
+
+.suite {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.confirme {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sy-space-2);
+  font-size: 0.85rem;
 }
 
 .actions {

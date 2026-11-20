@@ -1,8 +1,21 @@
 import { request } from '@/shared/utils/http'
 
-/** The six flat lists editable in SyRH (reference data screens D1). */
+/** The reference tables editable in SyRH: the six flat lists (reference data screens D1)
+ * and the seven tree tables (tree reference screens D1). */
 export type TableEditable =
-  'fonctions' | 'types-contrat' | 'banques' | 'motifs-sortie' | 'types-suspension' | 'parametres'
+  | 'fonctions'
+  | 'types-contrat'
+  | 'banques'
+  | 'motifs-sortie'
+  | 'types-suspension'
+  | 'parametres'
+  | 'sites'
+  | 'unites'
+  | 'categories'
+  | 'grades'
+  | 'echelons'
+  | 'types-document'
+  | 'pieces-requises'
 
 export type Valeurs = Record<string, unknown>
 
@@ -29,4 +42,16 @@ export function remplacer<T>(
     method: 'POST',
     body: { ...data, date_effet: dateEffet },
   })
+}
+
+/** What replacing a row on dateEffet would carry over, by kind, and what blocks it
+ * (tree reference screens D9). */
+export interface Suite {
+  total: number
+  par_genre: { libelle: string; nombre: number }[]
+  bloquants: string[]
+}
+
+export function suite(table: TableEditable, id: number, dateEffet: string): Promise<Suite> {
+  return request<Suite>(`${url(table)}${id}/suite/?date_effet=${dateEffet}`)
 }

@@ -209,4 +209,131 @@ describe('EditionDialog', () => {
     expect(wrapper.emitted('update:visible')).toEqual([[false]])
     expect(editionApi.corriger).not.toHaveBeenCalled()
   })
+
+  describe('tree tables', () => {
+    const UNITES = [
+      { id: 1, code: 'DRH', nom: 'Direction RH', type: 'direction', parent: null },
+      { id: 2, code: 'DRH-CAR', nom: 'Département Carrière', type: 'departement', parent: 1 },
+      { id: 3, code: 'DRH-CAR-PRO', nom: 'Service Promotions', type: 'service', parent: 2 },
+    ]
+    const SERVICE = {
+      ...UNITES[2],
+      site: { id: 5, code: 'KIN', nom: 'Siège' },
+      date_ouverture: '2015-01-01',
+      date_fermeture: null,
+    }
+
+    beforeEach(() => {
+      vi.mocked(api.fetchUnites).mockResolvedValue(UNITES as never)
+      vi.mocked(api.fetchSites).mockResolvedValue([
+        { id: 5, code: 'KIN', nom: 'Siège', ville: 'Kinshasa', siege: true, date_fermeture: null },
+      ])
+    })
+
+    async function options(wrapper: Awaited<ReturnType<typeof open>>, champ: string) {
+      await wrapper.get(`[data-test="champ-${champ}"]`).trigger('click')
+      await flushPromises()
+      return wrapper.findAll('.p-select-option').map((o) => o.text())
+    }
+
+    it('lists only parents of a higher level for a unit', async () => {
+      const wrapper = await open('unites', 'ajouter', null, { type: 'service', parent: 2 })
+      expect(await options(wrapper, 'parent')).toEqual([
+        'DRH — Direction RH',
+        'DRH-CAR — Département Carrière',
+      ])
+    })
+
+    it('reads the nested site, and keeps type, parent and site fixed when correcting', async () => {
+      vi.mocked(editionApi.corriger).mockResolvedValue({})
+      const wrapper = await open('unites', 'corriger', SERVICE)
+      for (const champ of ['type', 'parent', 'site_id']) {
+        expect(wrapper.get(`[data-test="champ-${champ}"]`).classes()).toContain('p-disabled')
+      }
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      const sent = vi.mocked(editionApi.corriger).mock.calls[0]![2]
+      expect(Object.keys(sent).sort()).toEqual(['code', 'date_fermeture', 'date_ouverture', 'nom'])
+    })
+
+    it('lets a replacement move the unit, sending its site as an id', async () => {
+      vi.mocked(editionApi.remplacer).mockResolvedValue({})
+      vi.mocked(editionApi.suite).mockResolvedValue({ total: 0, par_genre: [], bloquants: [] })
+      const wrapper = await open('unites', 'remplacer', SERVICE)
+      expect(wrapper.get('[data-test="champ-parent"]').classes()).not.toContain('p-disabled')
+      wrapper
+        .findComponent({ name: 'DatePicker' })
+        .vm.$emit('update:modelValue', new Date(2027, 0, 1))
+      await flushPromises()
+      expect(wrapper.get('[data-test="edition-apercu"]').text()).toContain('Aucune ligne')
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      expect(editionApi.remplacer).toHaveBeenCalledWith(
+        'unites',
+        3,
+        '2027-01-01',
+        expect.objectContaining({ parent: 2, site_id: 5, type: 'service' }),
+      )
+    })
+
+    it('shows what follows a replacement and asks to confirm', async () => {
+      vi.mocked(editionApi.remplacer).mockResolvedValue({})
+      vi.mocked(editionApi.suite).mockResolvedValue({
+        total: 4,
+        par_genre: [
+          { libelle: 'départements', nombre: 3 },
+          { libelle: 'service', nombre: 1 },
+        ],
+        bloquants: [],
+      })
+      const wrapper = await open('unites', 'remplacer', {
+        ...SERVICE,
+        ...UNITES[0],
+        type: 'direction',
+      })
+      wrapper
+        .findComponent({ name: 'DatePicker' })
+        .vm.$emit('update:modelValue', new Date(2027, 0, 1))
+      await flushPromises()
+
+      expect(editionApi.suite).toHaveBeenCalledWith('unites', 1, '2027-01-01')
+      expect(wrapper.get('[data-test="edition-apercu"]').text()).toContain(
+        'Les 4 lignes rattachées suivront : 3 départements, 1 service.',
+      )
+      const save = wrapper.get('[data-test="edition-enregistrer"]')
+      expect(save.attributes('disabled')).toBeDefined()
+      await wrapper.get('[data-test="edition-confirme"] input').setValue(true)
+      expect(save.attributes('disabled')).toBeUndefined()
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      expect(editionApi.remplacer).toHaveBeenCalled()
+    })
+
+    it('disables saving when rows block the replacement', async () => {
+      vi.mocked(editionApi.suite).mockResolvedValue({
+        total: 1,
+        par_genre: [{ libelle: 'département', nombre: 1 }],
+        bloquants: ['DRH-NEW — Nouveau département'],
+      })
+      const wrapper = await open('unites', 'remplacer', { ...SERVICE, ...UNITES[0] })
+      wrapper
+        .findComponent({ name: 'DatePicker' })
+        .vm.$emit('update:modelValue', new Date(2027, 0, 1))
+      await flushPromises()
+      expect(wrapper.get('[data-test="edition-apercu"]').text()).toContain('DRH-NEW')
+      expect(wrapper.get('[data-test="edition-enregistrer"]').attributes('disabled')).toBeDefined()
+    })
+
+    it('has no preview for a table whose rows carry nothing', async () => {
+      const row = { id: 9, grade: 1, numero: 2, libelle: 'A1 — Échelon 2',
+                    date_ouverture: '2015-01-01', date_fermeture: null } // prettier-ignore
+      const wrapper = await open('echelons', 'remplacer', row)
+      expect(wrapper.get('[data-test="edition-ligne"]').text()).toBe('A1 — Échelon 2')
+      wrapper
+        .findComponent({ name: 'DatePicker' })
+        .vm.$emit('update:modelValue', new Date(2027, 0, 1))
+      await flushPromises()
+      expect(editionApi.suite).not.toHaveBeenCalled()
+    })
+  })
 })
