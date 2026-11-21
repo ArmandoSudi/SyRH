@@ -1,8 +1,9 @@
+from django.db.models import Prefetch
 from rest_framework import viewsets
 
 from apps.accounts.permissions import HasModuleAccess
 
-from .models import Agent
+from .models import Agent, Contrat
 from .serializers import AgentDetailSerializer, AgentSerializer
 
 
@@ -11,7 +12,8 @@ class AgentViewSet(viewsets.ReadOnlyModelViewSet):
 
     Read-only in this phase: the creation form of 2.9 adds writes, the list
     screen of 2.8 adds search and pagination. The detail adds the contact
-    details (contact details D18).
+    details (contact details D18), the hiring date and the contracts (contract D19),
+    in two queries.
     """
 
     queryset = Agent.objects.all()
@@ -23,4 +25,9 @@ class AgentViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        return queryset.select_related("coordonnees") if self.action == "retrieve" else queryset
+        if self.action != "retrieve":
+            return queryset
+        contrats = Contrat.objects.select_related("type_contrat").order_by("date_debut")
+        return queryset.select_related("coordonnees").prefetch_related(
+            Prefetch("contrats", queryset=contrats)
+        )
