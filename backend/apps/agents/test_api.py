@@ -1,6 +1,8 @@
-"""GET /api/agents/ (agent identity D13, D18, D19; contact details D18; contract D19)."""
+"""GET /api/agents/ (agent identity D13, D18, D19; contact details D18; contract D19;
+position history D19, D20)."""
 
 from datetime import date
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -10,9 +12,17 @@ from django.test.utils import CaptureQueriesContext
 from rest_framework.test import APIClient
 
 from apps.accounts.roles import GROUPS
-from apps.referentiels.models import TypeContrat
+from apps.referentiels.models import (
+    Categorie,
+    Echelon,
+    Fonction,
+    Grade,
+    Site,
+    TypeContrat,
+    UniteOrganisationnelle,
+)
 
-from .models import Agent, Contrat, Coordonnees
+from .models import Affectation, Agent, Classement, Contrat, Coordonnees
 
 AGENTS = "/api/agents/"
 READERS = {name for name, (_, modules) in GROUPS.items() if "agents" in modules}
@@ -79,11 +89,15 @@ class AgentApiTests(TestCase):
                 "date_naissance": "1985-03-14",
                 "lieu_naissance": "Kinshasa",
                 "nationalite": "Congolaise",
+                "affectation_actuelle": None,
+                "classement_actuel": None,
                 "cree_par": None,
                 "modifie_par": None,
                 "coordonnees": None,
                 "date_engagement": None,
                 "contrats": [],
+                "affectations": [],
+                "classements": [],
             },
         )
         self.assertIn("date_creation", row)
@@ -157,8 +171,9 @@ class CoordonneesApiTests(TestCase):
             with CaptureQueriesContext(connection) as queries:
                 self.assertEqual(self.client.get(f"{AGENTS}{target.pk}/").status_code, 200)
             counts.append(len(queries))
-        # The agent with its contact details, then its contracts with their types.
-        self.assertEqual(counts, [2, 2])
+        # The agent with its contact details, then its contracts with their types,
+        # its assignments and its classifications.
+        self.assertEqual(counts, [4, 4])
 
     def test_contact_details_cannot_be_written(self):
         editor = APIClient()
@@ -239,7 +254,7 @@ class ContratApiTests(TestCase):
         for target in (self.agent, self.without):
             with self.subTest(target=target.matricule), CaptureQueriesContext(connection) as q:
                 self.client.get(f"{AGENTS}{target.pk}/")
-            self.assertEqual(len(q), 2)
+            self.assertEqual(len(q), 4)
 
     def test_contracts_cannot_be_written(self):
         editor = APIClient()
@@ -247,3 +262,192 @@ class ContratApiTests(TestCase):
         response = editor.patch(f"{AGENTS}{self.agent.pk}/", {"contrats": []}, format="json")
         self.assertEqual(response.status_code, 405)
         self.assertEqual(self.agent.contrats.count(), 3)
+
+
+def frozen_today(day):
+    """Freeze the view's today (position history D20)."""
+    return mock.patch("apps.agents.views.timezone.localdate", return_value=day)
+
+
+class PositionApiTests(TestCase):
+    """Assignments and classifications in the agent detail and the current ones in
+    the list (position history D19, D20)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        d2015 = date(2015, 1, 1)
+        site = Site.objects.create(code="KIN", nom="Kinshasa", ville="Kinshasa", siege=True)
+        cls.drh = UniteOrganisationnelle.objects.create(
+            code="DRH", nom="Direction des ressources humaines", type="direction", site=site,
+            date_ouverture=d2015,
+        )  # fmt: skip
+        dep = UniteOrganisationnelle.objects.create(
+            code="DGC", nom="Département carrière", type="departement", parent=cls.drh,
+            site=site, date_ouverture=d2015,
+        )  # fmt: skip
+        cls.scar = UniteOrganisationnelle.objects.create(
+            code="SCAR", nom="Service carrière", type="service", parent=dep, site=site,
+            date_ouverture=d2015,
+        )  # fmt: skip
+        cls.juriste = Fonction.objects.create(
+            code="JUR", nom="Juriste", nature="execution", date_ouverture=d2015
+        )
+        cls.chef = Fonction.objects.create(
+            code="CS", nom="Chef de service", nature="responsabilite", date_ouverture=d2015
+        )
+        cat = Categorie.objects.create(code="A", nom="Cadres", rang=3, date_ouverture=d2015)
+        cls.a2 = Grade.objects.create(
+            code="A2", nom="Attaché", categorie=cat, rang=2, date_ouverture=d2015
+        )
+        cls.a1 = Grade.objects.create(
+            code="A1", nom="Chef de bureau", categorie=cat, rang=3, date_ouverture=d2015
+        )
+        cls.a2e1 = Echelon.objects.create(grade=cls.a2, numero=1, date_ouverture=d2015)
+        cls.a1e1 = Echelon.objects.create(grade=cls.a1, numero=1, date_ouverture=d2015)
+        cdi = TypeContrat.objects.create(
+            code="CDI", nom="CDI", duree_determinee=False, periode_essai=True,
+            date_ouverture=d2015,
+        )  # fmt: skip
+        cls.agent = agent("A/1", "Ilunga")
+        Contrat.objects.create(agent=cls.agent, type_contrat=cdi, date_debut=date(2020, 3, 1))
+        # Entered out of order: the API sorts by effective date.
+        cls.chef_row = Affectation.objects.create(
+            agent=cls.agent, unite=cls.scar, fonction=cls.chef, date_effet=date(2023, 1, 1)
+        )
+        cls.first = Affectation.objects.create(
+            agent=cls.agent, unite=cls.drh, fonction=cls.juriste, date_effet=date(2020, 3, 1)
+        )
+        cls.debut = Classement.objects.create(
+            agent=cls.agent, echelon=cls.a2e1, date_effet=date(2020, 3, 1)
+        )
+        cls.promotion = Classement.objects.create(
+            agent=cls.agent, echelon=cls.a1e1, date_effet=date(2025, 1, 1)
+        )
+        cls.without = agent("B/2", "Kabeya")
+        cls.reader = member("formation", "Formation")
+
+    def setUp(self):
+        self.client = APIClient()
+        self.client.force_authenticate(self.reader)
+
+    def detail(self, target=None):
+        return self.client.get(f"{AGENTS}{(target or self.agent).pk}/").json()
+
+    def current(self, day, target=None):
+        with frozen_today(day):
+            rows = self.client.get(AGENTS).json()
+        return next(row for row in rows if row["id"] == (target or self.agent).pk)
+
+    def test_histories_in_date_order_with_every_field(self):
+        data = self.detail()
+        self.assertEqual(
+            [row["id"] for row in data["affectations"]], [self.first.pk, self.chef_row.pk]
+        )
+        self.assertEqual(
+            [row["id"] for row in data["classements"]], [self.debut.pk, self.promotion.pk]
+        )
+        strip = {"date_creation", "date_modification"}
+        self.assertEqual(
+            {k: v for k, v in data["affectations"][1].items() if k not in strip},
+            {
+                "id": self.chef_row.pk,
+                "unite": self.scar.pk,
+                "unite_code": "SCAR",
+                "unite_nom": "Service carrière",
+                "unite_type": "service",
+                "fonction": self.chef.pk,
+                "fonction_code": "CS",
+                "fonction_nom": "Chef de service",
+                "date_effet": "2023-01-01",
+                "cree_par": None,
+                "modifie_par": None,
+            },
+        )
+        self.assertEqual(
+            {k: v for k, v in data["classements"][0].items() if k not in strip},
+            {
+                "id": self.debut.pk,
+                "echelon": self.a2e1.pk,
+                "echelon_numero": 1,
+                "grade": self.a2.pk,
+                "grade_code": "A2",
+                "grade_nom": "Attaché",
+                "categorie_code": "A",
+                "date_effet": "2020-03-01",
+                "cree_par": None,
+                "modifie_par": None,
+            },
+        )
+
+    def test_agent_without_rows(self):
+        data = self.detail(self.without)
+        self.assertEqual((data["affectations"], data["classements"]), ([], []))
+
+    def test_list_shows_the_rows_in_force_today(self):
+        row = self.current(date(2024, 6, 1))
+        self.assertEqual(
+            row["affectation_actuelle"],
+            {
+                "id": self.chef_row.pk,
+                "unite": self.scar.pk,
+                "unite_code": "SCAR",
+                "unite_nom": "Service carrière",
+                "unite_type": "service",
+                "fonction": self.chef.pk,
+                "fonction_code": "CS",
+                "fonction_nom": "Chef de service",
+                "date_effet": "2023-01-01",
+            },
+        )
+        # The promotion of 01/01/2025 is not current yet.
+        self.assertEqual(row["classement_actuel"]["id"], self.debut.pk)
+        self.assertNotIn("cree_par", row["classement_actuel"])
+        self.assertNotIn("affectations", row)
+
+    def test_a_row_dated_today_is_current_a_future_one_is_not(self):
+        self.assertEqual(self.current(date(2025, 1, 1))["classement_actuel"]["id"],
+                         self.promotion.pk)  # fmt: skip
+        self.assertEqual(self.current(date(2024, 12, 31))["classement_actuel"]["id"],
+                         self.debut.pk)  # fmt: skip
+        before = self.current(date(2020, 2, 29))
+        self.assertEqual((before["affectation_actuelle"], before["classement_actuel"]),
+                         (None, None))  # fmt: skip
+
+    def test_agent_without_rows_has_null_current_rows(self):
+        row = self.current(date(2024, 6, 1), self.without)
+        self.assertEqual((row["affectation_actuelle"], row["classement_actuel"]), (None, None))
+
+    def test_detail_shows_the_current_rows_too(self):
+        with frozen_today(date(2024, 6, 1)):
+            data = self.detail()
+        self.assertEqual(data["affectation_actuelle"]["id"], self.chef_row.pk)
+        self.assertEqual(data["classement_actuel"]["id"], self.debut.pk)
+
+    def test_list_queries_do_not_grow_with_the_agents(self):
+        self.client.get(AGENTS)  # loads and caches the reader's permissions
+        with CaptureQueriesContext(connection) as few:
+            self.client.get(AGENTS)
+        cdi = TypeContrat.objects.get(code="CDI")
+        for n in range(8):
+            other = agent(f"C/{n}", f"Agent {n}")
+            Contrat.objects.create(agent=other, type_contrat=cdi, date_debut=date(2020, 3, 1))
+            Affectation.objects.create(
+                agent=other, unite=self.drh, fonction=self.juriste, date_effet=date(2020, 3, 1)
+            )
+            Classement.objects.create(agent=other, echelon=self.a2e1, date_effet=date(2020, 3, 1))
+        with CaptureQueriesContext(connection) as many:
+            rows = self.client.get(AGENTS).json()
+        self.assertEqual(len(rows), 10)
+        # The agents, then their assignments and their classifications.
+        self.assertEqual((len(few), len(many)), (3, 3))
+
+    def test_histories_cannot_be_written(self):
+        editor = APIClient()
+        editor.force_authenticate(member("carriere", "Gestion de carrière"))
+        response = editor.patch(
+            f"{AGENTS}{self.agent.pk}/",
+            {"affectations": [], "classements": []},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 405)
+        self.assertEqual((self.agent.affectations.count(), self.agent.classements.count()), (2, 2))
