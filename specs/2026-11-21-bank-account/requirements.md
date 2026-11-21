@@ -121,3 +121,4 @@ others follow from the cahier des charges, `missions.md`, `tech-stack.md` and ea
 
 | # | Decision | Reason |
 | --- | --- | --- |
+| D21 | The `numero` column holds 40 characters although 34 are allowed: the format rule (D7) alone reports a number that is too long, with one message, in the model and in PostgreSQL. A number held by another agent is reported on `numero` by the model, so `full_clean()` skips the exclusion constraint and shows one message. | A 34-character column added Django's own length message beside D7's, and refused a long raw insert before the check constraint. |
