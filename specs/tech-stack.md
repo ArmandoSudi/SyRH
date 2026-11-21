@@ -48,6 +48,8 @@ backend/            Django project
                     document types, exit reasons, suspension types, banks and general
                     parameters; every table is written through the API (edition.py), parents carrying
                     their children over when replaced at a date
+    agents/         the agent record: identity with a matricule unique and never reused
+                    (database triggers refuse changing it and deleting an agent); read-only API
 frontend/           Vue application, organised by feature (see "Frontend folder layout")
 docs/               stakeholder input (French)
 specs/              this constitution
@@ -58,7 +60,7 @@ specs/              this constitution
 - **Django + DRF.** Django gives us the ORM, migrations, admin, auth and permissions that an HR
   back office needs. DRF exposes the JSON API consumed by the Vue app.
 - **One app per domain**, under `backend/apps/`: `accounts`, `core`, `audit`, `referentiels`,
-  then `agents`, `carriere`, `personnel`, `paie`, `social`, `formation` as the roadmap reaches
+  `agents`, then `carriere`, `personnel`, `paie`, `social`, `formation` as the roadmap reaches
   them.
   An app owns its tables; other apps reference them by foreign key and never duplicate them.
 - **Custom user model** `accounts.User`, referenced through `settings.AUTH_USER_MODEL` or
@@ -103,7 +105,8 @@ features freely rather than writing for the lowest common denominator.
     called from both `clean()` (forms, admin) and `save()` (scripts), with French messages per
     field.
 - **Deletion**: business rows are never hard-deleted. Use `on_delete=PROTECT` by default and a
-  status or end date to retire a row.
+  status or end date to retire a row. Business models set
+  `default_permissions = NO_DELETE` (from `apps.core.models`), so no delete permission exists.
 - **History**: evolving facts are rows with `date_effet` (and an end date where relevant), not
   columns overwritten in place.
 - **Money**: `DecimalField`, never floats. All amounts are in USD.

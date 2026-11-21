@@ -94,8 +94,8 @@ Also check: French text with correct accents in the admin labels and messages; d
 - As `demo.carriere`, a `POST` to `/api/agents/` answers `405`.
 - An account in no group gets `403` on `/api/agents/`.
 - In `psql`:
-  - inserting a second agent with the same matricule in lower case fails on the unique
-    constraint;
+  - inserting a matricule in lower case fails on the check constraint `agent_matricule_valide`,
+    and a second agent with the same matricule fails on the unique constraint;
   - `UPDATE agents_agent SET matricule = 'X' WHERE id = …` fails with the trigger's message;
   - `DELETE FROM agents_agent WHERE id = …` fails with the trigger's message.
 - `SELECT codename FROM auth_permission WHERE codename = 'delete_agent'` returns nothing.
