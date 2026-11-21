@@ -4,6 +4,10 @@ from django.db import models, transaction
 # The four fields every business model inherits, in the order they are shown.
 BASE_FIELDS = ("date_creation", "date_modification", "cree_par", "modifie_par")
 
+# Default permissions of business tables: nothing is physically deleted
+# (missions.md, principle 8).
+NO_DELETE = ("view", "add", "change")
+
 UNAUDITED = (
     "QuerySet.{} would bypass the audit log on {}: use update_audited(auteur, ...) "
     "or save / delete each row."
