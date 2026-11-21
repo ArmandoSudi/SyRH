@@ -130,3 +130,7 @@ others follow from the cahier des charges, `missions.md`, `tech-stack.md` and ph
 
 | # | Decision | Reason |
 | --- | --- | --- |
+| D21 | A phone of 21 characters or more is refused by the column length (`varchar(20)`, a `DataError`) before the phone check runs; the tests accept either error. | Both are the database refusing; the column length is the earlier guard. |
+| D22 | Every POST of the agent admin page now carries the inline's management fields, so the 2.1 admin tests send an empty inline. | Django refuses a page whose inline management form is missing. |
+| D23 | The query-count test makes one request first, to load and cache the reader's permissions, then expects exactly one query per detail. | The first request also reads the user's groups; one query per detail proves the contact details join the agent's query. |
+| D24 | The phone pattern holds its length in a lookahead (`(?=.{8,20}$)`), read the same way by Python and PostgreSQL. | One pattern for the model message and the check constraint. |

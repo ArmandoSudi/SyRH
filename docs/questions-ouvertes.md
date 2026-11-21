@@ -138,6 +138,13 @@ En attendant, le MVP traite chaque point comme un **paramètre** ou applique l'h
   - Hypothèse en attendant : 25, 65 et 30 ans ; un nombre maximal fictif en démonstration ; la
     Gestion de carrière et l'administrateur saisissent les valeurs dans l'administration ; les
     délais d'alerte sont tranchés par la roadmap 4.2.
+- [ ] **Q35 — Coordonnées des agents.** L'Administration du personnel doit-elle aussi modifier
+  l'adresse, les téléphones, le courriel et la personne à contacter en cas d'urgence ? Tous les
+  services doivent-ils voir l'adresse et les téléphones d'un agent, ou seulement les services RH
+  qui en ont besoin ? Un agent peut-il avoir plusieurs personnes à contacter en cas d'urgence ?
+  - Concerne : section 4.2 (coordonnées), roadmap 2.2.
+  - Hypothèse en attendant : la Gestion de carrière et son chef de service les modifient ; tous
+    les profils qui ouvrent le module Agents les lisent ; une seule personne à contacter.
 
 ## 6. Circuits de validation
 
