@@ -49,7 +49,7 @@ Small tables first, each with model, constraints, admin, API and tests.
 
 The MVP goal: one reliable, historised agent record.
 
-- [ ] **2.1 Agent identity** — model with unique matricule, never reused (`SOC-01`, `Q5`).
+- [x] **2.1 Agent identity** — model with unique matricule, never reused (`SOC-01`, `Q5`).
 - [ ] **2.2 Contact details** — address, phone, email, emergency contact.
 - [ ] **2.3 Contract** — type, hiring date, probation, end date.
 - [ ] **2.4 Position history** — dated rows for service, function, grade, échelon, with no
