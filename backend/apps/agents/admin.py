@@ -3,7 +3,7 @@ from django.contrib import admin
 from apps.core.admin import BaseModelAdmin
 from apps.core.mixins import request_author
 
-from .models import Affectation, Agent, Classement, Contrat, Coordonnees
+from .models import Affectation, Agent, Classement, CompteBancaire, Contrat, Coordonnees
 
 
 class CoordonneesInline(admin.StackedInline):
@@ -119,3 +119,32 @@ class AgentAdmin(BaseModelAdmin, admin.ModelAdmin):
             row.modifie_par = author
             row.save()
         formset.save_m2m()
+
+
+@admin.register(CompteBancaire)
+class CompteBancaireAdmin(BaseModelAdmin, admin.ModelAdmin):
+    """Bank accounts on their own page, for Rémunération (bank account D17).
+
+    Rémunération cannot change agents, so the accounts are not an inline of the
+    agent page. The agent is picked by autocomplete and fixed once saved (D4);
+    an account is never deleted (D14).
+    """
+
+    list_display = ["matricule", "agent", "banque", "numero", "date_effet"]
+    list_filter = ["banque"]
+    list_select_related = ["agent", "banque"]
+    search_fields = ["agent__matricule", "agent__nom", "agent__postnom", "agent__prenom", "numero"]
+    autocomplete_fields = ["agent"]
+    fields = ["agent", "banque", "numero", "date_effet"]
+    ordering = ["agent__matricule", "date_effet"]
+
+    @admin.display(description="matricule", ordering="agent__matricule")
+    def matricule(self, obj):
+        return obj.agent.matricule
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = list(super().get_readonly_fields(request, obj))
+        return ["agent", *fields] if obj is not None else fields
+
+    def has_delete_permission(self, request, obj=None):
+        return False
