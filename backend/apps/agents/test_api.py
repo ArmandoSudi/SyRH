@@ -1,5 +1,5 @@
 """GET /api/agents/ (agent identity D13, D18, D19; contact details D18; contract D19;
-position history D19, D20)."""
+position history D19, D20; bank account D15, D18)."""
 
 from datetime import date
 from unittest import mock
@@ -13,6 +13,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.roles import GROUPS
 from apps.referentiels.models import (
+    Banque,
     Categorie,
     Echelon,
     Fonction,
@@ -22,7 +23,7 @@ from apps.referentiels.models import (
     UniteOrganisationnelle,
 )
 
-from .models import Affectation, Agent, Classement, Contrat, Coordonnees
+from .models import Affectation, Agent, Classement, CompteBancaire, Contrat, Coordonnees
 
 AGENTS = "/api/agents/"
 READERS = {name for name, (_, modules) in GROUPS.items() if "agents" in modules}
@@ -451,3 +452,110 @@ class PositionApiTests(TestCase):
         )
         self.assertEqual(response.status_code, 405)
         self.assertEqual((self.agent.affectations.count(), self.agent.classements.count()), (2, 2))
+
+
+PAIE_READERS = {name for name, (_, modules) in GROUPS.items() if {"agents", "paie"} <= set(modules)}
+
+
+class CompteBancaireApiTests(TestCase):
+    """GET /api/agents/<id>/comptes-bancaires/, for the pay profiles only (bank account
+    D15, D18)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        d2015 = date(2015, 1, 1)
+        cls.bcf = Banque.objects.create(code="BCF", nom="Banque du Fleuve", date_ouverture=d2015)
+        cls.bik = Banque.objects.create(code="BIK", nom="Banque de Kinshasa", date_ouverture=d2015)
+        cls.agent = agent("A/1", "Ilunga")
+        cls.without = agent("B/2", "Kabila")
+        # Entered out of order: the endpoint sorts by date.
+        cls.future = CompteBancaire.objects.create(
+            agent=cls.agent, banque=cls.bik, numero="BIK-777", date_effet=date(2025, 1, 1)
+        )
+        cls.first = CompteBancaire.objects.create(
+            agent=cls.agent, banque=cls.bcf, numero="05100 0001234", date_effet=date(2020, 3, 1)
+        )
+        cls.users = {name: member(slug, name) for name, (slug, _) in GROUPS.items()}
+        cls.nobody = member("personne")
+
+    def url(self, agent=None):
+        return f"{AGENTS}{(agent or self.agent).pk}/comptes-bancaires/"
+
+    def client_for(self, user="Rémunération"):
+        client = APIClient()
+        if user is not None:
+            client.force_authenticate(self.users.get(user, user))
+        return client
+
+    def get(self, day=date(2024, 6, 1), agent=None, user="Rémunération"):
+        with frozen_today(day):
+            response = self.client_for(user).get(self.url(agent))
+        self.assertEqual(response.status_code, 200)
+        return response.json()
+
+    def test_only_the_pay_profiles_read_accounts(self):
+        self.assertEqual(
+            PAIE_READERS, {"Rémunération", "Chef de service — Rémunération", "Direction RH"}
+        )
+        self.assertEqual(self.client_for(None).get(self.url()).status_code, 401)
+        self.assertEqual(self.client_for(self.nobody).get(self.url()).status_code, 403)
+        for name in GROUPS:
+            with self.subTest(name):
+                expected = 200 if name in PAIE_READERS else 403
+                self.assertEqual(self.client_for(name).get(self.url()).status_code, expected)
+
+    def test_accounts_in_date_order_with_every_field(self):
+        data = self.get()
+        self.assertEqual([row["id"] for row in data["comptes"]], [self.first.pk, self.future.pk])
+        row = data["comptes"][0]
+        self.assertEqual(
+            {k: v for k, v in row.items() if k not in ("date_creation", "date_modification")},
+            {
+                "id": self.first.pk, "banque": self.bcf.pk, "banque_code": "BCF",
+                "banque_nom": "Banque du Fleuve", "numero": "05100 0001234",
+                "date_effet": "2020-03-01", "cree_par": None, "modifie_par": None,
+            },
+        )  # fmt: skip
+        self.assertEqual(
+            data["compte_actuel"],
+            {
+                "id": self.first.pk, "banque": self.bcf.pk, "banque_code": "BCF",
+                "banque_nom": "Banque du Fleuve", "numero": "05100 0001234",
+                "date_effet": "2020-03-01",
+            },
+        )  # fmt: skip
+
+    def test_a_row_dated_today_is_current_a_future_one_is_not(self):
+        self.assertEqual(self.get(date(2025, 1, 1))["compte_actuel"]["id"], self.future.pk)
+        self.assertEqual(self.get(date(2024, 12, 31))["compte_actuel"]["id"], self.first.pk)
+        self.assertIsNone(self.get(date(2020, 2, 29))["compte_actuel"])
+
+    def test_agent_without_accounts(self):
+        self.assertEqual(self.get(agent=self.without), {"comptes": [], "compte_actuel": None})
+
+    def test_unknown_agent_is_not_found_for_a_pay_reader_only(self):
+        url = f"{AGENTS}999999/comptes-bancaires/"
+        self.assertEqual(self.client_for().get(url).status_code, 404)
+        self.assertEqual(self.client_for("Gestion de carrière").get(url).status_code, 403)
+
+    def test_nobody_writes(self):
+        for name in ("Rémunération", "Direction RH"):
+            with self.subTest(name):
+                client = self.client_for(name)
+                for method in (client.post, client.put, client.patch, client.delete):
+                    self.assertEqual(method(self.url(), {}, format="json").status_code, 405)
+        self.assertEqual(CompteBancaire.objects.count(), 2)
+
+    def test_fixed_number_of_queries(self):
+        client = self.client_for()
+        client.get(self.url())  # loads and caches the reader's permissions
+        with self.assertNumQueries(2):  # the agent, then their accounts with the banks
+            client.get(self.url())
+
+    def test_list_and_detail_carry_no_account(self):
+        client = self.client_for("Direction RH")
+        for url in (AGENTS, f"{AGENTS}{self.agent.pk}/"):
+            with self.subTest(url):
+                body = client.get(url).content.decode()
+                for leaked in ("05100 0001234", "BIK-777", "compte"):
+                    self.assertNotIn(leaked, body)
