@@ -50,7 +50,8 @@ backend/            Django project
                     their children over when replaced at a date
     agents/         the agent record: identity with a matricule unique and never reused
                     (database triggers refuse changing it and deleting an agent), contact
-                    details (one row per agent, corrected in place); read-only API
+                    details (one row per agent, corrected in place), successive contracts
+                    (never overlapping; they give the hiring date); read-only API
 frontend/           Vue application, organised by feature (see "Frontend folder layout")
 docs/               stakeholder input (French)
 specs/              this constitution
@@ -101,7 +102,9 @@ features freely rather than writing for the lowest common denominator.
   - **Exclusion constraints** (`django.contrib.postgres`) compare a key with `=` and a
     `daterange(debut, fin, '[)')` with `&&`; the `btree_gist` extension, installed by the first
     `referentiels` migration, lets the key share the GiST index. An end date is the first day
-    the row no longer applies, so a successor can start on that same day.
+    the row no longer applies, so a successor can start on that same day. **Exception:**
+    contracts (`agents.Contrat`) store the last day printed on the signed contract, compared
+    with `daterange(date_debut, date_fin, '[]')`, so a successor starts the next day.
   - **Rules that read other rows** (a parent's level, a parent's dates) live in one model method
     called from both `clean()` (forms, admin) and `save()` (scripts), with French messages per
     field.

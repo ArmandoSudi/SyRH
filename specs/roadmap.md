@@ -51,7 +51,7 @@ The MVP goal: one reliable, historised agent record.
 
 - [x] **2.1 Agent identity** — model with unique matricule, never reused (`SOC-01`, `Q5`).
 - [x] **2.2 Contact details** — address, phone, email, emergency contact.
-- [ ] **2.3 Contract** — type, hiring date, probation, end date.
+- [x] **2.3 Contract** — type, hiring date, probation, end date.
 - [ ] **2.4 Position history** — dated rows for service, function, grade, échelon, with no
   overlap (`SOC-02`, `SOC-03`).
 - [ ] **2.5 Bank account** — bank and account number per agent.

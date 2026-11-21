@@ -143,3 +143,7 @@ others follow from the cahier des charges, `missions.md`, `tech-stack.md` and ph
 
 | # | Decision | Reason |
 | --- | --- | --- |
+| D22 | Demo contracts start no earlier than 1 January 2015, when the demo contract types open; the five agents with matricules from 2008 to 2012 start a CDI that day, and `ARPTC/0006/2014` its first CDD, as if older contracts were never loaded. Their hiring date is 2015, not their matricule's year. | Opening the demo types earlier would add overlapping duplicates on databases that already have them (the command keys on code and opening date) and leave the user guide's screenshots out of date. |
+| D23 | `agents` reuses `DateRange` and `fr()` from `apps.referentiels.models`. | `agents` already depends on `referentiels` for the contract type; one implementation of the range function and of French dates. |
+| D24 | The agent-page tests send both inlines' management fields through one helper (`inline()` adds an empty contracts formset; `contrats()` builds rows). | Each new inline otherwise breaks every earlier POST of the agent page. |
+| D25 | The contract type select keeps Django's add, change and view links. | Gestion de carrière already edits the contract types (phase 1.4); removing them is a screen concern for 2.9. |
