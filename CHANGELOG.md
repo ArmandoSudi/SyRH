@@ -14,7 +14,7 @@ the work is merged.
   Agents reads them from the read-only `/api/agents/`. No screen yet (phases 2.8 to 2.10). Run
   `migrate`; `create_demo_agents` loads twelve fictional agents. The matricule format is still
   open question `Q5`.
-<!-- commits: ccffe18 c234b08 31b2cf6 b57fa90 cf18f24 4b84057 -->
+<!-- commits: ccffe18 c234b08 31b2cf6 b57fa90 cf18f24 4b84057 7a61c30 2d6dc5f 328b67e 387cebe 3ae19b1 c956db9 -->
 
 ## 2026-11-20
 
