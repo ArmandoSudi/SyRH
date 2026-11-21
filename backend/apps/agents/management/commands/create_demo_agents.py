@@ -1,10 +1,12 @@
 from datetime import date
 
 from django.conf import settings
+from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from apps.agents.models import Agent, Coordonnees
+from apps.agents.models import Agent, Contrat, Coordonnees
+from apps.referentiels.models import TypeContrat
 
 # matricule, nom, postnom, prénom, sexe, date and place of birth[, nationality].
 # Fictional agents, for development only: the real ones come with the data
@@ -93,6 +95,38 @@ COORDONNEES = {
     },
 }  # fmt: skip
 
+# Contracts by matricule (contract D20): type code, first day, last day, last day of
+# probation. The demo types open on 1 January 2015 (create_demo_types_contrat), so
+# agents hired earlier start there, as if their older contracts were never loaded.
+# ARPTC/0012/2024 has no contract yet.
+CONTRATS = {
+    "ARPTC/0001/2008": [("CDI", date(2015, 1, 1), None, None)],
+    "ARPTC/0002/2008": [("CDI", date(2015, 1, 1), None, None)],
+    "ARPTC/0003/2010": [("CDI", date(2015, 1, 1), None, None)],
+    "ARPTC/0004/2011": [("CDI", date(2015, 1, 1), None, None)],
+    "ARPTC/0005/2012": [("CDI", date(2015, 1, 1), None, None)],
+    # A CDD renewed once, then a CDI.
+    "ARPTC/0006/2014": [
+        ("CDD", date(2015, 1, 1), date(2015, 12, 31), None),
+        ("CDD", date(2016, 1, 1), date(2016, 12, 31), None),
+        ("CDI", date(2017, 1, 1), None, None),
+    ],
+    "ARPTC/0007/2015": [("CDI", date(2015, 3, 1), None, date(2015, 5, 31))],
+    # A CDD with probation, renewed once, then a CDI.
+    "ARPTC/0008/2016": [
+        ("CDD", date(2016, 2, 1), date(2017, 1, 31), date(2016, 4, 30)),
+        ("CDD", date(2017, 2, 1), date(2018, 1, 31), None),
+        ("CDI", date(2018, 2, 1), None, None),
+    ],
+    "ARPTC/0009/2018": [("CDI", date(2018, 4, 1), None, date(2018, 6, 30))],
+    "ARPTC/0010/2020": [("CDI", date(2020, 9, 1), None, date(2020, 11, 30))],
+    # Still on a CDD, renewed once, running until mid-2027.
+    "ARPTC/0011/2022": [
+        ("CDD", date(2022, 7, 1), date(2024, 6, 30), date(2022, 9, 30)),
+        ("CDD", date(2024, 7, 1), date(2027, 6, 30), None),
+    ],
+}  # fmt: skip
+
 
 class Command(BaseCommand):
     help = (
@@ -107,7 +141,10 @@ class Command(BaseCommand):
                 "Cette commande est réservée au développement."
             )
 
-        created = contacts = 0
+        # The contracts need the demo contract types; the command is idempotent.
+        call_command("create_demo_types_contrat", stdout=self.stdout)
+
+        created = contacts = contracts = 0
         with transaction.atomic():
             for matricule, nom, postnom, prenom, sexe, naissance, lieu, *nationalite in AGENTS:
                 agent, new = Agent.objects.get_or_create(
@@ -134,8 +171,23 @@ class Command(BaseCommand):
                         self.stdout.write(f"créé  {row}")
                     contacts += int(new)
 
+                for code, debut, fin, essai in CONTRATS.get(matricule, []):
+                    type_contrat = TypeContrat.objects.ouvertes(debut).get(code=code)
+                    row, new = Contrat.objects.get_or_create(
+                        agent=agent,
+                        date_debut=debut,
+                        defaults={
+                            "type_contrat": type_contrat,
+                            "date_fin": fin,
+                            "fin_periode_essai": essai,
+                        },
+                    )
+                    if new:
+                        self.stdout.write(f"créé  {row}")
+                    contracts += int(new)
+
         done = (
             f"Agents de démonstration prêts : {created} créés, "
-            f"{contacts} fiches de coordonnées créées."
+            f"{contacts} fiches de coordonnées créées, {contracts} contrats créés."
         )
         self.stdout.write(self.style.SUCCESS(done))
