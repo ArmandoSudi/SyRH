@@ -111,12 +111,12 @@ Also check: French text with correct accents in the admin labels, help texts and
 
 ## 5. Definition of done
 
-- [ ] Parts 1 to 4 pass.
-- [ ] Nothing listed as out of scope slipped in: no decision reference, no document, no interim,
+- [x] Parts 1 to 4 pass.
+- [x] Nothing listed as out of scope slipped in: no decision reference, no document, no interim,
       no exit, no alert, no salary, no search, no screen, no API write.
-- [ ] Any decision changed during implementation is recorded under "Found during
+- [x] Any decision changed during implementation is recorded under "Found during
       implementation" in `requirements.md`.
-- [ ] `tech-stack.md` names both histories and their start-only dating.
-- [ ] **2.4 Position history** is ticked in `roadmap.md`.
-- [ ] `/changelog` has been run on the branch.
-- [ ] The branch is one reviewable change, per the roadmap's working rules.
+- [x] `tech-stack.md` names both histories and their start-only dating.
+- [x] **2.4 Position history** is ticked in `roadmap.md`.
+- [x] `/changelog` has been run on the branch.
+- [x] The branch is one reviewable change, per the roadmap's working rules.
