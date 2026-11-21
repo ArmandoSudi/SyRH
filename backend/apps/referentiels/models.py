@@ -26,9 +26,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Case, F, Func, IntegerField, Q, Value, When
 
-from apps.core.models import BaseModel, BaseQuerySet
-
-NO_DELETE = ("view", "add", "change")  # nothing is deleted: rows are closed (D12)
+from apps.core.models import NO_DELETE, BaseModel, BaseQuerySet
 
 
 def fr(day: date) -> str:

@@ -133,3 +133,6 @@ others follow from the cahier des charges, `missions.md`, `tech-stack.md` and ph
 
 | # | Decision | Reason |
 | --- | --- | --- |
+| D22 | `NO_DELETE` moved from `apps.referentiels.models` to `apps.core.models`; `referentiels` imports it from there. | A second app needs it; `agents` should not import a constant from `referentiels`. |
+| D23 | Tests sit in the app as `test_*.py` files (`apps/agents/test_agent.py`), not in a `tests/` folder. | Same layout as `referentiels` and `core`. |
+| D24 | The triggers raise with SQLSTATE `integrity_constraint_violation`, so Django reports them as `IntegrityError`, like the constraints. | One exception type for every rule the database enforces. |
