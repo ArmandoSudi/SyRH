@@ -54,7 +54,7 @@ The MVP goal: one reliable, historised agent record.
 - [x] **2.3 Contract** — type, hiring date, probation, end date.
 - [x] **2.4 Position history** — dated rows for service, function, grade, échelon, with no
   overlap (`SOC-02`, `SOC-03`).
-- [ ] **2.5 Bank account** — bank and account number per agent.
+- [x] **2.5 Bank account** — bank and account number per agent.
 - [ ] **2.6 Document storage** — upload, store and serve scanned documents behind authentication
   (`TRA-03`).
 - [ ] **2.7 Documents on events** — attach a document to an event; block validation without it
