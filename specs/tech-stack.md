@@ -49,7 +49,8 @@ backend/            Django project
                     parameters; every table is written through the API (edition.py), parents carrying
                     their children over when replaced at a date
     agents/         the agent record: identity with a matricule unique and never reused
-                    (database triggers refuse changing it and deleting an agent); read-only API
+                    (database triggers refuse changing it and deleting an agent), contact
+                    details (one row per agent, corrected in place); read-only API
 frontend/           Vue application, organised by feature (see "Frontend folder layout")
 docs/               stakeholder input (French)
 specs/              this constitution

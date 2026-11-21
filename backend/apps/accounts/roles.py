@@ -142,15 +142,23 @@ BANQUE_EDIT_PERMISSIONS = tuple(
 # deleted: an agent's matricule is never reused (agent identity D14, D15).
 AGENT_EDIT_PERMISSIONS = tuple(f"agents.{action}_agent" for action in ("view", "add", "change"))
 
+# Editing the agents' contact details, inline on the agent page, never deleted
+# (contact details D15). Who else edits them is open question Q35.
+COORDONNEES_EDIT_PERMISSIONS = tuple(
+    f"agents.{action}_coordonnees" for action in ("view", "add", "change")
+)
+
 # Group name -> Django permissions beyond module access. These groups work in
 # Django admin, so their demo accounts get "Statut équipe".
 EXTRA_PERMISSIONS: dict[str, tuple[str, ...]] = {
     ADMIN_GROUP: (
         ACCOUNT_ADMIN_PERMISSIONS + REFERENTIELS_EDIT_PERMISSIONS + BANQUE_EDIT_PERMISSIONS
     ),
-    "Gestion de carrière": REFERENTIELS_EDIT_PERMISSIONS + AGENT_EDIT_PERMISSIONS,
+    "Gestion de carrière": (
+        REFERENTIELS_EDIT_PERMISSIONS + AGENT_EDIT_PERMISSIONS + COORDONNEES_EDIT_PERMISSIONS
+    ),
     "Chef de service — Gestion de carrière": (
-        REFERENTIELS_EDIT_PERMISSIONS + AGENT_EDIT_PERMISSIONS
+        REFERENTIELS_EDIT_PERMISSIONS + AGENT_EDIT_PERMISSIONS + COORDONNEES_EDIT_PERMISSIONS
     ),
     "Rémunération": BANQUE_EDIT_PERMISSIONS,
     "Chef de service — Rémunération": BANQUE_EDIT_PERMISSIONS,

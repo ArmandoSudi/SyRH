@@ -14,7 +14,13 @@ the work is merged.
   Agents reads them from the read-only `/api/agents/`. No screen yet (phases 2.8 to 2.10). Run
   `migrate`; `create_demo_agents` loads twelve fictional agents. The matricule format is still
   open question `Q5`.
-<!-- commits: ccffe18 c234b08 31b2cf6 b57fa90 cf18f24 4b84057 -->
+- Contact details (roadmap 2.2): each agent can have one contact record with address, commune,
+  town, phones, email and one emergency contact, corrected in place (the audit log keeps the old
+  values). The database checks the phone format and that the emergency name and phone go
+  together. Edited in a "Coordonnées" block on the agent's admin page by the same editors;
+  returned in `/api/agents/<id>/`, `null` when missing. Run `migrate`; `create_demo_agents` now
+  fills in contact details. Who else edits or reads them is open question `Q35`.
+<!-- commits: ccffe18 c234b08 31b2cf6 b57fa90 cf18f24 4b84057 7a61c30 2d6dc5f 328b67e 387cebe 3ae19b1 c956db9 381cf24 27a1d98 040c2b0 afba65b 548a102 1f87983 -->
 
 ## 2026-11-20
 
