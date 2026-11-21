@@ -27,7 +27,15 @@ the work is merged.
   a "Contrats" table on the agent's admin page; returned with the hiring date in
   `/api/agents/<id>/`. Run `migrate`; `create_demo_agents` now loads the demo contract types and
   sixteen contracts. Probation length and renewal limits wait for `Q30`.
-<!-- commits: ccffe18 c234b08 31b2cf6 b57fa90 cf18f24 4b84057 7a61c30 2d6dc5f 328b67e 387cebe 3ae19b1 c956db9 381cf24 27a1d98 040c2b0 afba65b 548a102 1f87983 2116a08 bedd292 abc10ae a5c9d81 6fac6fc fb84c37 -->
+- Position history (roadmap 2.4): each agent's dated assignments (organisation unit and
+  function) and classifications (échelon, its grade read through it), only the effective date
+  stored, so rows never overlap. One row per agent and date; the unit, function or échelon must
+  be open on that date and the date inside one of the agent's contracts. Never deleted.
+- Gestion de carrière and its chef edit both in two inlines on the agent's admin page (save a
+  contract before the rows that rest on it). `/api/agents/<id>/` returns both histories; the list
+  and detail return the assignment and classification in force today. Run `migrate`;
+  `create_demo_agents` now also loads the demo reference data and gives the agents careers.
+<!-- commits: ccffe18 c234b08 31b2cf6 b57fa90 cf18f24 4b84057 7a61c30 2d6dc5f 328b67e 387cebe 3ae19b1 c956db9 381cf24 27a1d98 040c2b0 afba65b 548a102 1f87983 2116a08 bedd292 abc10ae a5c9d81 6fac6fc fb84c37 ee28680 1382425 79a9603 343c10c c8eda85 d4c23f5 203d1b3 -->
 
 ## 2026-11-20
 
