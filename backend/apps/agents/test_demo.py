@@ -1,4 +1,5 @@
-"""create_demo_agents (agent identity D20, contact details D19, contract D20)."""
+"""create_demo_agents (agent identity D20, contact details D19, contract D20, position
+history D22)."""
 
 from datetime import date
 from io import StringIO
@@ -8,7 +9,7 @@ from django.test import TestCase, override_settings
 
 from apps.audit.models import EntreeAudit
 
-from .models import Agent, Contrat, Coordonnees
+from .models import Affectation, Agent, Classement, Contrat, Coordonnees
 
 
 class DemoAgentsTests(TestCase):
@@ -92,3 +93,66 @@ class DemoAgentsTests(TestCase):
         before = (Contrat.objects.count(), EntreeAudit.objects.count())
         self.assertIn("0 contrats créés", self.run_command())
         self.assertEqual((Contrat.objects.count(), EntreeAudit.objects.count()), before)
+
+    @override_settings(DEBUG=True)
+    def test_loads_the_reference_data_then_valid_positions_once(self):
+        out = self.run_command()
+        self.assertIn("15 affectations créées", out)
+        self.assertIn("17 classements créés", out)
+        for model in (Affectation, Classement):
+            for row in model.objects.all():
+                row.full_clean()  # references open and the date under contract
+
+        agents = Agent.objects.prefetch_related("contrats", "affectations", "classements")
+        for agent in agents:
+            with self.subTest(agent.matricule):
+                hired = agent.date_engagement
+                if hired is None:  # ARPTC/0012/2024: no contract, no position
+                    self.assertEqual(agent.matricule, "ARPTC/0012/2024")
+                    self.assertFalse(agent.affectations.all() or agent.classements.all())
+                    continue
+                self.assertEqual(agent.affectations.all()[0].date_effet, hired)
+                self.assertEqual(agent.classements.all()[0].date_effet, hired)
+
+        def history(matricule, related, label):
+            agent = Agent.objects.get(matricule=matricule)
+            return [label(row) for row in getattr(agent, related).order_by("date_effet")]
+
+        def where(row):
+            return (row.unite.code, row.unite.type, row.fonction.code)
+
+        def grade(row):
+            return (row.echelon.grade.code, row.echelon.numero)
+
+        # A transfer to another site with a function change.
+        self.assertEqual(
+            history("ARPTC/0005/2012", "affectations", where),
+            [("DT-TEL-FRQ", "service", "ING"), ("RP-NK-TEC", "service", "CS")],
+        )
+        # The same code, before and after the restructuring of 1 July 2025.
+        self.assertEqual(
+            history("ARPTC/0008/2016", "affectations", where),
+            [("DT-CTL", "service", "ING"), ("DT-CTL", "departement", "CDEP")],
+        )
+        # A promotion.
+        self.assertEqual(history("ARPTC/0004/2011", "classements", grade), [("AT1", 2), ("ATP", 1)])
+
+        # A future promotion is not current on the day this phase was written.
+        future = Agent.objects.get(matricule="ARPTC/0010/2020")
+        self.assertEqual(grade(future.classement_au(date(2026, 11, 21))), ("AT2", 1))
+        self.assertEqual(grade(future.classement_au(date(2027, 1, 1))), ("AT1", 1))
+
+        self.assertFalse(
+            EntreeAudit.objects.filter(table__model__in=["affectation", "classement"])
+            .exclude(auteur=None)
+            .exists()
+        )
+
+        before = (Affectation.objects.count(), Classement.objects.count(),
+                  EntreeAudit.objects.count())  # fmt: skip
+        out = self.run_command()
+        self.assertIn("0 affectations créées, 0 classements créés", out)
+        self.assertEqual(
+            (Affectation.objects.count(), Classement.objects.count(), EntreeAudit.objects.count()),
+            before,
+        )

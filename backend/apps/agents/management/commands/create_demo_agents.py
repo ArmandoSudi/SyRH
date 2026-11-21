@@ -5,8 +5,14 @@ from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from apps.agents.models import Agent, Contrat, Coordonnees
-from apps.referentiels.models import TypeContrat
+from apps.agents.models import Affectation, Agent, Classement, Contrat, Coordonnees
+from apps.referentiels.models import (
+    Echelon,
+    Fonction,
+    Grade,
+    TypeContrat,
+    UniteOrganisationnelle,
+)
 
 # matricule, nom, postnom, prénom, sexe, date and place of birth[, nationality].
 # Fictional agents, for development only: the real ones come with the data
@@ -127,6 +133,61 @@ CONTRATS = {
     ],
 }  # fmt: skip
 
+# Assignments by matricule (position history D22): effective date, unit code,
+# function code, looked up among the rows open on that date. Each agent with a
+# contract is placed on their hiring date; ARPTC/0012/2024 has none.
+AFFECTATIONS = {
+    "ARPTC/0001/2008": [(date(2015, 1, 1), "DRH", "DIR")],
+    "ARPTC/0002/2008": [(date(2015, 1, 1), "DRH-CAR", "CS")],
+    "ARPTC/0003/2010": [(date(2015, 1, 1), "DT", "DIR")],
+    # Moved to the treasury bureau as its head.
+    "ARPTC/0004/2011": [
+        (date(2015, 1, 1), "DAF-FIN-CPT", "CPT"),
+        (date(2021, 7, 1), "DAF-FIN-TRE", "CB"),
+    ],
+    # Transferred to Goma as head of service.
+    "ARPTC/0005/2012": [
+        (date(2015, 1, 1), "DT-TEL-FRQ", "ING"),
+        (date(2019, 1, 1), "RP-NK-TEC", "CS"),
+    ],
+    "ARPTC/0006/2014": [(date(2015, 1, 1), "DG-SEC", "SEC")],
+    "ARPTC/0007/2015": [(date(2015, 3, 1), "DRH-ADM", "ASS")],
+    # The Contrôle service becomes a department on 1 July 2025; she heads it.
+    "ARPTC/0008/2016": [
+        (date(2016, 2, 1), "DT-CTL", "ING"),
+        (date(2025, 7, 1), "DT-CTL", "CDEP"),
+    ],
+    "ARPTC/0009/2018": [(date(2018, 4, 1), "DAF-LOG", "CHF")],
+    # "Chargé d'études" renamed "Analyste régulation" on 1 January 2024.
+    "ARPTC/0010/2020": [
+        (date(2020, 9, 1), "DT-POS-REG", "CE"),
+        (date(2024, 1, 1), "DT-POS-REG", "CE"),
+    ],
+    "ARPTC/0011/2022": [(date(2022, 7, 1), "DRH-REM-PAI", "CPT")],
+}
+
+# Classifications by matricule (position history D22): effective date, grade code,
+# échelon number, looked up among the rows open on that date.
+CLASSEMENTS = {
+    "ARPTC/0001/2008": [(date(2015, 1, 1), "DIR", 3)],
+    "ARPTC/0002/2008": [(date(2015, 1, 1), "CDP", 2)],
+    "ARPTC/0003/2010": [(date(2015, 1, 1), "DIR", 2)],
+    "ARPTC/0004/2011": [(date(2015, 1, 1), "AT1", 2), (date(2021, 7, 1), "ATP", 1)],
+    "ARPTC/0005/2012": [(date(2015, 1, 1), "AT1", 3), (date(2019, 1, 1), "ATP", 2)],
+    "ARPTC/0006/2014": [(date(2015, 1, 1), "AGM", 1), (date(2020, 1, 1), "AMP", 1)],
+    "ARPTC/0007/2015": [(date(2015, 3, 1), "AEP", 2)],
+    # Moved to the 2025 grid of AT2, then promoted with her new post.
+    "ARPTC/0008/2016": [
+        (date(2016, 2, 1), "AT2", 1),
+        (date(2025, 1, 1), "AT2", 2),
+        (date(2025, 7, 1), "CDP", 1),
+    ],
+    "ARPTC/0009/2018": [(date(2018, 4, 1), "AGE", 3)],
+    # A promotion already decided, effective in 2027: not current yet.
+    "ARPTC/0010/2020": [(date(2020, 9, 1), "AT2", 1), (date(2027, 1, 1), "AT1", 1)],
+    "ARPTC/0011/2022": [(date(2022, 7, 1), "AGM", 2)],
+}
+
 
 class Command(BaseCommand):
     help = (
@@ -141,10 +202,17 @@ class Command(BaseCommand):
                 "Cette commande est réservée au développement."
             )
 
-        # The contracts need the demo contract types; the command is idempotent.
-        call_command("create_demo_types_contrat", stdout=self.stdout)
+        # Contracts, assignments and classifications need the demo reference
+        # data; these commands are idempotent.
+        for command in (
+            "create_demo_types_contrat",
+            "create_demo_organisation",
+            "create_demo_fonctions",
+            "create_demo_classification",
+        ):
+            call_command(command, stdout=self.stdout)
 
-        created = contacts = contracts = 0
+        created = contacts = contracts = assignments = classifications = 0
         with transaction.atomic():
             for matricule, nom, postnom, prenom, sexe, naissance, lieu, *nationalite in AGENTS:
                 agent, new = Agent.objects.get_or_create(
@@ -186,8 +254,33 @@ class Command(BaseCommand):
                         self.stdout.write(f"créé  {row}")
                     contracts += int(new)
 
+                for jour, unite, fonction in AFFECTATIONS.get(matricule, []):
+                    row, new = Affectation.objects.get_or_create(
+                        agent=agent,
+                        date_effet=jour,
+                        defaults={
+                            "unite": UniteOrganisationnelle.objects.ouvertes(jour).get(code=unite),
+                            "fonction": Fonction.objects.ouvertes(jour).get(code=fonction),
+                        },
+                    )
+                    if new:
+                        self.stdout.write(f"créé  {row}")
+                    assignments += int(new)
+
+                for jour, grade, numero in CLASSEMENTS.get(matricule, []):
+                    echelon = Echelon.objects.ouvertes(jour).get(
+                        grade__code=grade, grade__in=Grade.objects.ouvertes(jour), numero=numero
+                    )
+                    row, new = Classement.objects.get_or_create(
+                        agent=agent, date_effet=jour, defaults={"echelon": echelon}
+                    )
+                    if new:
+                        self.stdout.write(f"créé  {row}")
+                    classifications += int(new)
+
         done = (
             f"Agents de démonstration prêts : {created} créés, "
-            f"{contacts} fiches de coordonnées créées, {contracts} contrats créés."
+            f"{contacts} fiches de coordonnées créées, {contracts} contrats créés, "
+            f"{assignments} affectations créées, {classifications} classements créés."
         )
         self.stdout.write(self.style.SUCCESS(done))

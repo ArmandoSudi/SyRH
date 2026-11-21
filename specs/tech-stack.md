@@ -51,7 +51,9 @@ backend/            Django project
     agents/         the agent record: identity with a matricule unique and never reused
                     (database triggers refuse changing it and deleting an agent), contact
                     details (one row per agent, corrected in place), successive contracts
-                    (never overlapping; they give the hiring date); read-only API
+                    (never overlapping; they give the hiring date), assignments (unit and
+                    function) and classifications (échelon), dated by their start only;
+                    read-only API
 frontend/           Vue application, organised by feature (see "Frontend folder layout")
 docs/               stakeholder input (French)
 specs/              this constitution
@@ -105,6 +107,9 @@ features freely rather than writing for the lowest common denominator.
     the row no longer applies, so a successor can start on that same day. **Exception:**
     contracts (`agents.Contrat`) store the last day printed on the signed contract, compared
     with `daterange(date_debut, date_fin, '[]')`, so a successor starts the next day.
+  - **Start-only histories**: where each new row replaces the previous one (assignments
+    and classifications in `agents`), only `date_effet` is stored, unique per agent; a row
+    applies until the agent's next row. No end date, so no gap and no overlap by construction.
   - **Rules that read other rows** (a parent's level, a parent's dates) live in one model method
     called from both `clean()` (forms, admin) and `save()` (scripts), with French messages per
     field.

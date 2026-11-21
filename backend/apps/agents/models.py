@@ -3,6 +3,7 @@
 Agent identity: specs/2026-11-21-agent-identity.
 Contact details: specs/2026-11-21-contact-details.
 Contracts: specs/2026-11-21-contract.
+Assignments and classifications: specs/2026-11-21-position-history.
 
 Rules that only read the row itself are database constraints; rules that read
 other rows or today's date live in check_rules(), called by clean() and save().
@@ -93,16 +94,16 @@ class Agent(BaseModel):
         noms = " ".join(part for part in (self.nom, self.postnom, self.prenom) if part)
         return f"{self.matricule} — {noms}"
 
-    def _contrats(self):
-        """The contracts prefetched with the agent, or None when not prefetched."""
-        return getattr(self, "_prefetched_objects_cache", {}).get("contrats")
+    def _prefetched(self, name: str):
+        """The rows of a relation prefetched with the agent, or None when not prefetched."""
+        return getattr(self, "_prefetched_objects_cache", {}).get(name)
 
     @property
     def date_engagement(self) -> date | None:
         """The start of the agent's first contract, never stored (contract D10)."""
         if self.pk is None:
             return None
-        prefetched = self._contrats()
+        prefetched = self._prefetched("contrats")
         if prefetched is not None:
             return min((c.date_debut for c in prefetched), default=None)
         return self.contrats.aggregate(debut=Min("date_debut"))["debut"]
@@ -111,7 +112,7 @@ class Agent(BaseModel):
         """The contract in force on a day, or None (contract D11)."""
         if self.pk is None:
             return None
-        prefetched = self._contrats()
+        prefetched = self._prefetched("contrats")
         if prefetched is not None:
             return next((c for c in prefetched if c.en_vigueur(jour)), None)
         return (
@@ -119,6 +120,25 @@ class Agent(BaseModel):
             .filter(Q(date_fin__isnull=True) | Q(date_fin__gte=jour))
             .first()
         )
+
+    def _au(self, name: str, jour: date):
+        """The row of a start-dated history in force on a day: the latest one
+        dated on or before it (position history D2, D12)."""
+        if self.pk is None:
+            return None
+        prefetched = self._prefetched(name)
+        if prefetched is not None:
+            dated = [row for row in prefetched if row.date_effet <= jour]
+            return max(dated, key=lambda row: row.date_effet, default=None)
+        return getattr(self, name).filter(date_effet__lte=jour).order_by("-date_effet").first()
+
+    def affectation_au(self, jour: date) -> "Affectation | None":
+        """The assignment in force on a day, or None (position history D12)."""
+        return self._au("affectations", jour)
+
+    def classement_au(self, jour: date) -> "Classement | None":
+        """The classification in force on a day, or None (position history D12)."""
+        return self._au("classements", jour)
 
     def normalise(self) -> None:
         if self.matricule:
@@ -296,10 +316,20 @@ CONTRAT_AGENT_FIXED = "Un contrat ne peut pas passer à un autre agent."
 CONTRAT_NEVER_DELETED = "Un contrat n'est jamais supprimé : corrigez-le."
 
 
-def type_ferme(type_contrat, jour: date) -> bool:
-    return type_contrat.date_ouverture > jour or (
-        type_contrat.date_fermeture is not None and type_contrat.date_fermeture <= jour
+def ferme_le(reference, jour: date) -> bool:
+    """Whether a dated reference row is closed on a day: open from date_ouverture
+    included to date_fermeture excluded."""
+    return reference.date_ouverture > jour or (
+        reference.date_fermeture is not None and reference.date_fermeture <= jour
     )
+
+
+def agent_change(row) -> bool:
+    """Whether a saved row is being moved to another agent."""
+    if row.pk is None:
+        return False
+    old = type(row)._base_manager.filter(pk=row.pk).values_list("agent_id", flat=True).first()
+    return old is not None and old != row.agent_id
 
 
 class Contrat(BaseModel):
@@ -395,7 +425,7 @@ class Contrat(BaseModel):
 
         if self.type_contrat_id:
             type_contrat = self.type_contrat
-            if debut and type_ferme(type_contrat, debut):
+            if debut and ferme_le(type_contrat, debut):
                 errors["type_contrat"] = [
                     f"Le type « {type_contrat.code} » n'est pas ouvert le {fr(debut)}."
                 ]
@@ -406,15 +436,8 @@ class Contrat(BaseModel):
             if essai and not type_contrat.periode_essai:
                 errors.setdefault("fin_periode_essai", []).append(ESSAI_INTERDIT)
 
-        if self.pk is not None:
-            old = (
-                type(self)
-                ._base_manager.filter(pk=self.pk)
-                .values_list("agent_id", flat=True)
-                .first()
-            )
-            if old is not None and old != self.agent_id:
-                errors["agent"] = [CONTRAT_AGENT_FIXED]
+        if agent_change(self):
+            errors["agent"] = [CONTRAT_AGENT_FIXED]
         if errors:
             raise ValidationError(errors)
 
@@ -428,3 +451,186 @@ class Contrat(BaseModel):
 
     def delete(self, *args, **kwargs):
         raise PermissionError(CONTRAT_NEVER_DELETED)
+
+
+HORS_CONTRAT = "L'agent n'est sous aucun contrat à cette date."
+AFFECTATION_DATE_PRISE = "Cet agent a déjà une affectation à cette date."
+AFFECTATION_AGENT_FIXED = "Une affectation ne peut pas passer à un autre agent."
+AFFECTATION_NEVER_DELETED = "Une affectation n'est jamais supprimée : corrigez-la."
+UNITE_FERMEE = "L'unité « {ref} » n'est pas ouverte le {jour}."
+FONCTION_FERMEE = "La fonction « {ref} » n'est pas ouverte le {jour}."
+
+
+def check_under_contract(row, errors: dict[str, list[str]]) -> None:
+    """date_effet must fall inside one of the agent's contracts (position history D10).
+
+    An agent not saved yet (the admin's add page) has no contract, so the row is
+    refused on its field rather than failing on save.
+    """
+    agent = getattr(row, "agent", None)
+    if agent is not None and row.date_effet and agent.contrat_au(row.date_effet) is None:
+        errors.setdefault("date_effet", []).append(HORS_CONTRAT)
+
+
+def check_open(row, field: str, closed: str, label, errors: dict[str, list[str]]) -> None:
+    """The reference in `field` must be open on date_effet (position history D9).
+    `closed` is the message, with {ref} and {jour}; `label` names the reference."""
+    if getattr(row, f"{field}_id") and row.date_effet:
+        reference = getattr(row, field)
+        if ferme_le(reference, row.date_effet):
+            errors.setdefault(field, []).append(
+                closed.format(ref=label(reference), jour=fr(row.date_effet))
+            )
+
+
+class Affectation(BaseModel):
+    """Where an agent works and in which function, from a date (position history
+    D1 to D3, D5, D6).
+
+    Only the effective date is stored: a row applies until the agent's next row
+    (D2). The entry date is date_creation (D8).
+    """
+
+    module = "agents"
+
+    agent = models.ForeignKey(
+        Agent, verbose_name="agent", on_delete=models.PROTECT, related_name="affectations"
+    )
+    unite = models.ForeignKey(
+        "referentiels.UniteOrganisationnelle",
+        verbose_name="unité",
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    fonction = models.ForeignKey(
+        "referentiels.Fonction",
+        verbose_name="fonction",
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    date_effet = models.DateField(
+        "date d'effet",
+        help_text="Premier jour où l'affectation s'applique ; elle court jusqu'à la suivante.",
+    )
+
+    class Meta:
+        verbose_name = "affectation"
+        verbose_name_plural = "affectations"
+        ordering = ["agent", "date_effet"]  # D7
+        default_permissions = NO_DELETE
+        constraints = [
+            models.UniqueConstraint(
+                fields=["agent", "date_effet"],
+                name="affectation_une_par_date",
+                violation_error_message=AFFECTATION_DATE_PRISE,
+            ),
+        ]
+
+    def __str__(self):
+        unite = self.unite.code if self.unite_id else "?"
+        fonction = self.fonction.nom if self.fonction_id else "?"
+        matricule = self.agent.matricule if self.agent_id else "?"
+        debut = fr(self.date_effet) if self.date_effet else "?"
+        return f"{unite} · {fonction} depuis le {debut} — {matricule}"
+
+    def check_rules(self) -> None:
+        """References open on the date, date under contract, agent fixed (D9, D10, D14)."""
+        errors: dict[str, list[str]] = {}
+        check_open(self, "unite", UNITE_FERMEE, lambda unite: unite.code, errors)
+        check_open(self, "fonction", FONCTION_FERMEE, lambda fonction: fonction.code, errors)
+        check_under_contract(self, errors)
+        if agent_change(self):
+            errors["agent"] = [AFFECTATION_AGENT_FIXED]
+        if errors:
+            raise ValidationError(errors)
+
+    def clean(self):
+        super().clean()
+        self.check_rules()
+
+    def save(self, **kwargs):
+        self.check_rules()
+        super().save(**kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise PermissionError(AFFECTATION_NEVER_DELETED)
+
+
+CLASSEMENT_DATE_PRISE = "Cet agent a déjà un classement à cette date."
+CLASSEMENT_AGENT_FIXED = "Un classement ne peut pas passer à un autre agent."
+CLASSEMENT_NEVER_DELETED = "Un classement n'est jamais supprimé : corrigez-le."
+ECHELON_FERME = "L'échelon « {ref} » n'est pas ouvert le {jour}."
+
+
+class Classement(BaseModel):
+    """An agent's grade and échelon, from a date (position history D1, D2, D4, D6).
+
+    Only the échelon is stored; its grade and catégorie are read through it, so
+    an échelon of another grade cannot be recorded (D4). A row applies until the
+    agent's next row (D2).
+    """
+
+    module = "agents"
+
+    agent = models.ForeignKey(
+        Agent, verbose_name="agent", on_delete=models.PROTECT, related_name="classements"
+    )
+    echelon = models.ForeignKey(
+        "referentiels.Echelon",
+        verbose_name="échelon",
+        on_delete=models.PROTECT,
+        related_name="+",
+        help_text="Le grade est celui de l'échelon.",
+    )
+    date_effet = models.DateField(
+        "date d'effet",
+        help_text="Premier jour où le classement s'applique ; il court jusqu'au suivant.",
+    )
+
+    class Meta:
+        verbose_name = "classement"
+        verbose_name_plural = "classements"
+        ordering = ["agent", "date_effet"]  # D7
+        default_permissions = NO_DELETE
+        constraints = [
+            models.UniqueConstraint(
+                fields=["agent", "date_effet"],
+                name="classement_un_par_date",
+                violation_error_message=CLASSEMENT_DATE_PRISE,
+            ),
+        ]
+
+    def __str__(self):
+        echelon = str(self.echelon) if self.echelon_id else "?"
+        matricule = self.agent.matricule if self.agent_id else "?"
+        debut = fr(self.date_effet) if self.date_effet else "?"
+        return f"{echelon} depuis le {debut} — {matricule}"
+
+    @property
+    def grade(self):
+        return self.echelon.grade
+
+    def check_rules(self) -> None:
+        """Échelon open on the date, date under contract, agent fixed (D9, D10, D14).
+
+        An échelon opens and closes within its grade, so an open échelon has an
+        open grade.
+        """
+        errors: dict[str, list[str]] = {}
+        check_open(self, "echelon", ECHELON_FERME, str, errors)
+        check_under_contract(self, errors)
+        if agent_change(self):
+            errors["agent"] = [CLASSEMENT_AGENT_FIXED]
+        if errors:
+            raise ValidationError(errors)
+
+    def clean(self):
+        super().clean()
+        self.check_rules()
+
+    def save(self, **kwargs):
+        self.check_rules()
+        super().save(**kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise PermissionError(CLASSEMENT_NEVER_DELETED)

@@ -1,5 +1,6 @@
-"""Who edits agents, their contact details and contracts, and the Django admin (agent
-identity D14 to D16, contact details D15, D16, contract D16, D17)."""
+"""Who edits agents, their contact details, contracts, assignments and
+classifications, and the Django admin (agent identity D14 to D16, contact details
+D15, D16, contract D16, D17, position history D17, D18)."""
 
 from datetime import date
 
@@ -8,22 +9,36 @@ from django.contrib.auth.models import Group, Permission
 from django.test import TestCase
 
 from apps.accounts.roles import (
+    AFFECTATION_EDIT_PERMISSIONS,
     AGENT_EDIT_PERMISSIONS,
+    CLASSEMENT_EDIT_PERMISSIONS,
     CONTRAT_EDIT_PERMISSIONS,
     COORDONNEES_EDIT_PERMISSIONS,
     sync_groups,
 )
 from apps.audit.models import EntreeAudit
-from apps.referentiels.models import TypeContrat
+from apps.referentiels.models import (
+    Categorie,
+    Echelon,
+    Fonction,
+    Grade,
+    Site,
+    TypeContrat,
+    UniteOrganisationnelle,
+)
 
 from .models import (
+    AFFECTATION_DATE_PRISE,
     CONTRAT_OVERLAP,
     ESSAI_INTERDIT,
     FIN_OBLIGATOIRE,
+    HORS_CONTRAT,
     MATRICULE_TAKEN,
     PHONE_HELP,
     URGENCE_PAIR,
+    Affectation,
     Agent,
+    Classement,
     Contrat,
     Coordonnees,
 )
@@ -40,21 +55,31 @@ def inline(initial=0, **row):
         "coordonnees-MAX_NUM_FORMS": "1",
     }
     data.update({f"coordonnees-0-{name}": value for name, value in row.items()})
-    return {**data, **contrats()}
+    return {
+        **data,
+        **contrats(),
+        **formset("affectations"),
+        **formset("classements"),
+    }
+
+
+def formset(prefix, *rows, initial=0):
+    """A tabular inline of the agent page: its management fields and rows. The
+    first `initial` rows are existing ones, carrying their id."""
+    data = {
+        f"{prefix}-TOTAL_FORMS": str(len(rows)),
+        f"{prefix}-INITIAL_FORMS": str(initial),
+        f"{prefix}-MIN_NUM_FORMS": "0",
+        f"{prefix}-MAX_NUM_FORMS": "1000",
+    }
+    for index, row in enumerate(rows):
+        data.update({f"{prefix}-{index}-{name}": value for name, value in row.items()})
+    return data
 
 
 def contrats(*rows, initial=0):
-    """The contracts inline of the agent page: its management fields and rows (contract
-    D17). The first `initial` rows are existing contracts, carrying their id."""
-    data = {
-        "contrats-TOTAL_FORMS": str(len(rows)),
-        "contrats-INITIAL_FORMS": str(initial),
-        "contrats-MIN_NUM_FORMS": "0",
-        "contrats-MAX_NUM_FORMS": "1000",
-    }
-    for index, row in enumerate(rows):
-        data.update({f"contrats-{index}-{name}": value for name, value in row.items()})
-    return data
+    """The contracts inline of the agent page (contract D17)."""
+    return formset("contrats", *rows, initial=initial)
 
 
 def member(username, *groups, **extra):
@@ -465,3 +490,220 @@ class ContratInlineTests(TestCase):
             *Permission.objects.filter(codename__endswith="_contrat")
         )
         self.assertNotContains(self.client.get(self.url), "contrats-TOTAL_FORMS")
+
+
+class PositionPermissionTests(TestCase):
+    """Assignments and classifications (position history D17)."""
+
+    def test_editors_hold_view_add_change_and_nobody_deletes(self):
+        for model, permissions in (
+            ("affectation", AFFECTATION_EDIT_PERMISSIONS),
+            ("classement", CLASSEMENT_EDIT_PERMISSIONS),
+        ):
+            self.assertEqual(len(permissions), 3)
+            for permission in permissions:
+                with self.subTest(permission):
+                    self.assertEqual(holders(permission), EDITORS)
+            self.assertFalse(Permission.objects.filter(codename=f"delete_{model}").exists())
+
+    def test_group_setup_regrants_and_keeps_hand_made_ones(self):
+        chef = Group.objects.get(name="Chef de service — Gestion de carrière")
+        chef.permissions.remove(
+            *Permission.objects.filter(codename__in=["add_affectation", "change_classement"])
+        )
+        paie = Group.objects.get(name="Rémunération")
+        paie.permissions.add(Permission.objects.get(codename="view_classement"))
+
+        sync_groups()
+
+        self.assertEqual(holders("agents.add_affectation"), EDITORS)
+        self.assertEqual(holders("agents.change_classement"), EDITORS)
+        self.assertEqual(holders("agents.view_classement"), EDITORS | {"Rémunération"})
+
+
+class PositionInlineTests(TestCase):
+    """The assignments and classifications inlines on the agent page (position
+    history D18). The agent is under a CDI from 01/03/2020."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.carriere = member("carriere", "Gestion de carrière", is_staff=True)
+        d2015 = date(2015, 1, 1)
+        site = Site.objects.create(code="KIN", nom="Kinshasa", ville="Kinshasa", siege=True)
+        cls.drh = UniteOrganisationnelle.objects.create(
+            code="DRH", nom="Direction RH", type="direction", site=site, date_ouverture=d2015
+        )
+        cls.closed = UniteOrganisationnelle.objects.create(
+            code="DOLD", nom="Ancienne direction", type="direction", site=site,
+            date_ouverture=d2015, date_fermeture=date(2019, 1, 1),
+        )  # fmt: skip
+        cls.chef = Fonction.objects.create(
+            code="CS", nom="Chef de service", nature="responsabilite", date_ouverture=d2015
+        )
+        cat = Categorie.objects.create(code="A", nom="Cadres", rang=3, date_ouverture=d2015)
+        grade = Grade.objects.create(
+            code="A2", nom="Attaché", categorie=cat, rang=2, date_ouverture=d2015
+        )
+        cls.e1 = Echelon.objects.create(grade=grade, numero=1, date_ouverture=d2015)
+        cls.e2 = Echelon.objects.create(grade=grade, numero=2, date_ouverture=d2015)
+        cls.cdi = TypeContrat.objects.create(
+            code="CDI", nom="CDI", duree_determinee=False, periode_essai=True,
+            date_ouverture=d2015,
+        )  # fmt: skip
+        cls.agent = Agent.objects.create(
+            matricule="ARPTC/0007/2015", nom="Tshibangu", prenom="Didier", sexe="M",
+            date_naissance=date(1979, 11, 19), lieu_naissance="Kinshasa",
+        )  # fmt: skip
+        cls.contrat = Contrat.objects.create(
+            agent=cls.agent, type_contrat=cls.cdi, date_debut=date(2020, 3, 1)
+        )
+        cls.url = f"/admin/agents/agent/{cls.agent.pk}/change/"
+
+    def setUp(self):
+        self.client.force_login(self.carriere)
+
+    def affectation(self, jour, unite=None, **extra):
+        return {
+            "agent": str(self.agent.pk),
+            "date_effet": jour,
+            "unite": str((unite or self.drh).pk),
+            "fonction": str(self.chef.pk),
+            **extra,
+        }
+
+    def classement(self, jour, echelon=None, **extra):
+        return {
+            "agent": str(self.agent.pk),
+            "date_effet": jour,
+            "echelon": str((echelon or self.e1).pk),
+            **extra,
+        }
+
+    def post(self, affectations=(), classements=(), initial=(0, 0)):
+        data = {
+            "nom": "Tshibangu",
+            "postnom": "",
+            "prenom": "Didier",
+            "sexe": "M",
+            "date_naissance": "1979-11-19",
+            "lieu_naissance": "Kinshasa",
+            "nationalite": "Congolaise",
+            **inline(),
+            **contrats(
+                {
+                    "agent": str(self.agent.pk),
+                    "id": str(self.contrat.pk),
+                    "type_contrat": str(self.cdi.pk),
+                    "date_debut": "2020-03-01",
+                    "date_fin": "",
+                    "fin_periode_essai": "",
+                },
+                initial=1,
+            ),
+            **formset("affectations", *affectations, initial=initial[0]),
+            **formset("classements", *classements, initial=initial[1]),
+        }
+        return self.client.post(self.url, data)
+
+    def formset_of(self, response, prefix):
+        return next(
+            f.formset
+            for f in response.context["inline_admin_formsets"]
+            if f.formset.prefix == prefix
+        )
+
+    def test_editor_adds_both_and_is_their_author(self):
+        response = self.post([self.affectation("2020-03-01")], [self.classement("2020-03-01")])
+        self.assertEqual(response.status_code, 302)
+        affectation = Affectation.objects.get(agent=self.agent)
+        classement = Classement.objects.get(agent=self.agent)
+        self.assertEqual((affectation.cree_par, classement.cree_par), (self.carriere,) * 2)
+        self.assertEqual(
+            set(
+                EntreeAudit.objects.filter(
+                    action="creation", table__model__in=["affectation", "classement"]
+                ).values_list("auteur", "objet_libelle")
+            ),
+            {
+                (self.carriere.pk, "DRH · Chef de service depuis le 01/03/2020 — ARPTC/0007/2015"),
+                (self.carriere.pk, "A2 — Échelon 1 depuis le 01/03/2020 — ARPTC/0007/2015"),
+            },
+        )
+
+    def test_rule_errors_show_next_to_their_field(self):
+        response = self.post(
+            [self.affectation("2020-03-01", self.closed)], [self.classement("2020-02-29")]
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("unite", self.formset_of(response, "affectations").forms[0].errors)
+        self.assertEqual(
+            self.formset_of(response, "classements").forms[0].errors["date_effet"],
+            [HORS_CONTRAT],
+        )
+        self.assertFalse(Affectation.objects.exists() or Classement.objects.exists())
+
+    def test_duplicate_date_shows_on_the_row(self):
+        existing = Affectation.objects.create(
+            agent=self.agent, unite=self.drh, fonction=self.chef, date_effet=date(2020, 3, 1)
+        )
+        response = self.post(
+            [
+                self.affectation("2020-03-01", id=str(existing.pk)),
+                self.affectation("2020-03-01"),
+            ],
+            initial=(1, 0),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            self.formset_of(response, "affectations").forms[1].errors.get("__all__"),
+            [AFFECTATION_DATE_PRISE],
+        )
+        self.assertEqual(Affectation.objects.count(), 1)
+
+    def test_rows_in_date_order_after_the_contracts_one_empty_row_no_delete_box(self):
+        later = Classement.objects.create(
+            agent=self.agent, echelon=self.e2, date_effet=date(2022, 1, 1)
+        )
+        earlier = Classement.objects.create(
+            agent=self.agent, echelon=self.e1, date_effet=date(2020, 3, 1)
+        )
+        response = self.client.get(self.url)
+        prefixes = [f.formset.prefix for f in response.context["inline_admin_formsets"]]
+        self.assertEqual(prefixes[1:], ["contrats", "affectations", "classements"])
+        for prefix in ("affectations", "classements"):
+            formset = self.formset_of(response, prefix)
+            self.assertFalse(formset.can_delete)
+            self.assertNotContains(response, f"{prefix}-0-DELETE")
+        classements = self.formset_of(response, "classements")
+        self.assertEqual([f.instance.pk for f in classements.forms[:2]], [earlier.pk, later.pk])
+        self.assertEqual(len(classements.forms), 3)  # two rows and one empty row
+        self.assertEqual(len(self.formset_of(response, "affectations").forms), 1)
+
+    def test_add_page_refuses_a_position_without_a_contract(self):
+        data = {
+            "matricule": "ARPTC/0999/2026",
+            "nom": "Tshala",
+            "sexe": "F",
+            "date_naissance": "1990-06-01",
+            "lieu_naissance": "Lubumbashi",
+            "nationalite": "Congolaise",
+            **inline(),
+            **formset("affectations", {**self.affectation("2026-01-05"), "agent": ""}),
+        }
+        response = self.client.post("/admin/agents/agent/add/", data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            self.formset_of(response, "affectations").forms[0].errors["date_effet"],
+            [HORS_CONTRAT],
+        )
+        self.assertFalse(Agent.objects.filter(matricule="ARPTC/0999/2026").exists())
+
+    def test_inlines_are_hidden_without_the_permission(self):
+        Group.objects.get(name="Gestion de carrière").permissions.remove(
+            *Permission.objects.filter(codename__in=["view_affectation", "add_affectation",
+                                                     "change_affectation", "view_classement",
+                                                     "add_classement", "change_classement"])
+        )  # fmt: skip
+        response = self.client.get(self.url)
+        self.assertNotContains(response, "affectations-TOTAL_FORMS")
+        self.assertNotContains(response, "classements-TOTAL_FORMS")
