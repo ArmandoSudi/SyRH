@@ -3,6 +3,15 @@
 All notable changes to SyRH, newest first. Each section is written from the git history before
 the work is merged.
 
+## 2026-11-22
+
+- Bank account (roadmap 2.5): Rémunération and its chef add and correct accounts on a "Comptes
+  bancaires" admin page and now view agents read-only, to pick one. Never deleted.
+- `/api/agents/<id>/comptes-bancaires/` returns an agent's accounts and the one in force today,
+  for Rémunération, its chef and Direction RH only; the agent list and detail carry no account.
+  Run `migrate`; `create_demo_agents` now also loads the demo banks and gives agents accounts.
+<!-- commits: b53a19c ecef031 b3296b9 26b0823 -->
+
 ## 2026-11-21
 
 - Agent identity (roadmap 2.1), opening Milestone 2: a new `agents` app with the agent record's
@@ -35,7 +44,10 @@ the work is merged.
   contract before the rows that rest on it). `/api/agents/<id>/` returns both histories; the list
   and detail return the assignment and classification in force today. Run `migrate`;
   `create_demo_agents` now also loads the demo reference data and gives the agents careers.
-<!-- commits: ccffe18 c234b08 31b2cf6 b57fa90 cf18f24 4b84057 7a61c30 2d6dc5f 328b67e 387cebe 3ae19b1 c956db9 381cf24 27a1d98 040c2b0 afba65b 548a102 1f87983 2116a08 bedd292 abc10ae a5c9d81 6fac6fc fb84c37 ee28680 1382425 79a9603 343c10c c8eda85 d4c23f5 203d1b3 -->
+- Bank account (roadmap 2.5) started: each agent's dated bank accounts (bank, number, effective
+  date), audited under `paie`. PostgreSQL checks the number format and refuses one bank and number
+  for two agents. The real per-bank format is new open question `Q36`.
+<!-- commits: ccffe18 c234b08 31b2cf6 b57fa90 cf18f24 4b84057 7a61c30 2d6dc5f 328b67e 387cebe 3ae19b1 c956db9 381cf24 27a1d98 040c2b0 afba65b 548a102 1f87983 2116a08 bedd292 abc10ae a5c9d81 6fac6fc fb84c37 ee28680 1382425 79a9603 343c10c c8eda85 d4c23f5 203d1b3 1dea3a4 1e5740c -->
 
 ## 2026-11-20
 
