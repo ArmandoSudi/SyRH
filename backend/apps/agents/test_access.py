@@ -1,5 +1,5 @@
-"""Who edits agents and their contact details, and the Django admin (agent identity
-D14 to D16, contact details D15, D16)."""
+"""Who edits agents, their contact details and contracts, and the Django admin (agent
+identity D14 to D16, contact details D15, D16, contract D16, D17)."""
 
 from datetime import date
 
@@ -7,10 +7,26 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
 from django.test import TestCase
 
-from apps.accounts.roles import AGENT_EDIT_PERMISSIONS, COORDONNEES_EDIT_PERMISSIONS, sync_groups
+from apps.accounts.roles import (
+    AGENT_EDIT_PERMISSIONS,
+    CONTRAT_EDIT_PERMISSIONS,
+    COORDONNEES_EDIT_PERMISSIONS,
+    sync_groups,
+)
 from apps.audit.models import EntreeAudit
+from apps.referentiels.models import TypeContrat
 
-from .models import MATRICULE_TAKEN, PHONE_HELP, URGENCE_PAIR, Agent, Coordonnees
+from .models import (
+    CONTRAT_OVERLAP,
+    ESSAI_INTERDIT,
+    FIN_OBLIGATOIRE,
+    MATRICULE_TAKEN,
+    PHONE_HELP,
+    URGENCE_PAIR,
+    Agent,
+    Contrat,
+    Coordonnees,
+)
 
 EDITORS = {"Gestion de carrière", "Chef de service — Gestion de carrière"}
 
@@ -24,6 +40,20 @@ def inline(initial=0, **row):
         "coordonnees-MAX_NUM_FORMS": "1",
     }
     data.update({f"coordonnees-0-{name}": value for name, value in row.items()})
+    return {**data, **contrats()}
+
+
+def contrats(*rows, initial=0):
+    """The contracts inline of the agent page: its management fields and rows (contract
+    D17). The first `initial` rows are existing contracts, carrying their id."""
+    data = {
+        "contrats-TOTAL_FORMS": str(len(rows)),
+        "contrats-INITIAL_FORMS": str(initial),
+        "contrats-MIN_NUM_FORMS": "0",
+        "contrats-MAX_NUM_FORMS": "1000",
+    }
+    for index, row in enumerate(rows):
+        data.update({f"contrats-{index}-{name}": value for name, value in row.items()})
     return data
 
 
@@ -86,6 +116,26 @@ class CoordonneesPermissionTests(TestCase):
         self.assertEqual(
             holders("agents.change_coordonnees"), EDITORS | {"Administration du personnel"}
         )
+
+
+class ContratPermissionTests(TestCase):
+    def test_editors_hold_view_add_change_and_nobody_deletes(self):
+        self.assertEqual(len(CONTRAT_EDIT_PERMISSIONS), 3)
+        for permission in CONTRAT_EDIT_PERMISSIONS:
+            with self.subTest(permission):
+                self.assertEqual(holders(permission), EDITORS)
+        self.assertFalse(Permission.objects.filter(codename="delete_contrat").exists())
+
+    def test_group_setup_regrants_and_keeps_hand_made_ones(self):
+        chef = Group.objects.get(name="Chef de service — Gestion de carrière")
+        chef.permissions.remove(*Permission.objects.filter(codename__endswith="_contrat"))
+        remuneration = Group.objects.get(name="Rémunération")
+        remuneration.permissions.add(Permission.objects.get(codename="view_contrat"))
+
+        sync_groups()
+
+        self.assertEqual(holders("agents.add_contrat"), EDITORS)
+        self.assertEqual(holders("agents.view_contrat"), EDITORS | {"Rémunération"})
 
 
 class AgentAdminTests(TestCase):
@@ -266,3 +316,152 @@ class CoordonneesInlineTests(TestCase):
             *Permission.objects.filter(codename__endswith="_coordonnees")
         )
         self.assertNotContains(self.client.get(self.url), "coordonnees-TOTAL_FORMS")
+
+
+class ContratInlineTests(TestCase):
+    """The contracts inline on the agent page (contract D17)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.carriere = member("carriere", "Gestion de carrière", is_staff=True)
+        cls.cdi = TypeContrat.objects.create(
+            code="CDI",
+            nom="CDI",
+            duree_determinee=False,
+            periode_essai=True,
+            date_ouverture=date(2015, 1, 1),
+        )
+        cls.cdd = TypeContrat.objects.create(
+            code="CDD",
+            nom="CDD",
+            duree_determinee=True,
+            periode_essai=True,
+            date_ouverture=date(2015, 1, 1),
+        )
+        cls.stage = TypeContrat.objects.create(
+            code="STG",
+            nom="Stage",
+            duree_determinee=True,
+            periode_essai=False,
+            date_ouverture=date(2015, 1, 1),
+        )
+        cls.agent = Agent.objects.create(
+            matricule="ARPTC/0007/2015",
+            nom="Tshibangu",
+            prenom="Didier",
+            sexe="M",
+            date_naissance=date(1979, 11, 19),
+            lieu_naissance="Kinshasa",
+        )
+        cls.url = f"/admin/agents/agent/{cls.agent.pk}/change/"
+
+    def setUp(self):
+        self.client.force_login(self.carriere)
+
+    def row(self, type_contrat, debut, fin="", essai="", **extra):
+        return {
+            "agent": str(self.agent.pk),
+            "type_contrat": str(type_contrat.pk),
+            "date_debut": debut,
+            "date_fin": fin,
+            "fin_periode_essai": essai,
+            **extra,
+        }
+
+    def post(self, *rows, initial=0):
+        data = {
+            "nom": "Tshibangu",
+            "postnom": "",
+            "prenom": "Didier",
+            "sexe": "M",
+            "date_naissance": "1979-11-19",
+            "lieu_naissance": "Kinshasa",
+            "nationalite": "Congolaise",
+            **inline(),
+            **contrats(*rows, initial=initial),
+        }
+        return self.client.post(self.url, data)
+
+    def row_errors(self, response, index=0):
+        formset = next(
+            f.formset
+            for f in response.context["inline_admin_formsets"]
+            if f.formset.prefix == "contrats"
+        )
+        return formset.forms[index].errors
+
+    def test_editor_adds_a_cdd_then_its_renewal_and_is_their_author(self):
+        response = self.post(self.row(self.cdd, "2020-03-01", "2021-02-28", "2020-05-31"))
+        self.assertEqual(response.status_code, 302)
+        first = Contrat.objects.get(agent=self.agent)
+
+        response = self.post(
+            self.row(self.cdd, "2020-03-01", "2021-02-28", "2020-05-31", id=str(first.pk)),
+            self.row(self.cdd, "2021-03-01", "2022-02-28"),
+            initial=1,
+        )
+        self.assertEqual(response.status_code, 302)
+        rows = list(self.agent.contrats.all())
+        self.assertEqual(
+            [(c.date_debut, c.date_fin) for c in rows],
+            [(date(2020, 3, 1), date(2021, 2, 28)), (date(2021, 3, 1), date(2022, 2, 28))],
+        )
+        self.assertEqual({c.cree_par for c in rows}, {self.carriere})
+        entries = EntreeAudit.objects.filter(table__model="contrat", action="creation")
+        self.assertEqual(
+            set(entries.values_list("auteur", "objet_libelle")),
+            {
+                (self.carriere.pk, "CDD du 01/03/2020 au 28/02/2021 — ARPTC/0007/2015"),
+                (self.carriere.pk, "CDD du 01/03/2021 au 28/02/2022 — ARPTC/0007/2015"),
+            },
+        )
+
+    def test_rule_errors_show_next_to_their_field(self):
+        response = self.post(self.row(self.cdd, "2020-03-01"))
+        self.assertEqual(self.row_errors(response)["date_fin"], [FIN_OBLIGATOIRE])
+        response = self.post(self.row(self.stage, "2020-03-01", "2020-08-31", "2020-04-30"))
+        self.assertEqual(self.row_errors(response)["fin_periode_essai"], [ESSAI_INTERDIT])
+        self.assertFalse(Contrat.objects.exists())
+
+    def test_overlap_shows_on_the_row(self):
+        existing = Contrat.objects.create(
+            agent=self.agent,
+            type_contrat=self.cdd,
+            date_debut=date(2020, 3, 1),
+            date_fin=date(2021, 2, 28),
+        )
+        response = self.post(
+            self.row(self.cdd, "2020-03-01", "2021-02-28", id=str(existing.pk)),
+            self.row(self.cdi, "2021-02-28"),
+            initial=1,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.row_errors(response, 1).get("__all__"), [CONTRAT_OVERLAP])
+        self.assertEqual(Contrat.objects.count(), 1)
+
+    def test_rows_in_date_order_one_empty_row_and_no_delete_box(self):
+        later = Contrat.objects.create(
+            agent=self.agent, type_contrat=self.cdi, date_debut=date(2021, 3, 1)
+        )
+        earlier = Contrat.objects.create(
+            agent=self.agent,
+            type_contrat=self.cdd,
+            date_debut=date(2020, 3, 1),
+            date_fin=date(2021, 2, 28),
+        )
+        response = self.client.get(self.url)
+        formset = next(
+            f.formset
+            for f in response.context["inline_admin_formsets"]
+            if f.formset.prefix == "contrats"
+        )
+        self.assertEqual([f.instance.pk for f in formset.forms[:2]], [earlier.pk, later.pk])
+        self.assertEqual(len(formset.forms), 3)  # two contracts and one empty row
+        self.assertFalse(formset.can_delete)
+        self.assertNotContains(response, "contrats-0-DELETE")
+
+    def test_inline_is_hidden_without_the_permission(self):
+        Group.objects.get(name="Gestion de carrière").permissions.remove(
+            *Permission.objects.filter(codename__endswith="_contrat")
+        )
+        self.assertNotContains(self.client.get(self.url), "contrats-TOTAL_FORMS")

@@ -20,7 +20,14 @@ the work is merged.
   together. Edited in a "Coordonnées" block on the agent's admin page by the same editors;
   returned in `/api/agents/<id>/`, `null` when missing. Run `migrate`; `create_demo_agents` now
   fills in contact details. Who else edits or reads them is open question `Q35`.
-<!-- commits: ccffe18 c234b08 31b2cf6 b57fa90 cf18f24 4b84057 7a61c30 2d6dc5f 328b67e 387cebe 3ae19b1 c956db9 381cf24 27a1d98 040c2b0 afba65b 548a102 1f87983 -->
+- Contract (roadmap 2.3): an agent's successive contracts (a CDD, its renewals, then a CDI),
+  never overlapping. The end and probation dates are last days as printed on the contract; the
+  contract type decides whether an end date is required and whether probation is allowed, and
+  must be open on the start date. The hiring date is the start of the first contract. Edited in
+  a "Contrats" table on the agent's admin page; returned with the hiring date in
+  `/api/agents/<id>/`. Run `migrate`; `create_demo_agents` now loads the demo contract types and
+  sixteen contracts. Probation length and renewal limits wait for `Q30`.
+<!-- commits: ccffe18 c234b08 31b2cf6 b57fa90 cf18f24 4b84057 7a61c30 2d6dc5f 328b67e 387cebe 3ae19b1 c956db9 381cf24 27a1d98 040c2b0 afba65b 548a102 1f87983 2116a08 bedd292 abc10ae a5c9d81 6fac6fc fb84c37 -->
 
 ## 2026-11-20
 

@@ -1,4 +1,4 @@
-"""GET /api/agents/ (agent identity D13, D18, D19; contact details D18)."""
+"""GET /api/agents/ (agent identity D13, D18, D19; contact details D18; contract D19)."""
 
 from datetime import date
 
@@ -10,8 +10,9 @@ from django.test.utils import CaptureQueriesContext
 from rest_framework.test import APIClient
 
 from apps.accounts.roles import GROUPS
+from apps.referentiels.models import TypeContrat
 
-from .models import Agent, Coordonnees
+from .models import Agent, Contrat, Coordonnees
 
 AGENTS = "/api/agents/"
 READERS = {name for name, (_, modules) in GROUPS.items() if "agents" in modules}
@@ -81,6 +82,8 @@ class AgentApiTests(TestCase):
                 "cree_par": None,
                 "modifie_par": None,
                 "coordonnees": None,
+                "date_engagement": None,
+                "contrats": [],
             },
         )
         self.assertIn("date_creation", row)
@@ -154,7 +157,8 @@ class CoordonneesApiTests(TestCase):
             with CaptureQueriesContext(connection) as queries:
                 self.assertEqual(self.client.get(f"{AGENTS}{target.pk}/").status_code, 200)
             counts.append(len(queries))
-        self.assertEqual(counts, [1, 1])  # the contact details join the agent's query
+        # The agent with its contact details, then its contracts with their types.
+        self.assertEqual(counts, [2, 2])
 
     def test_contact_details_cannot_be_written(self):
         editor = APIClient()
@@ -164,3 +168,82 @@ class CoordonneesApiTests(TestCase):
         self.assertEqual(response.status_code, 405)
         self.row.refresh_from_db()
         self.assertEqual(self.row.telephone, "+243 81 234 5678")
+
+
+class ContratApiTests(TestCase):
+    """Hiring date and contracts in the agent detail (contract D19)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cdd = TypeContrat.objects.create(
+            code="CDD", nom="Contrat à durée déterminée", duree_determinee=True,
+            periode_essai=True, date_ouverture=date(2015, 1, 1),
+        )  # fmt: skip
+        cdi = TypeContrat.objects.create(
+            code="CDI", nom="Contrat à durée indéterminée", duree_determinee=False,
+            periode_essai=True, date_ouverture=date(2015, 1, 1),
+        )  # fmt: skip
+        cls.agent = agent("A/1", "Ilunga")
+        # Entered out of order: the API sorts by start date.
+        cls.cdi = Contrat.objects.create(agent=cls.agent, type_contrat=cdi,
+                                         date_debut=date(2022, 3, 1))  # fmt: skip
+        cls.first = Contrat.objects.create(
+            agent=cls.agent, type_contrat=cdd, date_debut=date(2020, 3, 1),
+            date_fin=date(2021, 2, 28), fin_periode_essai=date(2020, 5, 31),
+        )  # fmt: skip
+        cls.second = Contrat.objects.create(
+            agent=cls.agent, type_contrat=cdd, date_debut=date(2021, 3, 1),
+            date_fin=date(2022, 2, 28),
+        )  # fmt: skip
+        cls.without = agent("B/2", "Kabeya")
+        cls.reader = member("formation", "Formation")
+
+    def setUp(self):
+        self.client = APIClient()
+        self.client.force_authenticate(self.reader)
+
+    def test_contracts_in_date_order_with_every_field(self):
+        data = self.client.get(f"{AGENTS}{self.agent.pk}/").json()
+        self.assertEqual(data["date_engagement"], "2020-03-01")
+        self.assertEqual(
+            [row["id"] for row in data["contrats"]], [self.first.pk, self.second.pk, self.cdi.pk]
+        )
+        first = data["contrats"][0]
+        self.assertEqual(
+            {k: v for k, v in first.items() if k not in ("date_creation", "date_modification")},
+            {
+                "id": self.first.pk,
+                "type_contrat": self.first.type_contrat_id,
+                "type_code": "CDD",
+                "type_nom": "Contrat à durée déterminée",
+                "date_debut": "2020-03-01",
+                "date_fin": "2021-02-28",
+                "fin_periode_essai": "2020-05-31",
+                "cree_par": None,
+                "modifie_par": None,
+            },
+        )
+        self.assertIsNone(data["contrats"][2]["date_fin"])
+
+    def test_agent_without_contract(self):
+        data = self.client.get(f"{AGENTS}{self.without.pk}/").json()
+        self.assertEqual((data["date_engagement"], data["contrats"]), (None, []))
+
+    def test_list_is_unchanged(self):
+        for row in self.client.get(AGENTS).json():
+            self.assertNotIn("contrats", row)
+            self.assertNotIn("date_engagement", row)
+
+    def test_detail_queries_do_not_grow_with_the_contracts(self):
+        self.client.get(AGENTS)  # loads and caches the reader's permissions
+        for target in (self.agent, self.without):
+            with self.subTest(target=target.matricule), CaptureQueriesContext(connection) as q:
+                self.client.get(f"{AGENTS}{target.pk}/")
+            self.assertEqual(len(q), 2)
+
+    def test_contracts_cannot_be_written(self):
+        editor = APIClient()
+        editor.force_authenticate(member("carriere", "Gestion de carrière"))
+        response = editor.patch(f"{AGENTS}{self.agent.pk}/", {"contrats": []}, format="json")
+        self.assertEqual(response.status_code, 405)
+        self.assertEqual(self.agent.contrats.count(), 3)

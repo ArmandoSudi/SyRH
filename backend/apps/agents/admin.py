@@ -3,7 +3,7 @@ from django.contrib import admin
 from apps.core.admin import BaseModelAdmin
 from apps.core.mixins import request_author
 
-from .models import Agent, Coordonnees
+from .models import Agent, Contrat, Coordonnees
 
 
 class CoordonneesInline(admin.StackedInline):
@@ -26,15 +26,33 @@ class CoordonneesInline(admin.StackedInline):
     ]
 
 
+class ContratInline(admin.TabularInline):
+    """An agent's successive contracts, in date order, on the agent page (contract D17).
+
+    Never deleted (D14); one empty row to add the next contract. Authors are
+    stamped by AgentAdmin.save_formset.
+    """
+
+    model = Contrat
+    extra = 1
+    can_delete = False
+    fields = ["type_contrat", "date_debut", "date_fin", "fin_periode_essai"]
+    ordering = ["date_debut"]
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("type_contrat", "agent")
+
+
 @admin.register(Agent)
 class AgentAdmin(BaseModelAdmin, admin.ModelAdmin):
     """Agents in Django admin until the creation form of phase 2.9 (agent identity D16).
 
     The matricule is read-only once saved (D9); an agent is never deleted (D10),
-    not even by a superuser. Contact details are edited inline (contact details D16).
+    not even by a superuser. Contact details and contracts are edited inline
+    (contact details D16, contract D17).
     """
 
-    inlines = [CoordonneesInline]
+    inlines = [CoordonneesInline, ContratInline]
     list_display = ["matricule", "nom", "postnom", "prenom", "sexe", "date_naissance"]
     list_filter = ["sexe"]
     search_fields = ["matricule", "nom", "postnom", "prenom"]
