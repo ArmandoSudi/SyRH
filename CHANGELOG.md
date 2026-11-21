@@ -3,6 +3,19 @@
 All notable changes to SyRH, newest first. Each section is written from the git history before
 the work is merged.
 
+## 2026-11-21
+
+- Agent identity (roadmap 2.1), opening Milestone 2: a new `agents` app with the agent record's
+  identity (matricule, nom, postnom, prénom, sexe, date and place of birth, nationality). The
+  matricule is typed by HR, stored in capitals, unique without regard to case and fixed once
+  saved; an agent is never deleted, so a matricule is never reused. PostgreSQL triggers refuse a
+  matricule change or a delete even in raw SQL.
+- Gestion de carrière and its chef add and change agents in Django admin; every profile opening
+  Agents reads them from the read-only `/api/agents/`. No screen yet (phases 2.8 to 2.10). Run
+  `migrate`; `create_demo_agents` loads twelve fictional agents. The matricule format is still
+  open question `Q5`.
+<!-- commits: ccffe18 c234b08 31b2cf6 b57fa90 cf18f24 4b84057 -->
+
 ## 2026-11-20
 
 - General parameters (roadmap 1.8): the child age limit, the maximum number of children covered,
@@ -23,7 +36,14 @@ the work is merged.
   catégorie, grade or document type at a date carries everything open under it over to the new
   row in one step, after a preview of the rows that follow; closing a parent with open children
   stays refused. Django admin remains as a fallback.
-<!-- commits: 11ea6fa c754996 fd0bef7 e440d45 c5d0c4d ce6e21c d5f68c9 9a86341 2bbab6b 43b8abd 71d0617 4852398 33c6f03 021cc46 f44e3f1 b5aa5f2 ba76474 6297472 8b3adb6 60a849e 67c4b73 beb125e -->
+- Test server on the local network: gunicorn behind nginx on port 8080, over plain HTTP
+  (`DJANGO_SECURE_COOKIES` keeps cookies usable without HTTPS). `deploy/update.sh` pulls a
+  branch, migrates, builds and restarts; Django's deploy check is reported but does not block.
+  `docs/deployment.md` records the one-time setup.
+- `docs/build_test_guide.py` builds a PDF for stakeholders: the test server's address, the demo
+  accounts and a checklist of every feature so far. It contains the demo password, so the PDF is
+  git-ignored.
+<!-- commits: 11ea6fa c754996 fd0bef7 e440d45 c5d0c4d ce6e21c d5f68c9 9a86341 2bbab6b 43b8abd 71d0617 4852398 33c6f03 021cc46 f44e3f1 b5aa5f2 ba76474 6297472 8b3adb6 60a849e 67c4b73 beb125e 37ce718 5ca4d4f ce37bf9 c65d5ad b4faa51 5277edb -->
 
 ## 2026-11-19
 
