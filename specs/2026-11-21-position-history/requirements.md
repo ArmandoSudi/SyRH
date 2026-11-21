@@ -130,3 +130,5 @@ others follow from the cahier des charges, `missions.md`, `tech-stack.md` and ph
 
 | # | Decision | Reason |
 | --- | --- | --- |
+| D24 | In Django admin, a contract must be saved before an assignment or classification that rests on it: the inlines are validated before anything is saved, so a row typed on the same save as its contract, or on the add page of a new agent, is refused on `date_effet` ("sous aucun contrat"). Save the contract first, then add the rows. | D10 reads saved contracts; the creation form of 2.9 will save them in order. The add page reports the error instead of failing on save. |
+| D25 | The agent-page tests build every tabular inline through one `formset(prefix, *rows)` helper; `inline()` adds the empty assignments and classifications formsets. | Same reason as contract D24. |

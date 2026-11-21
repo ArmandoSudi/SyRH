@@ -152,9 +152,22 @@ COORDONNEES_EDIT_PERMISSIONS = tuple(
 # (contract D16).
 CONTRAT_EDIT_PERMISSIONS = tuple(f"agents.{action}_contrat" for action in ("view", "add", "change"))
 
+# Editing the agents' assignments and classifications, inline on the agent page,
+# never deleted (position history D17).
+AFFECTATION_EDIT_PERMISSIONS = tuple(
+    f"agents.{action}_affectation" for action in ("view", "add", "change")
+)
+CLASSEMENT_EDIT_PERMISSIONS = tuple(
+    f"agents.{action}_classement" for action in ("view", "add", "change")
+)
+
 # What the Gestion de carrière profiles edit on the agent record.
 AGENT_RECORD_EDIT_PERMISSIONS = (
-    AGENT_EDIT_PERMISSIONS + COORDONNEES_EDIT_PERMISSIONS + CONTRAT_EDIT_PERMISSIONS
+    AGENT_EDIT_PERMISSIONS
+    + COORDONNEES_EDIT_PERMISSIONS
+    + CONTRAT_EDIT_PERMISSIONS
+    + AFFECTATION_EDIT_PERMISSIONS
+    + CLASSEMENT_EDIT_PERMISSIONS
 )
 
 # Group name -> Django permissions beyond module access. These groups work in

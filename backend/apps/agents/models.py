@@ -462,8 +462,13 @@ FONCTION_FERMEE = "La fonction « {ref} » n'est pas ouverte le {jour}."
 
 
 def check_under_contract(row, errors: dict[str, list[str]]) -> None:
-    """date_effet must fall inside one of the agent's contracts (position history D10)."""
-    if row.agent_id and row.date_effet and row.agent.contrat_au(row.date_effet) is None:
+    """date_effet must fall inside one of the agent's contracts (position history D10).
+
+    An agent not saved yet (the admin's add page) has no contract, so the row is
+    refused on its field rather than failing on save.
+    """
+    agent = getattr(row, "agent", None)
+    if agent is not None and row.date_effet and agent.contrat_au(row.date_effet) is None:
         errors.setdefault("date_effet", []).append(HORS_CONTRAT)
 
 
