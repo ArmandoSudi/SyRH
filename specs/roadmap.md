@@ -57,7 +57,7 @@ The MVP goal: one reliable, historised agent record.
 - [x] **2.5 Bank account** — bank and account number per agent.
 - [x] **2.6 Document storage** — upload, store and serve scanned documents behind authentication
   (`TRA-03`).
-- [ ] **2.7 Documents on events** — attach a document to an event; block validation without it
+- [x] **2.7 Documents on events** — attach a document to an event; block validation without it
   (`SOC-04`).
 - [ ] **2.8 Agent list** — search by matricule, name, service, grade, function, status (`SOC-06`).
 - [ ] **2.9 Agent creation form** — hiring entry by Gestion de carrière (`CAR-01`, `CAR-02`).

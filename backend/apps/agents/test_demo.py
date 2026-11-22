@@ -210,11 +210,11 @@ class DemoDocumentsTests(TestCase):
 
         out = StringIO()
         call_command("create_demo_agents", stdout=out)
-        self.assertIn("7 pièces déposées", out.getvalue())
+        self.assertIn("11 pièces déposées", out.getvalue())
         rows = Document.objects.select_related("type_document")
         self.assertEqual({row.type_mime for row in rows}, {"application/pdf", "image/png"})
         self.assertTrue(any(row.type_document.confidentiel for row in rows))
-        self.assertEqual(rows.filter(retire=True).count(), 1)
+        self.assertEqual(rows.filter(retire=True).count(), 2)  # one before, one after its link
         for row in rows:
             row.full_clean()
             with row.fichier.open() as opened:
@@ -230,3 +230,39 @@ class DemoDocumentsTests(TestCase):
         call_command("create_demo_agents", stdout=out)
         self.assertIn("0 pièces déposées", out.getvalue())
         self.assertEqual((Document.objects.count(), EntreeAudit.objects.count()), before)
+
+
+class DemoLinksTests(TestCase):
+    """Demo links between documents and events (documents on events D25)."""
+
+    @override_settings(DEBUG=True)
+    def test_four_shapes_once(self):
+        from .models import PieceJointe
+        from .pieces import etats_pieces_de
+
+        out = StringIO()
+        call_command("create_demo_agents", stdout=out)
+        self.assertIn("10 pièces jointes à des événements", out.getvalue())
+
+        def statuses(matricule):
+            agent = Agent.objects.get(matricule=matricule)
+            return {
+                str(e.evenement.evenement): (e.complet, e.manquantes)
+                for e in etats_pieces_de(agent.pk)
+                if e.evenement.evenement
+            }
+
+        self.assertEqual(statuses("ARPTC/0001/2008")["engagement"], (True, []))
+        self.assertEqual(statuses("ARPTC/0002/2008")["engagement"], (False, ["DIP"]))
+        self.assertEqual(statuses("ARPTC/0005/2012")["mutation"], (True, []))
+        self.assertEqual(statuses("ARPTC/0005/2012")["promotion"], (True, []))
+        self.assertEqual(statuses("ARPTC/0004/2011")["mutation"], (False, ["DEC"]))
+        self.assertFalse(
+            EntreeAudit.objects.filter(table__model="piecejointe").exclude(auteur=None).exists()
+        )
+
+        before = (PieceJointe.objects.count(), EntreeAudit.objects.count())
+        out = StringIO()
+        call_command("create_demo_agents", stdout=out)
+        self.assertIn("0 pièces jointes", out.getvalue())
+        self.assertEqual((PieceJointe.objects.count(), EntreeAudit.objects.count()), before)

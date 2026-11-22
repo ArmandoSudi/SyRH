@@ -634,7 +634,7 @@ describe('ReferentielsView', () => {
       expect(api.fetchTypesDocument).toHaveBeenCalledWith(today)
       expect(api.fetchPiecesRequises).toHaveBeenCalledWith(today)
       const rows = tree(wrapper)
-      expect(rows).toHaveLength(14)
+      expect(rows).toHaveLength(16)
       expect(rows[0]).toEqual(['Engagement', '', '1 pièce', '', ''])
       expect(rows.find((r) => r[0] === 'Sortie')).toEqual([
         'Sortie',
@@ -650,7 +650,7 @@ describe('ReferentielsView', () => {
       expect(expanded.find((r) => r[1] === 'DEC' && r[2] === 'Facultative')).toBeTruthy()
 
       await wrapper.get('[data-test="pieces-collapse-all"]').trigger('click')
-      expect(tree(wrapper)).toHaveLength(14)
+      expect(tree(wrapper)).toHaveLength(16)
     })
 
     it('filters on a document, keeping the events that require it', async () => {
@@ -1164,7 +1164,7 @@ describe('ReferentielsView', () => {
       ).toHaveLength(2)
 
       const sous = wrapper.findAll('[data-test="ajouter-sous"]')
-      expect(sous).toHaveLength(14) // one per event kind
+      expect(sous).toHaveLength(16) // one per event kind
       const mariage = sous.find((b) => b.attributes('aria-label')?.endsWith('Mariage'))!
       await mariage.trigger('click')
       await flushPromises()

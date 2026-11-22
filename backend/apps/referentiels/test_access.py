@@ -1855,7 +1855,7 @@ class DemoPiecesTests(TestCase):
     def test_creates_valid_rows_once(self):
         output = self.run_command()
 
-        self.assertIn("30 créées", output)  # 13 types, 17 requirements
+        self.assertIn("32 créées", output)  # 13 types, 19 requirements
         for model in (TypeDocument, PieceRequise):
             for obj in model.objects.all():
                 obj.full_clean()  # every rule holds

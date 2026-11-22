@@ -93,6 +93,8 @@ export interface TypeDocument extends Periode {
 /** Event kinds that rest on a document, in the order of the agent's life (document types D2). */
 export type Evenement =
   | 'engagement'
+  | 'renouvellement'
+  | 'avancement'
   | 'promotion'
   | 'mutation'
   | 'detachement'

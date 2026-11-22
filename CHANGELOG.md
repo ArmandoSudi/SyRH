@@ -23,7 +23,15 @@ the work is merged.
   the test server also needs the new nginx limit and document directory (`docs/deployment.md`).
 - User guide section with screenshots; open questions Q37 (confidential types) and Q38 (virus
   scanning).
-<!-- commits: b53a19c ecef031 b3296b9 26b0823 dbca804 df86d0e 1b09f83 7a5db67 00b4be2 0775e62 d576192 5a743a3 89905ff 8258e2d -->
+- Documents on events (roadmap 2.7): an agent's documents can be attached to their events;
+  one document can justify several events, a wrong link is removed but kept in the history.
+- Contracts, assignments and classifications are events, their kind worked out from the history:
+  Engagement, the new Renouvellement de contrat, Mutation, Promotion and the new Avancement
+  d'échelon. Each lists the pieces required on its own date and says Complet or what is missing.
+- "Pièces des agents" gains an "Événements et pièces exigées" section to attach an existing or a
+  new document, and remove links. Confidential pieces count for all but only their readers see
+  them. Run `migrate`; open question Q39 (renewal and échelon pieces).
+<!-- commits: b53a19c ecef031 b3296b9 26b0823 dbca804 df86d0e 1b09f83 7a5db67 00b4be2 0775e62 d576192 5a743a3 89905ff 8258e2d e7dd806 09f803c 0427e87 d320dfc d773237 1cad5b4 c28c869 267db12 b8f15f7 3b4f811 bfdf633 -->
 
 ## 2026-11-21
 

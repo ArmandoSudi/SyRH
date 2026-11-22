@@ -57,8 +57,11 @@ backend/            Django project
                     bank accounts (also start-dated, audited under `paie` and read only by
                     the pay profiles, through their own endpoint); scanned documents
                     (encrypted files, confidential types read by their groups only, retired
-                    but never deleted), uploaded through their own endpoints; otherwise a
-                    read-only API
+                    but never deleted), uploaded through their own endpoints; links
+                    between documents and events (`PieceJointe`, generic key, removed but
+                    never deleted) and the events protocol (`evenements.py`: contracts,
+                    assignments, classifications with their computed kind) with each
+                    event's required pieces (`pieces.py`); otherwise a read-only API
 frontend/           Vue application, organised by feature (see "Frontend folder layout")
 docs/               stakeholder input (French)
 specs/              this constitution
@@ -290,6 +293,11 @@ the document justifies.
   `taille_max_piece`, the original name cleaned. Requests are capped at 50 Mo.
 - **Served** with the stored type, `Content-Disposition` (inline or attachment),
   `X-Content-Type-Options: nosniff` and `Cache-Control: private, no-store`.
+- **Documents on events**: `agents.PieceJointe` attaches a document to any event model of
+  `MODELES_EVENEMENT` (generic key). An event's required pieces are the `PieceRequise` rows of its
+  kind open on its date, matched by type code; `apps.agents.pieces.pieces_manquantes(event)` is
+  the check the validation workflow calls. A new event model implements the protocol of
+  `apps/agents/evenements.py` (`evenement`, `date_evenement`) and joins `evenements_de()`.
 - **Confidential document types** (`TypeDocument.confidentiel`) are read only by the groups set
   on the type; their documents are absent from every list for anyone else.
 - Uploads with progress go through `upload()` in `src/shared/utils/http.ts`, which keeps the CSRF

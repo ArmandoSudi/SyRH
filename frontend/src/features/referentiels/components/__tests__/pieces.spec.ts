@@ -34,7 +34,7 @@ describe('buildPieces', () => {
     const tree = buildPieces(TYPES, PIECES)
 
     expect(tree.map((n) => n.data.nom)).toEqual(EVENEMENTS.map((e) => e.label))
-    expect(tree).toHaveLength(14)
+    expect(tree).toHaveLength(16)
     const byLabel = Object.fromEntries(tree.map((n) => [n.data.nom, n]))
     expect(byLabel['Engagement']!.data.nombre).toBe(1)
     expect(byLabel['Sortie']!.data.nombre).toBe(0)

@@ -175,6 +175,13 @@ AGENT_DOCUMENT_EDIT_PERMISSIONS = tuple(
     f"agents.{action}_document" for action in ("view", "add", "change")
 )
 
+# Attaching documents to events and removing those links, never deleted
+# (documents on events D20): the same profiles as the documents.
+PIECE_JOINTE_EDIT_PERMISSIONS = tuple(
+    f"agents.{action}_piecejointe" for action in ("view", "add", "change")
+)
+AGENT_FILE_EDIT_PERMISSIONS = AGENT_DOCUMENT_EDIT_PERMISSIONS + PIECE_JOINTE_EDIT_PERMISSIONS
+
 # What the Gestion de carrière profiles edit on the agent record.
 AGENT_RECORD_EDIT_PERMISSIONS = (
     AGENT_EDIT_PERMISSIONS
@@ -182,7 +189,7 @@ AGENT_RECORD_EDIT_PERMISSIONS = (
     + CONTRAT_EDIT_PERMISSIONS
     + AFFECTATION_EDIT_PERMISSIONS
     + CLASSEMENT_EDIT_PERMISSIONS
-    + AGENT_DOCUMENT_EDIT_PERMISSIONS
+    + AGENT_FILE_EDIT_PERMISSIONS
 )
 
 # Group name -> Django permissions beyond module access. These groups work in
@@ -195,8 +202,8 @@ EXTRA_PERMISSIONS: dict[str, tuple[str, ...]] = {
     "Chef de service — Gestion de carrière": (
         REFERENTIELS_EDIT_PERMISSIONS + AGENT_RECORD_EDIT_PERMISSIONS
     ),
-    "Administration du personnel": AGENT_DOCUMENT_EDIT_PERMISSIONS,
-    "Chef de service — Administration du personnel": AGENT_DOCUMENT_EDIT_PERMISSIONS,
+    "Administration du personnel": AGENT_FILE_EDIT_PERMISSIONS,
+    "Chef de service — Administration du personnel": AGENT_FILE_EDIT_PERMISSIONS,
     "Rémunération": BANQUE_EDIT_PERMISSIONS + PAIE_RECORD_EDIT_PERMISSIONS,
     "Chef de service — Rémunération": BANQUE_EDIT_PERMISSIONS + PAIE_RECORD_EDIT_PERMISSIONS,
 }

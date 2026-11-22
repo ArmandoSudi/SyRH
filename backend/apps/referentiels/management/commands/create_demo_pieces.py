@@ -52,6 +52,10 @@ PIECES = [
     (E.ENGAGEMENT, "DIP", True),
     # No longer required for hiring since 1 January 2024, with no successor.
     (E.ENGAGEMENT, "CJ", True, OUVERTURE, FIN_CASIER),
+    # Documents on events D25, Q39: a renewal needs its signed contract; an échelon step
+    # rests on a decision, not always on file.
+    (E.RENOUVELLEMENT, "CTR", True),
+    (E.AVANCEMENT, "DEC", False),
     *((evenement, "DEC", True) for evenement in DECISION),
     (E.MARIAGE, "AMA", True),
     (E.NAISSANCE, "ANA", True),
