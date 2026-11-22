@@ -112,12 +112,12 @@ On the scratch database, after `create_load_agents --nombre 3000`:
 
 ## 7. Definition of done
 
-- [ ] Parts 1 to 6 pass.
-- [ ] Nothing listed as out of scope slipped in: no export, no creation, no summary page, no
+- [x] Parts 1 to 6 pass.
+- [x] Nothing listed as out of scope slipped in: no export, no creation, no summary page, no
       Milestone 3 status.
-- [ ] Any decision changed during implementation is recorded under "Found during
+- [x] Any decision changed during implementation is recorded under "Found during
       implementation" in `requirements.md`.
-- [ ] `tech-stack.md` names the search, the computed status and `unaccent`.
-- [ ] **2.8 Agent list** is ticked in `roadmap.md`.
-- [ ] `/changelog` has been run on the branch.
-- [ ] The branch is one reviewable change, per the roadmap's working rules.
+- [x] `tech-stack.md` names the search, the computed status and `unaccent`.
+- [x] **2.8 Agent list** is ticked in `roadmap.md`.
+- [x] `/changelog` has been run on the branch.
+- [x] The branch is one reviewable change, per the roadmap's working rules.

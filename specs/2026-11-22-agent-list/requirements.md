@@ -105,3 +105,9 @@ follow from the cahier des charges, `missions.md`, `tech-stack.md` and earlier p
 
 | # | Decision | Reason |
 | --- | --- | --- |
+| D19 | The detail `/api/agents/<id>/` also returns `statut` and `statut_libelle` (today), since it shares the row serializer; nothing else changed in it. | One serializer for the row; the summary page (2.10) shows the status. |
+| D20 | The search term is stripped of its accents in Python before `__unaccent__icontains`, which unaccents the column only. | "Élodie" typed with its accent must match too. |
+| D21 | The screen ignores a filter value equal to the current one (widgets re-emit on mount), ignores the paginator's offset correction before the first answer, and goes back to page 1 when the server says the page no longer exists (`404`). | Otherwise a deep link's page was reset to 1, or a stale link showed an error. |
+| D22 | "Every status" is written `statut=tous` in the screen's URL (no `statut` means the default, En activité); the API itself still reads "no `statut`" as every status. The status filter has no "select all" box. | A URL without the key must mean the default; an unlabelled box confused. |
+| D23 | The top-bar search box shows only to profiles opening Agents. The "Pièces des agents" picker restores `?agent=` with `/api/agents/<id>/`; the client-side `filterAgents` helper is gone. | No search box that answers 403; the full list no longer comes in one call. |
+| D24 | The "module not built" screenshot of the user guide now shows Carrière; the guide gains section 6 "Agents" (later sections renumbered). | Agents is built. |
