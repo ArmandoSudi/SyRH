@@ -12,6 +12,7 @@ from .models import (
     Contrat,
     Coordonnees,
     Document,
+    StatutAgent,
 )
 
 AFFECTATION_FIELDS = [
@@ -89,6 +90,8 @@ class AgentSerializer(BaseModelSerializer):
     """
 
     sexe_libelle = serializers.CharField(source="get_sexe_display", read_only=True)
+    statut = serializers.SerializerMethodField()
+    statut_libelle = serializers.SerializerMethodField()
     affectation_actuelle = serializers.SerializerMethodField()
     classement_actuel = serializers.SerializerMethodField()
 
@@ -105,10 +108,20 @@ class AgentSerializer(BaseModelSerializer):
             "date_naissance",
             "lieu_naissance",
             "nationalite",
+            "statut",
+            "statut_libelle",
             "affectation_actuelle",
             "classement_actuel",
             *BASE_FIELDS,
         ]
+
+    def get_statut(self, agent) -> str:
+        """Annotated by the list's query; read from the contracts otherwise (agent list D9)."""
+        statut = getattr(agent, "statut", None)
+        return statut if statut is not None else agent.statut_au(self.context["aujourdhui"])
+
+    def get_statut_libelle(self, agent) -> str:
+        return StatutAgent(self.get_statut(agent)).label
 
     def get_affectation_actuelle(self, agent):
         row = agent.affectation_au(self.context["aujourdhui"])

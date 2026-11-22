@@ -59,7 +59,7 @@ The MVP goal: one reliable, historised agent record.
   (`TRA-03`).
 - [x] **2.7 Documents on events** — attach a document to an event; block validation without it
   (`SOC-04`).
-- [ ] **2.8 Agent list** — search by matricule, name, service, grade, function, status (`SOC-06`).
+- [x] **2.8 Agent list** — search by matricule, name, service, grade, function, status (`SOC-06`).
 - [ ] **2.9 Agent creation form** — hiring entry by Gestion de carrière (`CAR-01`, `CAR-02`).
 - [ ] **2.10 Agent summary page** — identity, current position, computed age and seniority,
   full timeline (`SOC-05`, `SOC-07`).

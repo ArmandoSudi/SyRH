@@ -266,3 +266,37 @@ class DemoLinksTests(TestCase):
         call_command("create_demo_agents", stdout=out)
         self.assertIn("0 pièces jointes", out.getvalue())
         self.assertEqual((PieceJointe.objects.count(), EntreeAudit.objects.count()), before)
+
+
+class LoadAgentsTests(TestCase):
+    """create_load_agents (agent list D18)."""
+
+    def run_command(self, nombre=60):
+        out = StringIO()
+        call_command("create_load_agents", nombre=nombre, stdout=out)
+        return out.getvalue()
+
+    @override_settings(DEBUG=False)
+    def test_refuses_without_debug(self):
+        with self.assertRaises(CommandError):
+            self.run_command()
+
+    @override_settings(DEBUG=True)
+    def test_creates_valid_agents_with_histories_and_audit_once(self):
+        self.assertIn("60 créés", self.run_command())
+        agents = Agent.objects.filter(matricule__startswith="CHARGE/")
+        self.assertEqual(agents.count(), 60)
+        for model in (Agent, Contrat, Affectation, Classement):
+            rows = model.objects.all()[:40]
+            for row in rows:
+                row.full_clean()  # every rule holds
+        self.assertTrue(Affectation.objects.exists() and Classement.objects.exists())
+        self.assertEqual(
+            EntreeAudit.objects.filter(
+                table__model="agent", objet_libelle__startswith="CHARGE/"
+            ).count(),
+            60,
+        )
+        before = (Agent.objects.count(), EntreeAudit.objects.count())
+        self.assertIn("0 créés, 60 déjà présents", self.run_command())
+        self.assertEqual((Agent.objects.count(), EntreeAudit.objects.count()), before)

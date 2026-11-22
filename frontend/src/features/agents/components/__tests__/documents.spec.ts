@@ -5,7 +5,6 @@ import type { TypeDocument } from '@/features/referentiels/api/referentiels'
 import {
   checkFile,
   FICHIER_VIDE,
-  filterAgents,
   FORMAT_REFUSE,
   formatTaille,
   tropGros,
@@ -69,18 +68,5 @@ describe('typesDeposables', () => {
       'CNI',
     ])
     expect(typesDeposables(types, ['Social']).map((t) => t.code)).toEqual(['CTR', 'CMD'])
-  })
-})
-
-describe('filterAgents', () => {
-  const agents = [
-    { id: 1, matricule: 'ARPTC/0001/2020', nom: 'Mukendi', postnom: 'Kabongo', prenom: 'Élodie' },
-    { id: 2, matricule: 'ARPTC/0002/2020', nom: 'Nsimba', postnom: '', prenom: 'Paul' },
-  ]
-
-  it('matches the matricule or a name, case and accents ignored', () => {
-    expect(filterAgents(agents, '0002').map((a) => a.id)).toEqual([2])
-    expect(filterAgents(agents, 'elodie').map((a) => a.id)).toEqual([1])
-    expect(filterAgents(agents, '  ').map((a) => a.id)).toEqual([1, 2])
   })
 })

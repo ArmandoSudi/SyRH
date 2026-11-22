@@ -19,7 +19,6 @@ import { installAuthGuards } from './guards'
 const placeholder = () => import('./PlaceholderView.vue')
 const upcoming: RouteRecordRaw[] = (
   [
-    ['agents', 'Agents'],
     ['carriere', 'Carrière'],
     ['personnel', 'Présences et absences'],
     ['paie', 'Paie'],

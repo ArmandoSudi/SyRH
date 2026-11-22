@@ -5,7 +5,8 @@ find your way around, and use the screens that are available today.
 
 > **Where the application stands (November 2026).** The foundations are in place: sign-in,
 > profiles, the audit log and the reference data (organisation, sites, classification, job
-> functions, contract types, supporting documents), and the scanned documents of each agent. The
+> functions, contract types, supporting documents), the agent list and the scanned documents of
+> each agent. The
 > business modules (Agents, Carrière, Présences, Paie, Social, Formation) appear in the menu but
 > are not built yet. The dashboard shows demonstration figures only.
 
@@ -19,11 +20,12 @@ in **bold**.
 3. [Finding your way around](#3-finding-your-way-around)
 4. [Your account: password and signing out](#4-your-account-password-and-signing-out)
 5. [Reference data (Référentiels)](#5-reference-data-référentiels)
-6. [Agents' supporting documents (Pièces des agents)](#6-agents-supporting-documents-pièces-des-agents)
-7. [The audit log (Journal d'audit)](#7-the-audit-log-journal-daudit)
-8. [System status (Système)](#8-system-status-système)
-9. [Using SyRH on a smaller screen](#9-using-syrh-on-a-smaller-screen)
-10. [Common questions](#10-common-questions)
+6. [Agents](#6-agents)
+7. [Agents' supporting documents (Pièces des agents)](#7-agents-supporting-documents-pièces-des-agents)
+8. [The audit log (Journal d'audit)](#8-the-audit-log-journal-daudit)
+9. [System status (Système)](#9-system-status-système)
+10. [Using SyRH on a smaller screen](#10-using-syrh-on-a-smaller-screen)
+11. [Common questions](#11-common-questions)
 
 ---
 
@@ -109,11 +111,11 @@ and Direction RH only.
 
 ### Modules that are not built yet
 
-Agents, Carrière, Présences, Paie, Social and Formation open a page that says
-**Ce module n'est pas encore développé** (this module is not built yet). Under Agents, only
-[Pièces des agents](#6-agents-supporting-documents-pièces-des-agents) is available so far.
+Carrière, Présences, Paie, Social and Formation open a page that says
+**Ce module n'est pas encore développé** (this module is not built yet). **Agents** opens the
+[agent list](#6-agents) and **Pièces des agents** the agents' documents.
 
-![The Agents module: not built yet](./screenshots/06-module-upcoming.png)
+![The Carrière module: not built yet](./screenshots/06-module-upcoming.png)
 
 ### "Accès refusé"
 
@@ -484,9 +486,57 @@ Gestion de carrière.
 A reorganisation, a reform, a rename or a merger is recorded by closing the old row on a date and
 opening the new one, never by deleting it, so the history stays readable. The administration site
 (`/admin/`) still offers the same lists to the administrator, as a fallback. Every change is recorded in the
-[audit log](#7-the-audit-log-journal-daudit).
+[audit log](#8-the-audit-log-journal-daudit).
 
-## 6. Agents' supporting documents (Pièces des agents)
+## 6. Agents
+
+**Agents** lists the agents on file and finds any of them by matricule, name, service, grade,
+function or status. Every profile that opens Agents can use it.
+
+![The agent list](./screenshots/31-agents.png)
+
+Each row shows the matricule, the name, the service (code and name), the function, the grade and
+échelon, and the status. Click a matricule or a name to open the agent's
+[documents and events](#7-agents-supporting-documents-pièces-des-agents). The list shows 25 agents
+a page; use the page numbers below it. **Trier par** sorts by name or by matricule.
+
+### Search and filter
+
+- **Matricule ou nom**: type part of a matricule or of a name. Case and accents do not matter,
+  and every word must match: `kalonji patrick` finds Mukendi Kalonji Patrick.
+- **Service**: choose a unit in the tree. Choosing a direction lists everyone in it, including
+  its départements, services and bureaux.
+- **Grade** and **Fonction**: the grade and function the agent holds.
+- **Statut**: one or several statuses (see below). The list opens on **En activité**; remove it
+  to see everyone.
+- **Situation au**: the date the list describes. By default, today. Choose another date to see
+  where everyone was then: their service, function, grade and status on that day.
+
+The filters combine. The number of matching agents shows above the table; **Effacer les
+filtres** goes back to the start. Your search stays when you visit another page and come back,
+and the page address carries it, so you can bookmark it or send it to a colleague.
+
+![The staff of the Direction technique, with its services](./screenshots/32-agents-service.png)
+
+### Statuses
+
+Until careers are recorded in SyRH (exits, suspensions), the status comes from the contracts:
+
+| Status | Meaning |
+| --- | --- |
+| **En activité** | A contract is in force on the date |
+| **À venir** | The first contract starts after the date |
+| **Sans contrat en cours** | Contracts before the date, none in force on it |
+| **Sans contrat** | No contract recorded |
+
+![Every status, on 1 January 2018](./screenshots/33-agents-statuts.png)
+
+### From any page
+
+The **Rechercher un agent…** box at the top of every page opens this list: type a name or a
+matricule and press Entrée.
+
+## 7. Agents' supporting documents (Pièces des agents)
 
 **Pièces des agents** keeps the scanned copy of each agent's supporting documents: signed
 contract, identity document, diploma, decisions, civil-status certificates. Files are PDF, JPEG
@@ -605,7 +655,7 @@ The others see **Pièce confidentielle fournie**.
 Attaching and removing are done by **Gestion de carrière** and **Administration du personnel**
 (and their heads of service); everyone who opens **Agents** sees the events and their status.
 
-## 7. The audit log (Journal d'audit)
+## 8. The audit log (Journal d'audit)
 
 The **Journal d'audit** records every change made in SyRH: who made it, when, on which record,
 and the values before and after. Nobody can change or delete an entry.
@@ -644,7 +694,7 @@ Passwords are always masked (••••••): the log only records that one 
 
 Close the panel with the cross at its top right, or press Échap (Escape).
 
-## 8. System status (Système)
+## 9. System status (Système)
 
 For the **Administrateur système** only. **Système** shows whether the application is running:
 the state of the API and the database version. If SyRH cannot reach its server, the page says
@@ -655,7 +705,7 @@ the state of the API and the database version. If SyRH cannot reach its server, 
 The **Design** entry, also for the system administrator, shows the colours and components SyRH is
 built with. End users do not need it.
 
-## 9. Using SyRH on a smaller screen
+## 10. Using SyRH on a smaller screen
 
 On a narrow window or a tablet, the side menu shrinks to icons. Hover over an icon to see the
 module's name. The agent search field is hidden, and the buttons of the Référentiels screen move
@@ -663,7 +713,7 @@ to their own line.
 
 ![Référentiels on a narrow screen: the side menu shows icons only](./screenshots/21-narrow-screen.png)
 
-## 10. Common questions
+## 11. Common questions
 
 **I forgot my password.**
 Ask the system administrator to set a new one, then change it from your account menu

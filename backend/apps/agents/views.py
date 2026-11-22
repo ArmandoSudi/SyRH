@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from apps.accounts.permissions import HasModuleAccess
 
 from .models import Affectation, Agent, Classement, CompteBancaire, Contrat
+from .recherche import AgentPagination, RechercheSerializer, rechercher
 from .serializers import AgentDetailSerializer, AgentSerializer, ComptesBancairesSerializer
 
 
@@ -27,13 +28,23 @@ class AgentViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = Agent.objects.all()
     permission_classes = [HasModuleAccess("agents")]
-    pagination_class = None
+    pagination_class = AgentPagination
 
     def get_serializer_class(self):
         return AgentDetailSerializer if self.action == "retrieve" else AgentSerializer
 
+    def recherche(self) -> dict:
+        """The validated search parameters of the list (agent list D4, D10)."""
+        if not hasattr(self, "_recherche"):
+            params = RechercheSerializer(data=self.request.query_params)
+            params.is_valid(raise_exception=True)
+            self._recherche = params.validated_data
+        return self._recherche
+
     def get_serializer_context(self):
-        return {**super().get_serializer_context(), "aujourdhui": timezone.localdate()}
+        # The list reads positions and status on its ?date= (agent list D9).
+        jour = self.recherche()["date"] if self.action == "list" else timezone.localdate()
+        return {**super().get_serializer_context(), "aujourdhui": jour}
 
     def get_queryset(self):
         if self.action == "comptes_bancaires":
@@ -45,13 +56,10 @@ class AgentViewSet(viewsets.ReadOnlyModelViewSet):
         classements = Classement.objects.select_related("echelon__grade__categorie").order_by(
             "date_effet"
         )
-        queryset = (
-            super()
-            .get_queryset()
-            .prefetch_related(
-                Prefetch("affectations", queryset=affectations),
-                Prefetch("classements", queryset=classements),
-            )
+        base = rechercher(self.recherche()) if self.action == "list" else super().get_queryset()
+        queryset = base.prefetch_related(
+            Prefetch("affectations", queryset=affectations),
+            Prefetch("classements", queryset=classements),
         )
         if self.action != "retrieve":
             return queryset

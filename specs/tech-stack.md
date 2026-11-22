@@ -61,7 +61,10 @@ backend/            Django project
                     between documents and events (`PieceJointe`, generic key, removed but
                     never deleted) and the events protocol (`evenements.py`: contracts,
                     assignments, classifications with their computed kind) with each
-                    event's required pieces (`pieces.py`); otherwise a read-only API
+                    event's required pieces (`pieces.py`); the agent search
+                    (`recherche.py`: text, unit with its sub-units, grade, function and a
+                    status computed from the contracts, at a date, paginated); otherwise a
+                    read-only API
 frontend/           Vue application, organised by feature (see "Frontend folder layout")
 docs/               stakeholder input (French)
 specs/              this constitution
@@ -126,6 +129,8 @@ features freely rather than writing for the lowest common denominator.
   `default_permissions = NO_DELETE` (from `apps.core.models`), so no delete permission exists.
 - **History**: evolving facts are rows with `date_effet` (and an end date where relevant), not
   columns overwritten in place.
+- **Extensions**: `btree_gist` (exclusion constraints) and `unaccent` (searching names
+  without their accents, `__unaccent__icontains`), each installed by a migration.
 - **Money**: `DecimalField`, never floats. All amounts are in USD.
 - **Primary keys**: `BigAutoField`. The agent's matricule is a unique business key, not the
   primary key.
@@ -240,7 +245,7 @@ frontend/src/
 │   ├── audit/                   # audit log screen (read-only)
 │   ├── referentiels/            # reference data: organisation, sites, classification, fonctions, contract types, documents, exits and suspensions, banks, general parameters (editable by their editors)
 │   ├── design/                  # design guide page
-│   ├── agents/                  # agents' documents: Pièces des agents, DocumentsPanel; then one folder per module:
+│   ├── agents/                  # agent list, Pièces des agents (documents, events); then one folder per module:
 │   └── ...                      # carriere, personnel, paie, social, formation
 ├── shared/
 │   ├── ui/                      # generic components: StatCard, DonutChart, ThemeToggle, ...
