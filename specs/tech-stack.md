@@ -55,7 +55,10 @@ backend/            Django project
                     (never overlapping; they give the hiring date), assignments (unit and
                     function) and classifications (échelon), dated by their start only;
                     bank accounts (also start-dated, audited under `paie` and read only by
-                    the pay profiles, through their own endpoint); read-only API
+                    the pay profiles, through their own endpoint); scanned documents
+                    (encrypted files, confidential types read by their groups only, retired
+                    but never deleted), uploaded through their own endpoints; otherwise a
+                    read-only API
 frontend/           Vue application, organised by feature (see "Frontend folder layout")
 docs/               stakeholder input (French)
 specs/              this constitution
@@ -234,7 +237,7 @@ frontend/src/
 │   ├── audit/                   # audit log screen (read-only)
 │   ├── referentiels/            # reference data: organisation, sites, classification, fonctions, contract types, documents, exits and suspensions, banks, general parameters (editable by their editors)
 │   ├── design/                  # design guide page
-│   ├── agents/                  # then one folder per module as the roadmap reaches it:
+│   ├── agents/                  # agents' documents: Pièces des agents, DocumentsPanel; then one folder per module:
 │   └── ...                      # carriere, personnel, paie, social, formation
 ├── shared/
 │   ├── ui/                      # generic components: StatCard, DonutChart, ThemeToggle, ...
@@ -271,9 +274,26 @@ Rules:
 
 ## Files and documents
 
-Scanned supporting documents (PDF and images) are stored on the server filesystem through
+Scanned supporting documents (PDF, JPEG and PNG) are stored on the server filesystem through
 Django's storage API, outside the web root, and served only through authenticated views. The
-database keeps the metadata and the link to the event the document justifies.
+database keeps the metadata (`agents.Document`) and, from roadmap 2.7, the link to the event
+the document justifies.
+
+- **Encrypted at rest** (`NF-03`): `apps.core.storage.EncryptedFileSystemStorage` encrypts every
+  file with Fernet (`cryptography`) before it reaches the disk and decrypts it in memory to serve
+  it. The keys are `SYRH_DOCUMENT_KEYS` (comma-separated: the first encrypts, all decrypt, for
+  rotation); system check `core.E002` refuses to start without a valid one. Files live under
+  `SYRH_DOCUMENT_ROOT` (default `backend/var/documents/`, ignored by git), with a random name.
+  There is no `MEDIA_URL`.
+- **Every upload goes through `apps.agents.documents.create_document()`**: the format is read
+  from the file's first bytes, the size checked against the general parameter
+  `taille_max_piece`, the original name cleaned. Requests are capped at 50 Mo.
+- **Served** with the stored type, `Content-Disposition` (inline or attachment),
+  `X-Content-Type-Options: nosniff` and `Cache-Control: private, no-store`.
+- **Confidential document types** (`TypeDocument.confidentiel`) are read only by the groups set
+  on the type; their documents are absent from every list for anyone else.
+- Uploads with progress go through `upload()` in `src/shared/utils/http.ts`, which keeps the CSRF
+  and `ApiError` behaviour of `request()`.
 
 ## Security
 

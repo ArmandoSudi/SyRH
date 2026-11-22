@@ -152,6 +152,19 @@ En attendant, le MVP traite chaque point comme un **paramètre** ou applique l'h
   - Hypothèse en attendant : lettres majuscules, chiffres, espaces et tirets, de 5 à 34
     caractères ; la Rémunération et son chef de service saisissent les comptes ; la validation
     vient avec la roadmap 2.11.
+- [ ] **Q37 — Pièces confidentielles.** Quels types de pièce sont confidentiels (certificat
+  médical, pièce d'identité, autres) et quels profils doivent les lire ? Le nom du fichier
+  déposé peut-il apparaître dans le journal d'audit pour tous ses lecteurs ?
+  - Concerne : NF-03, TRA-03, roadmap 2.6.
+  - Hypothèse en attendant : le certificat médical est lu par le Social, son chef de service et
+    la Direction RH ; la pièce d'identité par la Gestion de carrière, l'Administration du
+    personnel, leurs chefs de service et la Direction RH ; le nom du fichier reste visible dans
+    le journal d'audit.
+- [ ] **Q38 — Analyse antivirus des pièces.** Les fichiers déposés doivent-ils passer par un
+  antivirus sur le serveur de l'ARPTC avant d'être enregistrés ?
+  - Concerne : TRA-03, NF-03, déploiement en production.
+  - Hypothèse en attendant : aucune analyse dans SyRH ; seuls les PDF, JPEG et PNG, reconnus à
+    leur contenu, sont acceptés, et ils ne sont jamais servis sous un autre type.
 
 ## 6. Circuits de validation
 

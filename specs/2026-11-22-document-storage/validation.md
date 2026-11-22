@@ -126,14 +126,14 @@ Also check: French text with correct accents in the page, dialogs, messages and 
 
 ## 6. Definition of done
 
-- [ ] Parts 1 to 5 pass.
-- [ ] Nothing listed as out of scope slipped in: no event link, no validation status, no version
+- [x] Parts 1 to 5 pass.
+- [x] Nothing listed as out of scope slipped in: no event link, no validation status, no version
       history, no extra format, no agent list or summary page.
-- [ ] Any decision changed during implementation is recorded under "Found during
+- [x] Any decision changed during implementation is recorded under "Found during
       implementation" in `requirements.md`.
-- [ ] `tech-stack.md` names the documents, the encrypted storage and `cryptography`;
+- [x] `tech-stack.md` names the documents, the encrypted storage and `cryptography`;
       `docs/deployment.md` covers the key and the document directory.
-- [ ] `Q37` and `Q38` are in `docs/questions-ouvertes.md`.
-- [ ] **2.6 Document storage** is ticked in `roadmap.md`.
-- [ ] `/changelog` has been run on the branch.
-- [ ] The branch is one reviewable change, per the roadmap's working rules.
+- [x] `Q37` and `Q38` are in `docs/questions-ouvertes.md`.
+- [x] **2.6 Document storage** is ticked in `roadmap.md`.
+- [x] `/changelog` has been run on the branch.
+- [x] The branch is one reviewable change, per the roadmap's working rules.

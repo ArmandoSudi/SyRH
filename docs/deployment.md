@@ -48,11 +48,30 @@ These steps were done by hand the first time; they don't need repeating for an u
    DJANGO_ALLOWED_HOSTS=192.168.1.67,localhost
    DJANGO_SECURE_COOKIES=False
    DATABASE_URL=postgres://syrh:<generated>@localhost:5432/syrh
+   SYRH_DOCUMENT_KEYS=<generated Fernet key>
+   SYRH_DOCUMENT_ROOT=/var/lib/syrh/documents
    ```
 
    `DJANGO_SECURE_COOKIES=False` because the server has no HTTPS yet: without it the browser
    would never send the session cookie back, and sign-in would fail. Remove it once the server
    has a certificate.
+   **Scanned documents** (roadmap 2.6, done before the first update that includes it): SyRH
+   refuses to start without `SYRH_DOCUMENT_KEYS` (system check `core.E002`), so add it before
+   running `update.sh`. Generate the key and create the directory once:
+
+   ```bash
+   cd /srv/syrh/backend
+   uv run --no-sync python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+   sudo install -d -o armando -g armando -m 700 /var/lib/syrh/documents
+   ```
+
+   Every document is encrypted with this key: **losing it loses every document**. Keep a copy
+   in `~/syrh-secrets.env` and one off the machine, apart from the backups of the database and
+   of `/var/lib/syrh/documents` (the two are only useful together). To change the key, put the
+   new one first and keep the old one after it, comma-separated: old files still open, new ones
+   use the new key. Uploads are capped at 50 Mo by nginx (`client_max_body_size`) and by
+   Django. No virus scan runs on uploads (`Q38`); only PDF, JPEG and PNG, recognised from their
+   content, are accepted.
 6. **Firewall**: `ufw allow 8080/tcp`.
 7. **First deployment**: `deploy/update.sh main`.
 8. **Demo data**: the demo accounts and reference data, so stakeholders have something to try.
@@ -64,7 +83,7 @@ These steps were done by hand the first time; they don't need repeating for an u
    . ~/syrh-secrets.env
    export DJANGO_DEBUG=True
    uv run --no-sync python manage.py create_demo_users --password "$DEMO"
-   for c in organisation classification fonctions types_contrat pieces sorties banques parametres; do
+   for c in organisation classification fonctions types_contrat pieces sorties banques parametres agents; do
      uv run --no-sync python manage.py create_demo_$c
    done
    ```

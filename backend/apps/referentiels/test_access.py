@@ -195,8 +195,10 @@ class PermissionTests(TestCase):
             .objects.filter(username__startswith="demo.", is_staff=True)
             .values_list("groups__name", flat=True)
         )
-        self.assertEqual(staff, EDITORS | BANK_EDITORS)
-        self.assertTrue(EDITORS | BANK_EDITORS <= set(GROUPS))
+        # Administration du personnel reads the documents admin page (document storage D15).
+        personnel = {"Administration du personnel", "Chef de service — Administration du personnel"}
+        self.assertEqual(staff, EDITORS | BANK_EDITORS | personnel)
+        self.assertTrue(EDITORS | BANK_EDITORS | personnel <= set(GROUPS))
 
     def test_editors_hold_view_add_change_on_parameters(self):
         self.assertEqual(len(PARAMETRE_EDIT_PERMISSIONS), 3)
@@ -1992,7 +1994,7 @@ class DemoParametresTests(TestCase):
 
     @override_settings(DEBUG=True)
     def test_creates_valid_rows_once(self):
-        self.assertIn("5 créés", self.run_command())
+        self.assertIn("6 créés", self.run_command())
         for obj in Parametre.objects.all():
             obj.full_clean()  # every rule holds
 
