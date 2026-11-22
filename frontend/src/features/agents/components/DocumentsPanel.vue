@@ -205,7 +205,7 @@ function retire(document: Document) {
               :href="documentUrl(agentId, data.id)"
               target="_blank"
               rel="noopener"
-              class="p-button p-button-text p-button-sm p-button-icon-only"
+              class="p-button p-button-text p-button-secondary p-button-sm p-button-icon-only"
               :title="`Ouvrir ${data.nom_original}`"
               :aria-label="`Ouvrir ${data.nom_original}`"
               data-test="documents-ouvrir"
@@ -214,7 +214,7 @@ function retire(document: Document) {
             </a>
             <a
               :href="documentUrl(agentId, data.id, true)"
-              class="p-button p-button-text p-button-sm p-button-icon-only"
+              class="p-button p-button-text p-button-secondary p-button-sm p-button-icon-only"
               :title="`Télécharger ${data.nom_original}`"
               :aria-label="`Télécharger ${data.nom_original}`"
               data-test="documents-telecharger"

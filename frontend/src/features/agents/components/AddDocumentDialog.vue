@@ -144,14 +144,26 @@ async function deposer() {
 
       <div class="field">
         <span id="ajout-fichier-label">Fichier</span>
+        <!-- The native button speaks the browser's language: a French one opens it. -->
         <input
           ref="input"
           type="file"
           :accept="ACCEPT"
           aria-labelledby="ajout-fichier-label"
           class="file"
+          tabindex="-1"
           data-test="ajout-fichier"
           @change="choisir"
+        />
+        <Button
+          :label="fichier ? 'Choisir un autre fichier' : 'Choisir un fichier'"
+          icon="pi pi-paperclip"
+          severity="secondary"
+          outlined
+          class="choisir"
+          :disabled="sending"
+          data-test="ajout-choisir"
+          @click="input?.click()"
         />
         <small class="sy-muted">
           PDF, JPEG ou PNG<template v-if="maxMo !== null">, {{ maxMo }} Mo au plus</template>.
@@ -208,8 +220,16 @@ async function deposer() {
 }
 
 .file {
-  font: inherit;
-  color: var(--sy-text);
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.choisir {
+  align-self: flex-start;
 }
 
 .error {
