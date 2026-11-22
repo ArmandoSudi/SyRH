@@ -4,6 +4,8 @@ Agent identity: specs/2026-11-21-agent-identity.
 Contact details: specs/2026-11-21-contact-details.
 Contracts: specs/2026-11-21-contract.
 Assignments and classifications: specs/2026-11-21-position-history.
+Bank accounts: specs/2026-11-21-bank-account.
+Documents: specs/2026-11-22-document-storage.
 
 Rules that only read the row itself are database constraints; rules that read
 other rows or today's date live in check_rules(), called by clean() and save().
@@ -12,8 +14,10 @@ The matricule is fixed and an agent is never deleted: two PostgreSQL triggers
 """
 
 import re
+import uuid
 from datetime import date
 
+from django.conf import settings
 from django.contrib.postgres.constraints import ExclusionConstraint
 from django.contrib.postgres.fields import RangeOperators
 from django.core.exceptions import ValidationError
@@ -22,7 +26,8 @@ from django.db.models import F, Min, Q, Value
 from django.db.models.functions import Upper
 from django.utils import timezone
 
-from apps.core.models import NO_DELETE, BaseModel
+from apps.core.models import NO_DELETE, BaseModel, BaseQuerySet
+from apps.core.storage import get_document_storage
 from apps.referentiels.models import DateRange, fr
 
 MATRICULE_PATTERN = r"^[A-Z0-9/.-]{1,20}$"
@@ -740,3 +745,178 @@ class CompteBancaire(BaseModel):
 
     def delete(self, *args, **kwargs):
         raise PermissionError(COMPTE_NEVER_DELETED)
+
+
+# Scanned supporting documents (document storage D1 to D6, D11, D17).
+DOCUMENT_TYPES_MIME = (
+    ("application/pdf", "PDF"),
+    ("image/jpeg", "JPEG"),
+    ("image/png", "PNG"),
+)
+TYPE_DOCUMENT_FERME = "Le type de pièce « {ref} » n'est pas ouvert le {jour}."
+DOCUMENT_FIXE = "Une pièce déposée ne peut pas être modifiée : retirez-la et déposez-la à nouveau."
+DOCUMENT_DOUBLON = "Ce fichier est déjà déposé pour cet agent avec ce type de pièce."
+DOCUMENT_NEVER_DELETED = "Une pièce n'est jamais supprimée : retirez-la."
+DEJA_RETIRE = "Cette pièce est déjà retirée."
+MOTIF_COURT = "Indiquez le motif du retrait, en 10 caractères au moins."
+RETRAIT_INCOHERENT = "Une pièce retirée a un motif et une date de retrait ; une autre n'en a pas."
+MOTIF_MIN = 10
+# Fields set at upload, never changed afterwards (D2).
+DOCUMENT_FIXED_FIELDS = (
+    "agent_id", "type_document_id", "fichier", "nom_original", "type_mime", "taille",
+    "empreinte", "date_document",
+)  # fmt: skip
+
+
+def chemin_document(instance, filename) -> str:
+    """documents/<yyyy>/<mm>/<uuid>, never the original name (D4)."""
+    now = timezone.now()
+    return f"documents/{now:%Y}/{now:%m}/{uuid.uuid4().hex}"
+
+
+class DocumentQuerySet(BaseQuerySet):
+    def lisibles_par(self, user) -> "DocumentQuerySet":
+        """Documents a user may read: any non-confidential type, a confidential one
+        only through one of its groups; everything for a superuser (D14)."""
+        if user.is_superuser:
+            return self
+        return self.filter(
+            Q(type_document__confidentiel=False)
+            | Q(type_document__groupes_autorises__in=user.groups.all())
+        ).distinct()
+
+
+class Document(BaseModel):
+    """One scanned supporting document of an agent's file (document storage D1).
+
+    The file is encrypted on disk (D7); the row keeps what was checked at upload,
+    which never changes (D2). A wrong upload is retired with a reason, never
+    deleted (D17). Phase 2.7 links events to these rows.
+    """
+
+    module = "agents"
+
+    agent = models.ForeignKey(
+        Agent, verbose_name="agent", on_delete=models.PROTECT, related_name="documents"
+    )
+    type_document = models.ForeignKey(
+        "referentiels.TypeDocument",
+        verbose_name="type de pièce",
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    fichier = models.FileField(
+        "fichier", storage=get_document_storage, upload_to=chemin_document, max_length=100
+    )
+    nom_original = models.CharField("nom du fichier déposé", max_length=150)
+    type_mime = models.CharField("format", max_length=30, choices=DOCUMENT_TYPES_MIME)
+    taille = models.PositiveIntegerField("taille (octets)")
+    empreinte = models.CharField("empreinte SHA-256", max_length=64)
+    date_document = models.DateField(
+        "date de la pièce", null=True, blank=True, help_text="La date imprimée sur la pièce."
+    )
+    retire = models.BooleanField("retirée", default=False)
+    motif_retrait = models.TextField("motif du retrait", blank=True)
+    date_retrait = models.DateTimeField("date du retrait", null=True, blank=True)
+    retire_par = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="retirée par",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+
+    objects = DocumentQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "pièce justificative"
+        verbose_name_plural = "pièces justificatives"
+        ordering = ["agent", "-date_creation", "-id"]  # D5
+        default_permissions = NO_DELETE
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(type_mime__in=[value for value, _ in DOCUMENT_TYPES_MIME]),
+                name="document_format_valide",
+                violation_error_message="Format refusé : PDF, JPEG ou PNG seulement.",
+            ),
+            models.CheckConstraint(
+                condition=Q(taille__gt=0),
+                name="document_non_vide",
+                violation_error_message="Le fichier est vide.",
+            ),
+            models.CheckConstraint(
+                condition=Q(empreinte__regex=r"^[0-9a-f]{64}$"),
+                name="document_empreinte_valide",
+                violation_error_message="Empreinte invalide.",
+            ),
+            models.CheckConstraint(
+                condition=Q(
+                    retire=False,
+                    motif_retrait="",
+                    date_retrait__isnull=True,
+                    retire_par__isnull=True,
+                )
+                | Q(retire=True, motif_retrait__regex=r"\S", date_retrait__isnull=False),
+                name="document_retrait_coherent",
+                violation_error_message=RETRAIT_INCOHERENT,
+            ),  # fmt: skip
+            models.UniqueConstraint(
+                fields=["agent", "type_document", "empreinte"],
+                condition=Q(retire=False),
+                name="document_sans_doublon",
+                violation_error_message=DOCUMENT_DOUBLON,
+            ),
+        ]
+
+    def __str__(self):
+        code = self.type_document.code if self.type_document_id else "?"
+        matricule = self.agent.matricule if self.agent_id else "?"
+        return f"{code} — {self.nom_original or '?'} — {matricule}"
+
+    def check_rules(self) -> None:
+        """Type open on the upload day; nothing but the retirement changes (D2, D3)."""
+        errors: dict[str, list[str]] = {}
+        if self.pk is None:
+            if self.type_document_id:
+                jour = timezone.localdate()
+                if ferme_le(self.type_document, jour):
+                    errors["type_document"] = [
+                        TYPE_DOCUMENT_FERME.format(ref=self.type_document.code, jour=fr(jour))
+                    ]
+        else:
+            old = type(self)._base_manager.filter(pk=self.pk).values(*DOCUMENT_FIXED_FIELDS).first()
+            if old is not None:
+                for name in DOCUMENT_FIXED_FIELDS:
+                    current = getattr(self, name)
+                    if name == "fichier":
+                        current = current.name
+                    if old[name] != current:
+                        errors.setdefault(name.removesuffix("_id"), []).append(DOCUMENT_FIXE)
+        if errors:
+            raise ValidationError(errors)
+
+    def clean(self):
+        super().clean()
+        self.check_rules()
+
+    def save(self, **kwargs):
+        self.check_rules()
+        super().save(**kwargs)
+
+    def retirer(self, motif: str, auteur=None) -> None:
+        """Retire a wrong upload once, with its reason; the file is kept (D17)."""
+        if self.retire:
+            raise ValidationError({"motif": [DEJA_RETIRE]})
+        motif = (motif or "").strip()
+        if len(motif) < MOTIF_MIN:
+            raise ValidationError({"motif": [MOTIF_COURT]})
+        self.retire = True
+        self.motif_retrait = motif
+        self.date_retrait = timezone.now()
+        self.retire_par = auteur
+        self.modifie_par = auteur
+        self.save()
+
+    def delete(self, *args, **kwargs):
+        raise PermissionError(DOCUMENT_NEVER_DELETED)
