@@ -1,23 +1,25 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AutoComplete, { type AutoCompleteCompleteEvent } from 'primevue/autocomplete'
 import Message from 'primevue/message'
 
-import { fetchAgents, type AgentResume } from '@/features/agents/api/agents'
+import { fetchAgent, searchAgents, type AgentResume } from '@/features/agents/api/agents'
 import DocumentsPanel from '@/features/agents/components/DocumentsPanel.vue'
 import EvenementsPanel from '@/features/agents/components/EvenementsPanel.vue'
-import { agentLibelle, filterAgents } from '@/features/agents/components/documents'
+import { agentLibelle } from '@/features/agents/components/documents'
+import { ApiError } from '@/shared/utils/http'
 
 /**
- * "Pièces des agents" (document storage D21): pick an agent, then their documents
- * panel. The agent is kept in the URL (?agent=), so a refresh or a shared link lands
- * on the same file. Temporary: roadmap 2.10 mounts the panel on the agent's page.
+ * "Pièces des agents" (document storage D21): pick an agent, then their documents and
+ * events. The agent is kept in the URL (?agent=), so a refresh, a shared link or a row of
+ * the agent list lands on the same file. The picker searches the server as the user
+ * types, every status included (agent list D17). Temporary: roadmap 2.10 mounts the
+ * panels on the agent's page.
  */
 const route = useRoute()
 const router = useRouter()
 
-const agents = ref<AgentResume[]>([])
 const suggestions = ref<AgentResume[]>([])
 const choisi = ref<AgentResume | string | null>(null)
 const loading = ref(true)
@@ -30,20 +32,43 @@ const agent = computed(() =>
   choisi.value && typeof choisi.value === 'object' ? choisi.value : null,
 )
 
-onMounted(async () => {
+async function charger(query: unknown) {
+  const wanted = Number(query)
+  if (!Number.isInteger(wanted) || wanted <= 0) {
+    choisi.value = null
+    loading.value = false
+    return
+  }
+  if (agent.value?.id === wanted) return
+  loading.value = true
+  error.value = null
   try {
-    agents.value = await fetchAgents()
-    const wanted = Number(route.query.agent)
-    choisi.value = agents.value.find((a) => a.id === wanted) ?? null
+    choisi.value = await fetchAgent(wanted)
   } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
+    choisi.value = null
+    if (!(e instanceof ApiError && e.status === 404)) {
+      error.value = e instanceof Error ? e.message : String(e)
+    }
   } finally {
     loading.value = false
   }
-})
+}
 
-function complete(event: AutoCompleteCompleteEvent) {
-  suggestions.value = filterAgents(agents.value, event.query).slice(0, 20)
+onMounted(() => void charger(route.query.agent))
+watch(
+  () => route.query.agent,
+  (value) => void charger(value),
+)
+
+let latest = 0
+async function complete(event: AutoCompleteCompleteEvent) {
+  const call = ++latest
+  try {
+    const page = await searchAgents({ q: event.query, taille: 20 })
+    if (call === latest) suggestions.value = page.results
+  } catch {
+    if (call === latest) suggestions.value = []
+  }
 }
 
 function select() {

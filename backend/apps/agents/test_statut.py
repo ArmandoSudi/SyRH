@@ -67,3 +67,19 @@ class StatutTests(TestCase):
             annotated = dict(Agent.objects.with_statut(jour).values_list("pk", "statut"))
             for a in Agent.objects.prefetch_related("contrats"):
                 self.assertEqual(annotated[a.pk], a.statut_au(jour), (a.matricule, jour))
+
+
+class StatutMirrorTests(TestCase):
+    """The list's status filter reads its own copy of the statuses (agent list D2)."""
+
+    def test_frontend_list_matches_the_backend(self):
+        import re
+        from pathlib import Path
+
+        from django.conf import settings
+
+        source = (
+            Path(settings.BASE_DIR).parent / "frontend/src/features/agents/components/statuts.ts"
+        ).read_text()
+        pairs = re.findall(r"\{ value: '([a-z_]+)', label: '([^']+)' \}", source)
+        self.assertEqual(pairs, [(value, str(label)) for value, label in StatutAgent.choices])

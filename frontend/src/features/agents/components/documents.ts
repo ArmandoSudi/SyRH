@@ -61,15 +61,3 @@ export function agentLibelle(agent: AgentResume): string {
   const noms = [agent.nom, agent.postnom, agent.prenom].filter(Boolean).join(' ')
   return `${agent.matricule} — ${noms}`
 }
-
-/** Agents whose matricule or names contain the text, case and accents ignored. */
-export function filterAgents(agents: AgentResume[], texte: string): AgentResume[] {
-  const plain = (value: string) =>
-    value
-      .normalize('NFD')
-      .replace(/\p{Diacritic}/gu, '')
-      .toLowerCase()
-  const wanted = plain(texte.trim())
-  if (!wanted) return agents
-  return agents.filter((agent) => plain(agentLibelle(agent)).includes(wanted))
-}
