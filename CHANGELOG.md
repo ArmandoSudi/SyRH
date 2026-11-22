@@ -10,7 +10,20 @@ the work is merged.
 - `/api/agents/<id>/comptes-bancaires/` returns an agent's accounts and the one in force today,
   for Rémunération, its chef and Direction RH only; the agent list and detail carry no account.
   Run `migrate`; `create_demo_agents` now also loads the demo banks and gives agents accounts.
-<!-- commits: b53a19c ecef031 b3296b9 26b0823 -->
+- Document storage (roadmap 2.6): agents' scanned documents (PDF, JPEG, PNG) are stored
+  encrypted with Fernet and served only through authenticated endpoints, never by URL.
+- New "Pièces des agents" page: pick an agent, then open, download, add (with progress) and
+  retire their documents. Gestion de carrière and Administration du personnel add and retire.
+- Uploads are checked on their content, against the new size parameter (10 Mo in the demo) and
+  for duplicates; a wrong upload is retired with a reason, never deleted.
+- Document types can be confidential, read only by chosen profiles (demo: medical certificate
+  for Social, identity document for the career and staff services); others never see them.
+- **Action needed:** set `SYRH_DOCUMENT_KEYS` in `backend/.env` (see `.env.example`); SyRH
+  refuses to start without it. Keep the key safe: losing it loses every document. Run `migrate`;
+  the test server also needs the new nginx limit and document directory (`docs/deployment.md`).
+- User guide section with screenshots; open questions Q37 (confidential types) and Q38 (virus
+  scanning).
+<!-- commits: b53a19c ecef031 b3296b9 26b0823 dbca804 df86d0e 1b09f83 7a5db67 00b4be2 0775e62 d576192 5a743a3 89905ff 8258e2d -->
 
 ## 2026-11-21
 
