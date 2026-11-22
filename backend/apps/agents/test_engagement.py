@@ -2,6 +2,7 @@
 
 from datetime import date
 
+from django.test import TestCase
 from rest_framework.test import APIClient
 
 from apps.audit.models import EntreeAudit
@@ -183,3 +184,49 @@ class AccessTests(Base):
         client.force_authenticate(self.carriere)
         for method in ("put", "patch", "delete"):
             self.assertEqual(getattr(client, method)(f"{AGENTS}{agent_id}/").status_code, 405)
+
+
+class EmptySuggestionTests(TestCase):
+    def test_first_suggestion_without_any_agent(self):
+        from .engagement import matricule_suivant
+
+        self.assertEqual(matricule_suivant(2026), "ARPTC/0001/2026")
+
+
+class SuggestionAndDuplicateTests(Base):
+    def get(self, url, user=None):
+        client = APIClient()
+        client.force_authenticate(user or self.carriere)
+        return client.get(url)
+
+    def test_suggestion(self):
+        url = f"{AGENTS}matricule-suivant/?annee=2026"
+        # The fixture holds ARPTC/0001/2020 and ARPTC/0002/2020.
+        self.assertEqual(self.get(url).json(), {"matricule": "ARPTC/0003/2026"})
+        for matricule in ("ARPTC/0012/2024", "ARPTC/0007/2015", "CHARGE/09999", "ARPTC-0500"):
+            Agent.objects.create(matricule=matricule, nom="X", sexe="M",
+                                 date_naissance=date(1990, 1, 1), lieu_naissance="K")  # fmt: skip
+        self.assertEqual(self.get(url).json(), {"matricule": "ARPTC/0013/2026"})
+        self.assertEqual(self.get(f"{AGENTS}matricule-suivant/").status_code, 400)
+
+    def test_duplicates(self):
+        self.post()  # Kabongo Élodie, 12/04/1995
+        url = f"{AGENTS}doublons/?nom=KABONGO&date_naissance=1995-04-12"
+        rows = self.get(url).json()
+        self.assertEqual([r["matricule"] for r in rows], ["ARPTC/0100/2026"])
+        self.assertEqual(len(self.get(url + "&prenom=elodie").json()), 1)
+        self.assertEqual(self.get(url + "&prenom=Marie").json(), [])
+        self.assertEqual(
+            self.get(f"{AGENTS}doublons/?nom=Kabongo&date_naissance=1995-04-13").json(), []
+        )
+        for n in range(12):
+            Agent.objects.create(matricule=f"D/{n}", nom="Kabongo", sexe="M",
+                                 date_naissance=date(1995, 4, 12), lieu_naissance="K")  # fmt: skip
+        self.assertEqual(len(self.get(url).json()), 10)
+        self.assertEqual(self.get(f"{AGENTS}doublons/?nom=Kabongo").status_code, 400)
+
+    def test_both_need_add_agent(self):
+        formation = member("formation", "Formation")
+        for url in (f"{AGENTS}matricule-suivant/?annee=2026",
+                    f"{AGENTS}doublons/?nom=X&date_naissance=1990-01-01"):  # fmt: skip
+            self.assertEqual(self.get(url, formation).status_code, 403)

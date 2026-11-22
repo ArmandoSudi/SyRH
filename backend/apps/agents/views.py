@@ -7,7 +7,15 @@ from rest_framework.response import Response
 from apps.accounts.permissions import HasModuleAccess
 from apps.core.mixins import request_author
 
-from .engagement import EngagementPermission, EngagementSerializer, engager
+from .engagement import (
+    AnneeSerializer,
+    DoublonsSerializer,
+    EngagementPermission,
+    EngagementSerializer,
+    doublons,
+    engager,
+    matricule_suivant,
+)
 from .models import Affectation, Agent, Classement, CompteBancaire, Contrat
 from .recherche import AgentPagination, RechercheSerializer, rechercher
 from .serializers import AgentDetailSerializer, AgentSerializer, ComptesBancairesSerializer
@@ -40,6 +48,23 @@ class AgentViewSet(viewsets.ReadOnlyModelViewSet):
         detail = self.get_queryset_for_detail().get(pk=agent.pk)
         serializer = AgentDetailSerializer(detail, context=self.get_serializer_context())
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["get"], url_path="matricule-suivant")
+    def matricule_suivant(self, request):
+        """GET /api/agents/matricule-suivant/?annee=YYYY (agent creation form D6)."""
+        params = AnneeSerializer(data=request.query_params)
+        params.is_valid(raise_exception=True)
+        return Response({"matricule": matricule_suivant(params.validated_data["annee"])})
+
+    @action(detail=False, methods=["get"])
+    def doublons(self, request):
+        """GET /api/agents/doublons/?nom=&prenom=&date_naissance= (agent creation form D7)."""
+        params = DoublonsSerializer(data=request.query_params)
+        params.is_valid(raise_exception=True)
+        rows = doublons(params.validated_data)
+        return Response(
+            AgentSerializer(rows, many=True, context=self.get_serializer_context()).data
+        )
 
     def get_queryset_for_detail(self):
         action, self.action = self.action, "retrieve"

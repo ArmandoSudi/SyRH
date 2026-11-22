@@ -6,6 +6,8 @@ start, in one transaction. The rules are the models' own: every section is check
 and all errors come back together, nested by section; any error creates nothing.
 """
 
+import re
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from rest_framework import serializers
@@ -146,3 +148,46 @@ def engager(data: dict, auteur) -> Agent:
         if errors:
             raise serializers.ValidationError(errors)  # leaving atomic() rolls everything back
     return agent
+
+
+SUGGESTION = re.compile(r"^ARPTC/(\d+)/\d{4}$")
+DOUBLONS_MAX = 10
+
+
+class AnneeSerializer(serializers.Serializer):
+    annee = serializers.IntegerField(min_value=1900, max_value=2100)
+
+
+def matricule_suivant(annee: int) -> str:
+    """ARPTC/<n>/<year>, n one more than the highest sequence of the bulletin-shaped
+    matricules, padded to 4 digits (D6). Other shapes are ignored."""
+    highest = 0
+    for matricule in Agent.objects.filter(matricule__startswith="ARPTC/").values_list(
+        "matricule", flat=True
+    ):
+        match = SUGGESTION.match(matricule)
+        if match:
+            highest = max(highest, int(match.group(1)))
+    return f"ARPTC/{highest + 1:04d}/{annee}"
+
+
+class DoublonsSerializer(serializers.Serializer):
+    nom = serializers.CharField()
+    postnom = serializers.CharField(required=False, allow_blank=True)
+    prenom = serializers.CharField(required=False, allow_blank=True)
+    date_naissance = serializers.DateField()
+
+
+def doublons(params: dict):
+    """Agents with the same nom (case and accents ignored) and birth date, and the same
+    prénom when given (D7)."""
+    from .recherche import sans_accents
+
+    queryset = Agent.objects.filter(
+        nom__unaccent__iexact=sans_accents(params["nom"].strip()),
+        date_naissance=params["date_naissance"],
+    )
+    prenom = (params.get("prenom") or "").strip()
+    if prenom:
+        queryset = queryset.filter(prenom__unaccent__iexact=sans_accents(prenom))
+    return queryset.order_by("nom", "postnom", "prenom", "matricule")[:DOUBLONS_MAX]
