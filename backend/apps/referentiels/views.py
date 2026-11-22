@@ -123,7 +123,7 @@ class TypeDocumentViewSet(EditionMixin, ClassificationViewSet):
     """Kinds of supporting document, by name (document types D18, D19)."""
 
     serializer_class = TypeDocumentSerializer
-    queryset = TypeDocument.objects.all()
+    queryset = TypeDocument.objects.prefetch_related("groupes_autorises")
 
 
 class PieceRequiseViewSet(EditionMixin, ClassificationViewSet):

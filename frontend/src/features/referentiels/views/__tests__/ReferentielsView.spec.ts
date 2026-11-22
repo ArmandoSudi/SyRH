@@ -126,8 +126,8 @@ const TYPES: TypeContrat[] = [
 ]
 
 const TYPES_DOCUMENT: TypeDocument[] = [
-  { id: 1, code: 'CTR', nom: 'Contrat signé', ...PERIODE },
-  { id: 2, code: 'DEC', nom: 'Décision', ...PERIODE },
+  { id: 1, code: 'CTR', nom: 'Contrat signé', confidentiel: false, groupes_autorises: [], groupes_autorises_noms: [], ...PERIODE },
+  { id: 2, code: 'DEC', nom: 'Décision', confidentiel: false, groupes_autorises: [], groupes_autorises_noms: [], ...PERIODE },
 ]
 const PIECES: PieceRequise[] = [
   {
@@ -888,6 +888,7 @@ describe('ReferentielsView', () => {
         ["Nombre maximal d'enfants pris en charge", 'Non renseigné', '', ''],
         ['Âge de la retraite', '65 ans', '01/01/2015', '—'],
         ['Durée de carrière avant la retraite', 'Non renseigné', '', ''],
+        ["Taille maximale d'une pièce justificative", 'Non renseigné', '', ''],
       ])
     })
 

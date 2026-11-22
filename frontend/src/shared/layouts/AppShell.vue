@@ -21,6 +21,12 @@ const mainNav: NavItem[] = [
   { to: '/', label: 'Tableau de bord', icon: 'pi pi-home' },
   { to: '/agents', label: 'Agents', icon: 'pi pi-users', permission: MODULE_PERMISSIONS.agents },
   {
+    to: '/agents/pieces',
+    label: 'Pièces des agents',
+    icon: 'pi pi-folder-open',
+    permission: MODULE_PERMISSIONS.agents,
+  },
+  {
     to: '/carriere',
     label: 'Carrière',
     icon: 'pi pi-briefcase',

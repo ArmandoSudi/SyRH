@@ -169,6 +169,12 @@ COMPTE_BANCAIRE_EDIT_PERMISSIONS = tuple(
 )
 PAIE_RECORD_EDIT_PERMISSIONS = COMPTE_BANCAIRE_EDIT_PERMISSIONS + ("agents.view_agent",)
 
+# Uploading and retiring the agents' scanned documents through the API, never
+# deleted (document storage D15); view also opens the read-only admin page.
+AGENT_DOCUMENT_EDIT_PERMISSIONS = tuple(
+    f"agents.{action}_document" for action in ("view", "add", "change")
+)
+
 # What the Gestion de carrière profiles edit on the agent record.
 AGENT_RECORD_EDIT_PERMISSIONS = (
     AGENT_EDIT_PERMISSIONS
@@ -176,6 +182,7 @@ AGENT_RECORD_EDIT_PERMISSIONS = (
     + CONTRAT_EDIT_PERMISSIONS
     + AFFECTATION_EDIT_PERMISSIONS
     + CLASSEMENT_EDIT_PERMISSIONS
+    + AGENT_DOCUMENT_EDIT_PERMISSIONS
 )
 
 # Group name -> Django permissions beyond module access. These groups work in
@@ -188,6 +195,8 @@ EXTRA_PERMISSIONS: dict[str, tuple[str, ...]] = {
     "Chef de service — Gestion de carrière": (
         REFERENTIELS_EDIT_PERMISSIONS + AGENT_RECORD_EDIT_PERMISSIONS
     ),
+    "Administration du personnel": AGENT_DOCUMENT_EDIT_PERMISSIONS,
+    "Chef de service — Administration du personnel": AGENT_DOCUMENT_EDIT_PERMISSIONS,
     "Rémunération": BANQUE_EDIT_PERMISSIONS + PAIE_RECORD_EDIT_PERMISSIONS,
     "Chef de service — Rémunération": BANQUE_EDIT_PERMISSIONS + PAIE_RECORD_EDIT_PERMISSIONS,
 }

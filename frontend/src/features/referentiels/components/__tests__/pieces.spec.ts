@@ -6,9 +6,9 @@ import { buildPieces, EVENEMENTS, filterPieces, nombreLibelle } from '../pieces'
 
 const PERIODE = { date_ouverture: '2015-01-01', date_fermeture: null }
 const TYPES: TypeDocument[] = [
-  { id: 1, code: 'CTR', nom: 'Contrat signé', ...PERIODE },
-  { id: 2, code: 'DEC', nom: 'Décision', ...PERIODE },
-  { id: 3, code: 'AMA', nom: 'Acte de mariage', ...PERIODE },
+  { id: 1, code: 'CTR', nom: 'Contrat signé', confidentiel: false, groupes_autorises: [], groupes_autorises_noms: [], ...PERIODE },
+  { id: 2, code: 'DEC', nom: 'Décision', confidentiel: false, groupes_autorises: [], groupes_autorises_noms: [], ...PERIODE },
+  { id: 3, code: 'AMA', nom: 'Acte de mariage', confidentiel: false, groupes_autorises: [], groupes_autorises_noms: [], ...PERIODE },
 ]
 
 function piece(

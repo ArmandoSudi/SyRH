@@ -769,6 +769,20 @@ class TypeDocument(ClassificationRules, BaseModel):
 
     code = models.CharField("code", max_length=20)
     nom = models.CharField("nom", max_length=150)
+    # Confidential documents are read only by members of the groups below
+    # (document storage D13, D14).
+    confidentiel = models.BooleanField(
+        "confidentiel",
+        default=False,
+        help_text="Les pièces de ce type ne sont lues que par les profils autorisés.",
+    )
+    groupes_autorises = models.ManyToManyField(
+        "auth.Group",
+        verbose_name="profils autorisés",
+        blank=True,
+        related_name="+",
+        help_text="Profils qui lisent les pièces de ce type, s'il est confidentiel.",
+    )
     date_ouverture = models.DateField("date d'ouverture")
     date_fermeture = models.DateField(
         "date de fermeture",
@@ -797,6 +811,41 @@ class TypeDocument(ClassificationRules, BaseModel):
 
     def __str__(self):
         return f"{self.code} — {self.nom}"
+
+    @staticmethod
+    def check_groupes(confidentiel: bool, groupes) -> dict[str, list[str]]:
+        """A confidential type names at least one group (document storage D13).
+
+        A many-to-many value is saved after its row, so forms and the API call this
+        with the submitted groups; there is no database constraint.
+        """
+        if confidentiel and not list(groupes):
+            return {"groupes_autorises": [GROUPES_REQUIS]}
+        return {}
+
+    def set_groupes(self, groupes, auteur=None) -> None:
+        """Replace the allowed groups, with an audit entry of what was added and removed."""
+        from apps.audit import service
+
+        before = service.m2m_snapshot(self, ["groupes_autorises"])
+        self.groupes_autorises.set(groupes)
+        after = service.m2m_snapshot(self, ["groupes_autorises"])
+        service.record(
+            self,
+            service.Action.MODIFICATION,
+            service.m2m_changes(type(self), before, after),
+            module=self.module,
+            auteur=auteur,
+        )
+
+    def lisible_par(self, user) -> bool:
+        """Whether a user reads the documents of this type (document storage D14)."""
+        if not self.confidentiel or user.is_superuser:
+            return True
+        return self.groupes_autorises.filter(user=user).exists()
+
+
+GROUPES_REQUIS = "Une pièce confidentielle doit être réservée à au moins un profil."
 
 
 class Evenement(models.TextChoices):
@@ -1154,6 +1203,7 @@ class Cle(models.TextChoices):
     ENFANTS_MAX = "enfants_max", "Nombre maximal d'enfants pris en charge"
     AGE_RETRAITE = "age_retraite", "Âge de la retraite"
     DUREE_CARRIERE = "duree_carriere", "Durée de carrière avant la retraite"
+    TAILLE_MAX_PIECE = "taille_max_piece", "Taille maximale d'une pièce justificative"
 
 
 class Definition(NamedTuple):
@@ -1168,6 +1218,7 @@ DEFINITIONS: dict[str, Definition] = {
     Cle.ENFANTS_MAX: Definition("enfants", 1, 20),
     Cle.AGE_RETRAITE: Definition("ans", 55, 75),
     Cle.DUREE_CARRIERE: Definition("ans", 20, 45),
+    Cle.TAILLE_MAX_PIECE: Definition("Mo", 1, 50),  # document storage D12
 }
 
 

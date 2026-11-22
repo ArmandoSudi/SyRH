@@ -28,14 +28,15 @@ describe('buildParametres', () => {
       'Non renseigné',
       '65 ans',
       'Non renseigné',
+      'Non renseigné',
     ])
   })
 
   it('keeps a row whose key the client does not know yet, at the end', () => {
     const lignes = buildParametres([row(9, 'age_pivot', 'Âge pivot', 62)])
-    expect(lignes).toHaveLength(5)
-    expect(lignes[4]).toMatchObject({ cle: 'age_pivot', libelle: 'Âge pivot' })
-    expect(valeurLibelle(lignes[4]!)).toBe('62 ans')
+    expect(lignes).toHaveLength(6)
+    expect(lignes[5]).toMatchObject({ cle: 'age_pivot', libelle: 'Âge pivot' })
+    expect(valeurLibelle(lignes[5]!)).toBe('62 ans')
   })
 
   it('shows the unit of each key', () => {

@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
+import * as agents from '@/features/agents/routes'
 import * as audit from '@/features/audit/routes'
 import * as auth from '@/features/auth/routes'
 import * as dashboard from '@/features/dashboard/routes'
@@ -41,6 +42,7 @@ const router = createRouter({
       component: AppShell,
       children: [
         ...dashboard.routes,
+        ...agents.routes,
         ...upcoming,
         ...referentiels.routes,
         ...audit.routes,

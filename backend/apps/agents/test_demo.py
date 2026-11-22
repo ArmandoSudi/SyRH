@@ -198,3 +198,35 @@ class DemoAgentsTests(TestCase):
         before = (CompteBancaire.objects.count(), EntreeAudit.objects.count())
         self.assertIn("0 comptes bancaires créés", self.run_command())
         self.assertEqual((CompteBancaire.objects.count(), EntreeAudit.objects.count()), before)
+
+
+class DemoDocumentsTests(TestCase):
+    """Demo documents (document storage D23)."""
+
+    @override_settings(DEBUG=True)
+    def test_documents_of_every_shape_once(self):
+        from .management.commands.demo_files import pdf, png
+        from .models import Document
+
+        out = StringIO()
+        call_command("create_demo_agents", stdout=out)
+        self.assertIn("7 pièces déposées", out.getvalue())
+        rows = Document.objects.select_related("type_document")
+        self.assertEqual({row.type_mime for row in rows}, {"application/pdf", "image/png"})
+        self.assertTrue(any(row.type_document.confidentiel for row in rows))
+        self.assertEqual(rows.filter(retire=True).count(), 1)
+        for row in rows:
+            row.full_clean()
+            with row.fichier.open() as opened:
+                self.assertEqual(len(opened.read()), row.taille)
+        self.assertFalse(
+            EntreeAudit.objects.filter(table__model="document").exclude(auteur=None).exists()
+        )
+        self.assertTrue(pdf("Test").startswith(b"%PDF-1.4"))
+        self.assertTrue(png().startswith(b"\x89PNG"))
+
+        before = (Document.objects.count(), EntreeAudit.objects.count())
+        out = StringIO()
+        call_command("create_demo_agents", stdout=out)
+        self.assertIn("0 pièces déposées", out.getvalue())
+        self.assertEqual((Document.objects.count(), EntreeAudit.objects.count()), before)

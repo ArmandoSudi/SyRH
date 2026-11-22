@@ -25,3 +25,6 @@ demo-users.md
 
 # Stakeholder test guide: carries the demo password (docs/build_test_guide.py)
 docs/test-guide/
+
+# Encrypted scanned documents in development (SYRH_DOCUMENT_ROOT)
+backend/var/

@@ -2,8 +2,17 @@ from rest_framework import serializers
 
 from apps.core.models import BASE_FIELDS
 from apps.core.serializers import BaseModelSerializer
+from apps.referentiels.models import TypeDocument
 
-from .models import Affectation, Agent, Classement, CompteBancaire, Contrat, Coordonnees
+from .models import (
+    Affectation,
+    Agent,
+    Classement,
+    CompteBancaire,
+    Contrat,
+    Coordonnees,
+    Document,
+)
 
 AFFECTATION_FIELDS = [
     "id",
@@ -208,3 +217,66 @@ class ComptesBancairesSerializer(serializers.Serializer):
     def get_compte_actuel(self, agent):
         row = agent.compte_bancaire_au(self.context["aujourdhui"])
         return CompteActuelSerializer(row).data if row else None
+
+
+def nom_utilisateur(user) -> str | None:
+    """A user as the screen shows them: full name, or the username without one."""
+    if user is None:
+        return None
+    return user.get_full_name() or user.get_username()
+
+
+class DocumentSerializer(BaseModelSerializer):
+    """One scanned document, without its storage path or hash (document storage D20).
+
+    The authors' names come with their ids, for the documents panel (D22).
+    """
+
+    type_document_code = serializers.CharField(source="type_document.code", read_only=True)
+    type_document_nom = serializers.CharField(source="type_document.nom", read_only=True)
+    confidentiel = serializers.BooleanField(source="type_document.confidentiel", read_only=True)
+    cree_par_nom = serializers.SerializerMethodField()
+    retire_par_nom = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Document
+        fields = [
+            "id",
+            "type_document",
+            "type_document_code",
+            "type_document_nom",
+            "confidentiel",
+            "nom_original",
+            "type_mime",
+            "taille",
+            "date_document",
+            "retire",
+            "motif_retrait",
+            "date_retrait",
+            "retire_par",
+            "retire_par_nom",
+            "cree_par_nom",
+            *BASE_FIELDS,
+        ]
+        read_only_fields = fields
+
+    def get_cree_par_nom(self, obj) -> str | None:
+        return nom_utilisateur(obj.cree_par)
+
+    def get_retire_par_nom(self, obj) -> str | None:
+        return nom_utilisateur(obj.retire_par)
+
+
+class DocumentUploadSerializer(serializers.Serializer):
+    """What a client sends to upload a document (document storage D18)."""
+
+    type_document = serializers.PrimaryKeyRelatedField(queryset=TypeDocument.objects.all())
+    fichier = serializers.FileField(
+        allow_empty_file=True,  # create_document reports an empty file in its own words
+        error_messages={"required": "Choisissez le fichier à déposer."},
+    )
+    date_document = serializers.DateField(required=False, allow_null=True)
+
+
+class RetraitSerializer(serializers.Serializer):
+    motif = serializers.CharField(allow_blank=True, trim_whitespace=True)

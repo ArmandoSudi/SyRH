@@ -1,10 +1,14 @@
 from datetime import date
 
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from django.utils import timezone
 
+from apps.agents.documents import create_document
+from apps.agents.management.commands.demo_files import pdf, png
 from apps.agents.models import (
     Affectation,
     Agent,
@@ -12,6 +16,7 @@ from apps.agents.models import (
     CompteBancaire,
     Contrat,
     Coordonnees,
+    Document,
 )
 from apps.referentiels.models import (
     Banque,
@@ -19,6 +24,7 @@ from apps.referentiels.models import (
     Fonction,
     Grade,
     TypeContrat,
+    TypeDocument,
     UniteOrganisationnelle,
 )
 
@@ -228,6 +234,41 @@ COMPTES_BANCAIRES = {
 }
 
 
+# Scanned documents by matricule (document storage D23): type code, file name, date
+# printed on it, how to build it, and a retirement reason for a wrong upload. Built
+# in code; CNI and CMD are confidential demo types (create_demo_pieces).
+DOCUMENTS = {
+    "ARPTC/0001/2008": [
+        ("CTR", "Contrat Mukendi 2008.pdf", date(2008, 3, 1),
+         ("pdf", "Contrat de travail", "Patrick Mukendi Kalonji", "Kinshasa, le 1er mars 2008"),
+         None),
+        ("CNI", "Carte d'électeur Mukendi.png", date(2017, 5, 4), ("png",), None),
+        ("DIP", "Diplôme de licence en droit.pdf", date(1996, 7, 15),
+         ("pdf", "Diplôme de licence", "Université de Kinshasa", "Faculté de droit"), None),
+    ],
+    "ARPTC/0002/2008": [
+        ("CTR", "Contrat Nsimba 2008.pdf", date(2008, 6, 1),
+         ("pdf", "Contrat de travail", "Christine Nsimba Lukau"), None),
+        ("CMD", "Certificat médical novembre 2026.pdf", date(2026, 11, 3),
+         ("pdf", "Certificat médical", "Repos de cinq jours"), None),
+    ],
+    "ARPTC/0005/2012": [
+        ("DEC", "Décision de mutation Goma.pdf", date(2019, 2, 15),
+         ("pdf", "Décision de mutation", "Josué Bahati Mugisha", "Affecté à Goma"), None),
+        ("CTR", "Contrat Tshibangu.pdf", date(2015, 3, 1),
+         ("pdf", "Contrat de travail", "Didier Tshibangu"),
+         "Déposée sur le mauvais agent : contrat de M. Tshibangu."),
+    ],
+}  # fmt: skip
+
+
+def demo_file(recipe: tuple) -> bytes:
+    kind, *lines = recipe
+    if kind == "png":
+        return png()
+    return pdf(*(line.encode("latin-1", "replace").decode("latin-1") for line in lines))
+
+
 class Command(BaseCommand):
     help = (
         "Charge des agents fictifs, pour la démonstration. "
@@ -249,10 +290,12 @@ class Command(BaseCommand):
             "create_demo_fonctions",
             "create_demo_classification",
             "create_demo_banques",
+            "create_demo_pieces",
+            "create_demo_parametres",
         ):
             call_command(command, stdout=self.stdout)
 
-        created = contacts = contracts = assignments = classifications = accounts = 0
+        created = contacts = contracts = assignments = classifications = accounts = documents = 0
         with transaction.atomic():
             for matricule, nom, postnom, prenom, sexe, naissance, lieu, *nationalite in AGENTS:
                 agent, new = Agent.objects.get_or_create(
@@ -329,11 +372,28 @@ class Command(BaseCommand):
                     if new:
                         self.stdout.write(f"créé  {row}")
                     accounts += int(new)
+                for code, nom, jour, recipe, motif in DOCUMENTS.get(matricule, []):
+                    documents += self.document(agent, code, nom, jour, recipe, motif)
 
         done = (
             f"Agents de démonstration prêts : {created} créés, "
             f"{contacts} fiches de coordonnées créées, {contracts} contrats créés, "
             f"{assignments} affectations créées, {classifications} classements créés, "
-            f"{accounts} comptes bancaires créés."
+            f"{accounts} comptes bancaires créés, {documents} pièces déposées."
         )
         self.stdout.write(self.style.SUCCESS(done))
+
+    def document(self, agent, code, nom, jour, recipe, motif) -> int:
+        """Upload one demo document through the real checks, once; retire it if asked."""
+        type_document = TypeDocument.objects.ouvertes(timezone.localdate()).get(code=code)
+        row = Document.objects.filter(
+            agent=agent, type_document=type_document, nom_original=nom
+        ).first()
+        new = row is None
+        if new:
+            upload = ContentFile(demo_file(recipe), name=nom)
+            row = create_document(agent, type_document, upload, date_document=jour)
+            self.stdout.write(f"créé  {row}")
+        if motif and not row.retire:
+            row.retirer(motif)
+        return int(new)

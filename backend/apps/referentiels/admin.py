@@ -1,7 +1,9 @@
+from django import forms
 from django.contrib import admin
 from django.utils import timezone
 
 from apps.core.admin import BaseModelAdmin
+from apps.core.mixins import request_author
 
 from .models import (
     Banque,
@@ -139,14 +141,57 @@ class TypeContratAdmin(BaseModelAdmin, admin.ModelAdmin):
     ]
 
 
+class TypeDocumentForm(forms.ModelForm):
+    """Checks that a confidential type names a group (document storage D13)."""
+
+    class Meta:
+        model = TypeDocument
+        fields = [
+            "code", "nom", "confidentiel", "groupes_autorises", "date_ouverture", "date_fermeture"
+        ]  # fmt: skip
+
+    def clean(self):
+        cleaned = super().clean()
+        errors = TypeDocument.check_groupes(
+            cleaned.get("confidentiel", False), cleaned.get("groupes_autorises") or []
+        )
+        for field, messages in errors.items():
+            for message in messages:
+                self.add_error(field, message)
+        return cleaned
+
+
 @admin.register(TypeDocument)
 class TypeDocumentAdmin(ClassificationAdmin):
-    """Kinds of supporting document (document types D16)."""
+    """Kinds of supporting document (document types D16), confidential or not
+    (document storage D13)."""
 
-    list_display = ["code", "nom", "date_ouverture", "date_fermeture"]
-    list_filter = [OuvertFilter]
+    form = TypeDocumentForm
+    list_display = ["code", "nom", "confidentiel", "date_ouverture", "date_fermeture"]
+    list_filter = ["confidentiel", OuvertFilter]
     search_fields = ["code", "nom"]  # also used by the requirement's autocomplete
-    fields = ["code", "nom", "date_ouverture", "date_fermeture"]
+    fields = [
+        "code", "nom", "confidentiel", "groupes_autorises", "date_ouverture", "date_fermeture"
+    ]  # fmt: skip
+    filter_horizontal = ["groupes_autorises"]
+
+    def save_related(self, request, form, formsets, change):
+        """The groups are saved after the row: audit what changed (document storage D16)."""
+        from apps.audit import service
+
+        obj = form.instance
+        before = service.m2m_snapshot(obj, ["groupes_autorises"]) if change else {
+            "groupes_autorises": set()
+        }  # fmt: skip
+        super().save_related(request, form, formsets, change)
+        after = service.m2m_snapshot(obj, ["groupes_autorises"])
+        service.record(
+            obj,
+            service.Action.MODIFICATION,
+            service.m2m_changes(TypeDocument, before, after),
+            module=obj.module,
+            auteur=request_author(request),
+        )
 
 
 @admin.register(PieceRequise)

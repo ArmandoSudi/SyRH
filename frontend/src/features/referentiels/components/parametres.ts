@@ -10,6 +10,7 @@ export const PARAMETRES: { cle: CleParametre; libelle: string }[] = [
   { cle: 'enfants_max', libelle: "Nombre maximal d'enfants pris en charge" },
   { cle: 'age_retraite', libelle: 'Âge de la retraite' },
   { cle: 'duree_carriere', libelle: 'Durée de carrière avant la retraite' },
+  { cle: 'taille_max_piece', libelle: "Taille maximale d'une pièce justificative" },
 ]
 
 /** One row of the tab: a key and its value at the date, or none. */

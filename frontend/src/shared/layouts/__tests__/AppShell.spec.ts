@@ -67,7 +67,7 @@ describe('AppShell', () => {
       MODULE_PERMISSIONS.referentiels,
     ])
 
-    expect(menu(wrapper)).toEqual(['/', '/agents', '/paie', '/referentiels'])
+    expect(menu(wrapper)).toEqual(['/', '/agents', '/agents/pieces', '/paie', '/referentiels'])
     expect(wrapper.find('.group').exists()).toBe(true)
   })
 
@@ -79,7 +79,7 @@ describe('AppShell', () => {
 
   it('shows the audit log to its readers only', async () => {
     const reader = await mountAs([MODULE_PERMISSIONS.agents, MODULE_PERMISSIONS.audit])
-    expect(menu(reader.wrapper)).toEqual(['/', '/agents', '/audit'])
+    expect(menu(reader.wrapper)).toEqual(['/', '/agents', '/agents/pieces', '/audit'])
 
     setActivePinia(createPinia())
     const other = await mountAs([MODULE_PERMISSIONS.agents, MODULE_PERMISSIONS.carriere])

@@ -4,6 +4,8 @@ Configuration comes from environment variables, loaded from backend/.env in
 development. See backend/.env.example for the expected keys.
 """
 
+import sys
+import tempfile
 from pathlib import Path
 
 import environ
@@ -100,6 +102,24 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Scanned supporting documents (document storage D7 to D9, D12). Every file is
+# encrypted with Fernet before it reaches the disk, under a directory no URL
+# serves; only the authenticated documents endpoints read it back. The first key
+# encrypts, all of them decrypt (key rotation); system check core.E002 refuses to
+# start without a valid one. A test run gets a throwaway key and directory.
+TESTING = sys.argv[1:2] == ["test"]
+SYRH_DOCUMENT_KEYS = env.list("SYRH_DOCUMENT_KEYS", default=[])
+SYRH_DOCUMENT_ROOT = Path(env("SYRH_DOCUMENT_ROOT", default=str(BASE_DIR / "var" / "documents")))
+if TESTING:
+    from cryptography.fernet import Fernet
+
+    SYRH_DOCUMENT_KEYS = [Fernet.generate_key().decode()]
+    SYRH_DOCUMENT_ROOT = Path(tempfile.mkdtemp(prefix="syrh-documents-"))
+
+# No request body above 50 Mo, the highest value of the size limit parameter (D12).
+DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024
 
 MAILERS = {
     "default": {
