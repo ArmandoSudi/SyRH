@@ -6,6 +6,7 @@ import Message from 'primevue/message'
 
 import { fetchAgents, type AgentResume } from '@/features/agents/api/agents'
 import DocumentsPanel from '@/features/agents/components/DocumentsPanel.vue'
+import EvenementsPanel from '@/features/agents/components/EvenementsPanel.vue'
 import { agentLibelle, filterAgents } from '@/features/agents/components/documents'
 
 /**
@@ -20,6 +21,9 @@ const agents = ref<AgentResume[]>([])
 const suggestions = ref<AgentResume[]>([])
 const choisi = ref<AgentResume | string | null>(null)
 const loading = ref(true)
+// Each section reloads when the other changed the agent's documents.
+const versionDocuments = ref(0)
+const versionEvenements = ref(0)
 const error = ref<string | null>(null)
 
 const agent = computed(() =>
@@ -77,7 +81,18 @@ function clear() {
 
     <div v-if="agent" class="sy-card card">
       <h2 class="title">{{ agentLibelle(agent) }}</h2>
-      <DocumentsPanel :key="agent.id" :agent-id="agent.id" />
+      <DocumentsPanel
+        :key="`d-${agent.id}`"
+        :agent-id="agent.id"
+        :version="versionDocuments"
+        @change="versionEvenements++"
+      />
+      <EvenementsPanel
+        :key="`e-${agent.id}`"
+        :agent-id="agent.id"
+        :version="versionEvenements"
+        @change="versionDocuments++"
+      />
     </div>
     <p v-else-if="!loading && !error" class="sy-muted" data-test="agents-vide">
       Choisissez un agent pour voir ses pièces justificatives.

@@ -11,26 +11,22 @@ import { useToast } from 'primevue/usetoast'
 import { documentUrl, listDocuments, type Document } from '@/features/agents/api/documents'
 import AddDocumentDialog from '@/features/agents/components/AddDocumentDialog.vue'
 import RetireDocumentDialog from '@/features/agents/components/RetireDocumentDialog.vue'
-import {
-  formatDateTime,
-  formatLibelle,
-  formatTaille,
-  typesDeposables,
-} from '@/features/agents/components/documents'
+import { formatDateTime, formatLibelle, formatTaille } from '@/features/agents/components/documents'
+import { useDocumentReferences } from '@/features/agents/composables/useDocumentReferences'
 import { useAuthStore } from '@/features/auth/stores/auth'
-import {
-  fetchParametres,
-  fetchTypesDocument,
-  type TypeDocument,
-} from '@/features/referentiels/api/referentiels'
-import { formatDate, localDate } from '@/shared/utils/dates'
+import { formatDate } from '@/shared/utils/dates'
 
 /**
  * An agent's scanned documents (document storage D21, D22): list, open, download, add
  * and retire. Mounted by the "Pièces des agents" page, then by the agent summary page of
  * roadmap 2.10. Buttons follow the user's rights; the API checks them on its own.
  */
-const props = defineProps<{ agentId: number }>()
+const props = defineProps<{
+  agentId: number
+  /** Bumped by the page when another section added a document: reload. */
+  version?: number
+}>()
+const emit = defineEmits<{ change: [] }>()
 
 const auth = useAuthStore()
 const toast = useToast()
@@ -42,8 +38,7 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const retires = ref(false)
 
-const types = ref<TypeDocument[]>([])
-const maxMo = ref<number | null>(null)
+const { types, maxMo, load: loadReferences } = useDocumentReferences()
 const ajout = ref(false)
 const retrait = ref(false)
 const cible = ref<Document | null>(null)
@@ -67,23 +62,8 @@ async function load() {
   }
 }
 
-/** What the add dialog needs: the types open today and the size limit (D12, D22). */
-async function loadReferences() {
-  const today = localDate(new Date())
-  const [typeRows, parametres] = await Promise.allSettled([
-    fetchTypesDocument({ date: today }),
-    fetchParametres({ date: today }),
-  ])
-  if (typeRows.status === 'fulfilled') {
-    types.value = typesDeposables(typeRows.value, auth.user?.groups ?? [])
-  }
-  if (parametres.status === 'fulfilled') {
-    maxMo.value = parametres.value.find((p) => p.cle === 'taille_max_piece')?.valeur ?? null
-  }
-}
-
 watch(
-  () => [props.agentId, retires.value],
+  () => [props.agentId, retires.value, props.version],
   () => void load(),
 )
 onMounted(() => {
@@ -104,6 +84,7 @@ function depose(document: Document) {
     life: 3000,
   })
   void load()
+  emit('change')
 }
 
 function retire(document: Document) {
@@ -114,6 +95,7 @@ function retire(document: Document) {
     life: 3000,
   })
   void load()
+  emit('change')
 }
 </script>
 

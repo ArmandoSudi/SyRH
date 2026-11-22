@@ -24,6 +24,8 @@ const props = defineProps<{
   types: TypeDocument[]
   /** The size limit in Mo, or null when it could not be read. */
   maxMo: number | null
+  /** A type code to preselect, when adding the piece an event misses. */
+  typeCode?: string | null
 }>()
 
 const visible = defineModel<boolean>('visible', { required: true })
@@ -44,7 +46,7 @@ const options = computed(() =>
 
 watch(visible, (open) => {
   if (!open) return
-  typeDocument.value = null
+  typeDocument.value = props.types.find((type) => type.code === props.typeCode)?.id ?? null
   dateDocument.value = null
   fichier.value = null
   errors.value = {}
