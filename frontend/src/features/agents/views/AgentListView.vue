@@ -152,7 +152,7 @@ watch(texte, (value) => {
 })
 
 const uniteSelection = computed({
-  get: () => (filtres.value.unite ? { [String(filtres.value.unite)]: true } : {}),
+  get: () => (filtres.value.unite ? { [String(filtres.value.unite)]: true } : null),
   set: (value: Record<string, boolean> | null) => {
     const key = value ? Object.keys(value)[0] : undefined
     appliquer({ unite: key ? Number(key) : null })
@@ -432,7 +432,8 @@ function noms(agent: AgentResume): string {
   font-size: 0.8rem;
 }
 
-.nowrap {
+.nowrap,
+.agents :deep(.p-tag) {
   white-space: nowrap;
 }
 
