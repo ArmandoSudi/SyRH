@@ -33,6 +33,7 @@ the server.
 | Tests | Django test runner (backend), Vitest + Vue Test Utils (frontend) | In place |
 | Authentication | Django session cookie + CSRF | In place |
 | Audit log | Custom, in `apps.audit`; append-only table guarded by a PostgreSQL trigger | In place |
+| Document encryption | `cryptography` (Fernet), in a custom Django storage | In place |
 | Version control | Git | In place |
 
 ## Repository layout
