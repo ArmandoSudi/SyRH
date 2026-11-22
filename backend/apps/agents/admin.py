@@ -3,7 +3,15 @@ from django.contrib import admin
 from apps.core.admin import BaseModelAdmin
 from apps.core.mixins import request_author
 
-from .models import Affectation, Agent, Classement, CompteBancaire, Contrat, Coordonnees
+from .models import (
+    Affectation,
+    Agent,
+    Classement,
+    CompteBancaire,
+    Contrat,
+    Coordonnees,
+    Document,
+)
 
 
 class CoordonneesInline(admin.StackedInline):
@@ -145,6 +153,48 @@ class CompteBancaireAdmin(BaseModelAdmin, admin.ModelAdmin):
     def get_readonly_fields(self, request, obj=None):
         fields = list(super().get_readonly_fields(request, obj))
         return ["agent", *fields] if obj is not None else fields
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(Document)
+class DocumentAdmin(BaseModelAdmin, admin.ModelAdmin):
+    """The scanned documents, read-only (document storage D15).
+
+    Uploads go through the API, where every check runs (format, size,
+    duplicates); the admin only lists them. Confidential documents are hidden
+    from those outside their type's groups (D14). Nothing is deleted (D17).
+    """
+
+    list_display = ["matricule", "agent", "type_document", "nom_original", "date_creation",
+                    "retire"]  # fmt: skip
+    list_filter = ["retire", "type_document"]
+    list_select_related = ["agent", "type_document"]
+    search_fields = [
+        "agent__matricule", "agent__nom", "agent__postnom", "agent__prenom", "nom_original"
+    ]  # fmt: skip
+    fields = [
+        "agent", "type_document", "nom_original", "type_mime", "taille", "date_document",
+        "retire", "motif_retrait", "date_retrait", "retire_par",
+    ]  # fmt: skip
+    ordering = ["agent__matricule", "-date_creation"]
+
+    @admin.display(description="matricule", ordering="agent__matricule")
+    def matricule(self, obj):
+        return obj.agent.matricule
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).lisibles_par(request.user)
+
+    def get_readonly_fields(self, request, obj=None):
+        return [*self.fields, *super().get_readonly_fields(request, obj)]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
 
     def has_delete_permission(self, request, obj=None):
         return False

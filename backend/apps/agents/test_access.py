@@ -11,6 +11,7 @@ from django.test import TestCase
 
 from apps.accounts.roles import (
     AFFECTATION_EDIT_PERMISSIONS,
+    AGENT_DOCUMENT_EDIT_PERMISSIONS,
     AGENT_EDIT_PERMISSIONS,
     CLASSEMENT_EDIT_PERMISSIONS,
     COMPTE_BANCAIRE_EDIT_PERMISSIONS,
@@ -872,3 +873,87 @@ class CompteBancaireAdminTests(TestCase):
                 self.client.force_login(member(name.split()[0].lower(), name, is_staff=True))
                 self.assertEqual(self.client.get(self.COMPTES).status_code, 403)
                 self.assertNotContains(self.client.get("/admin/"), "Comptes bancaires")
+
+
+DOCUMENT_EDITORS = EDITORS | {
+    "Administration du personnel",
+    "Chef de service — Administration du personnel",
+}
+
+
+class DocumentPermissionTests(TestCase):
+    """Scanned documents (document storage D15)."""
+
+    def test_editors_hold_view_add_change_and_nobody_deletes(self):
+        self.assertEqual(len(AGENT_DOCUMENT_EDIT_PERMISSIONS), 3)
+        for permission in AGENT_DOCUMENT_EDIT_PERMISSIONS:
+            with self.subTest(permission):
+                self.assertEqual(holders(permission), DOCUMENT_EDITORS)
+        self.assertFalse(Permission.objects.filter(codename="delete_document").exists())
+
+    def test_group_setup_regrants_and_keeps_hand_made_ones(self):
+        chef = Group.objects.get(name="Chef de service — Administration du personnel")
+        chef.permissions.remove(Permission.objects.get(codename="add_document"))
+        direction = Group.objects.get(name="Direction RH")
+        direction.permissions.add(Permission.objects.get(codename="view_document"))
+
+        sync_groups()
+
+        self.assertEqual(holders("agents.add_document"), DOCUMENT_EDITORS)
+        self.assertEqual(holders("agents.view_document"), DOCUMENT_EDITORS | {"Direction RH"})
+
+
+class DocumentAdminTests(TestCase):
+    DOCUMENTS = "/admin/agents/document/"
+
+    @classmethod
+    def setUpTestData(cls):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from apps.referentiels.models import Cle, Parametre, TypeDocument
+
+        from .documents import create_document
+
+        Parametre.objects.create(cle=Cle.TAILLE_MAX_PIECE, valeur=10, date_ouverture=D2015)
+        cls.carriere = member("carriere", "Gestion de carrière", is_staff=True)
+        cls.social = member("social", "Social", "Chef de service — Administration du personnel",
+                            is_staff=True)  # fmt: skip
+        ctr = TypeDocument.objects.create(code="CTR", nom="Contrat signé", date_ouverture=D2015)
+        cmd = TypeDocument.objects.create(
+            code="CMD", nom="Certificat médical", date_ouverture=D2015, confidentiel=True
+        )
+        cmd.groupes_autorises.set([Group.objects.get(name="Social")])
+        cls.agent = Agent.objects.create(
+            matricule="ARPTC/0001/2010", nom="Kabila", sexe="M",
+            date_naissance=date(1985, 3, 14), lieu_naissance="Kinshasa",
+        )  # fmt: skip
+        pdf = b"%PDF-1.4 demo"
+        cls.contrat = create_document(cls.agent, ctr, SimpleUploadedFile("contrat.pdf", pdf))
+        cls.certificat = create_document(
+            cls.agent, cmd, SimpleUploadedFile("certificat-medical.pdf", pdf + b" cmd")
+        )
+
+    def test_list_hides_confidential_documents_from_non_members(self):
+        self.client.force_login(self.carriere)
+        page = self.client.get(self.DOCUMENTS)
+        self.assertContains(page, "contrat.pdf")
+        self.assertNotContains(page, "certificat-medical.pdf")
+        self.client.force_login(self.social)
+        page = self.client.get(self.DOCUMENTS)
+        self.assertContains(page, "certificat-medical.pdf")
+
+    def test_read_only_no_add_no_delete(self):
+        self.client.force_login(self.carriere)
+        self.assertEqual(self.client.get(f"{self.DOCUMENTS}add/").status_code, 403)
+        page = self.client.get(f"{self.DOCUMENTS}{self.contrat.pk}/change/")
+        self.assertEqual(page.status_code, 200)
+        self.assertNotContains(page, 'name="_save"')
+        self.assertNotContains(page, "deletelink")
+        self.assertEqual(
+            self.client.get(f"{self.DOCUMENTS}{self.certificat.pk}/change/").status_code, 302
+        )
+
+    def test_other_profiles_cannot_open_the_page(self):
+        formation = member("formation", "Formation", is_staff=True)
+        self.client.force_login(formation)
+        self.assertEqual(self.client.get(self.DOCUMENTS).status_code, 403)
