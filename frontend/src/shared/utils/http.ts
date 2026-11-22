@@ -54,19 +54,30 @@ function asMessages(value: unknown): string[] {
   return (Array.isArray(value) ? value : [value]).map(String)
 }
 
-/** An ApiError from a status and a parsed body (undefined when not JSON). */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+/**
+ * An ApiError from a status and a parsed body (undefined when not JSON). Errors of a
+ * nested section come flattened with a dotted key: {"contrat": {"date_fin": [...]}}
+ * becomes fieldErrors["contrat.date_fin"].
+ */
 function apiErrorFrom(status: number, body: unknown): ApiError {
   let message = `API responded with HTTP ${status}`
   const fieldErrors: FieldErrors = {}
-  if (body && typeof body === 'object' && !Array.isArray(body)) {
-    for (const [key, value] of Object.entries(body)) {
-      if (key === 'detail' || key === 'non_field_errors') {
+  const walk = (node: Record<string, unknown>, prefix: string) => {
+    for (const [key, value] of Object.entries(node)) {
+      if (!prefix && (key === 'detail' || key === 'non_field_errors')) {
         message = asMessages(value)[0] ?? message
+      } else if (isRecord(value)) {
+        walk(value, `${prefix}${key}.`)
       } else {
-        fieldErrors[key] = asMessages(value)
+        fieldErrors[`${prefix}${key}`] = asMessages(value)
       }
     }
   }
+  if (isRecord(body)) walk(body, '')
   return new ApiError(status, message, fieldErrors)
 }
 

@@ -10,6 +10,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: 'Agents', permission: MODULE_PERMISSIONS.agents },
   },
   {
+    path: 'agents/nouveau',
+    name: 'agents-nouveau',
+    component: () => import('./views/AgentCreateView.vue'),
+    meta: { title: 'Engager un agent', permission: 'agents.add_agent' },
+  },
+  {
     path: 'agents/pieces',
     name: 'agents-pieces',
     component: () => import('./views/AgentDocumentsView.vue'),
