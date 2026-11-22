@@ -254,6 +254,7 @@ function noms(agent: AgentResume): string {
         placeholder="Tous les statuts"
         aria-label="Statut"
         display="chip"
+        :show-toggle-all="false"
         class="filtre"
         data-test="agents-statut"
         @update:model-value="(v: FiltresAgents['statut']) => appliquer({ statut: v })"

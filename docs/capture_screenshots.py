@@ -126,9 +126,27 @@ with sync_playwright() as p:
     page.wait_for_load_state("networkidle")
     shot(page, "05-password")
 
-    page.goto(f"{BASE}/agents")
+    page.goto(f"{BASE}/carriere")
     page.wait_for_load_state("networkidle")
     shot(page, "06-module-upcoming")
+
+    # --- Agent list ----------------------------------------------------------
+    page.goto(f"{BASE}/agents")
+    page.locator("[data-test=agents] tbody tr").first.wait_for()
+    page.wait_for_load_state("networkidle")
+    shot(page, "31-agents")
+    page.locator("[data-test=agents-unite]").click()
+    page.get_by_role("treeitem", name="DT — Direction technique").locator(".p-tree-node-label").click()
+    page.wait_for_load_state("networkidle")
+    page.wait_for_timeout(500)
+    shot(page, "32-agents-service")
+    page.goto(f"{BASE}/agents?statut=tous&date=2018-01-01")
+    page.locator("[data-test=agents] tbody tr").first.wait_for()
+    page.wait_for_load_state("networkidle")
+    page.locator("[data-test=agents-statut]").click()
+    page.wait_for_timeout(400)
+    shot(page, "33-agents-statuts")
+    page.keyboard.press("Escape")
 
     # Dark theme
     page.goto(f"{BASE}/")
