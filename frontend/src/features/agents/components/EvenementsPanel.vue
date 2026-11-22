@@ -216,6 +216,7 @@ async function detacher(e: EvenementEtat, document: PieceEvenement) {
             label="Joindre"
             icon="pi pi-link"
             size="small"
+            severity="secondary"
             outlined
             data-test="piece-joindre"
             @click="ouvrirJoindre(e, p)"
@@ -245,10 +246,11 @@ async function detacher(e: EvenementEtat, document: PieceEvenement) {
         </span>
       </div>
       <Button
-        v-if="peutJoindre"
+        v-if="peutJoindre && e.evenement"
         label="Joindre une autre pièce"
         icon="pi pi-plus"
         size="small"
+        severity="secondary"
         text
         data-test="evenement-joindre"
         @click="ouvrirJoindre(e, null)"
