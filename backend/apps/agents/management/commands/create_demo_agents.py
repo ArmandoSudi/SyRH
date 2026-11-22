@@ -1,6 +1,7 @@
 from datetime import date
 
 from django.conf import settings
+from django.contrib.contenttypes.models import ContentType
 from django.core.files.base import ContentFile
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
@@ -17,6 +18,7 @@ from apps.agents.models import (
     Contrat,
     Coordonnees,
     Document,
+    PieceJointe,
 )
 from apps.referentiels.models import (
     Banque,
@@ -239,6 +241,8 @@ COMPTES_BANCAIRES = {
 # in code; CNI and CMD are confidential demo types (create_demo_pieces).
 DOCUMENTS = {
     "ARPTC/0001/2008": [
+        ("CJ", "Extrait de casier judiciaire 2014.pdf", date(2014, 11, 20),
+         ("pdf", "Extrait de casier judiciaire", "Néant"), None),
         ("CTR", "Contrat Mukendi 2008.pdf", date(2008, 3, 1),
          ("pdf", "Contrat de travail", "Patrick Mukendi Kalonji", "Kinshasa, le 1er mars 2008"),
          None),
@@ -251,6 +255,13 @@ DOCUMENTS = {
          ("pdf", "Contrat de travail", "Christine Nsimba Lukau"), None),
         ("CMD", "Certificat médical novembre 2026.pdf", date(2026, 11, 3),
          ("pdf", "Certificat médical", "Repos de cinq jours"), None),
+        ("CNI", "Carte d'électeur Nsimba.png", date(2018, 2, 10), ("png",), None),
+        ("CJ", "Extrait de casier judiciaire Nsimba.pdf", date(2014, 12, 2),
+         ("pdf", "Extrait de casier judiciaire", "Néant"), None),
+    ],
+    "ARPTC/0004/2011": [
+        ("DEC", "Décision d'affectation trésorerie.pdf", date(2021, 6, 15),
+         ("pdf", "Décision d'affectation", "Esther Mbuyi", "Bureau Trésorerie"), None),
     ],
     "ARPTC/0005/2012": [
         ("DEC", "Décision de mutation Goma.pdf", date(2019, 2, 15),
@@ -260,6 +271,35 @@ DOCUMENTS = {
          "Déposée sur le mauvais agent : contrat de M. Tshibangu."),
     ],
 }  # fmt: skip
+
+# Documents attached to events (documents on events D25): matricule -> file name,
+# event model, event date. 0001's engagement is complete; 0002's misses the diploma;
+# 0005's transfer and promotion share one decision; 0004's transfer decision is then
+# retired (RETRAITS_APRES_LIENS), so the transfer is incomplete again.
+LIENS = {
+    "ARPTC/0001/2008": [
+        ("Contrat Mukendi 2008.pdf", "contrat", date(2015, 1, 1)),
+        ("Carte d'électeur Mukendi.png", "contrat", date(2015, 1, 1)),
+        ("Diplôme de licence en droit.pdf", "contrat", date(2015, 1, 1)),
+        ("Extrait de casier judiciaire 2014.pdf", "contrat", date(2015, 1, 1)),
+    ],
+    "ARPTC/0002/2008": [
+        ("Contrat Nsimba 2008.pdf", "contrat", date(2015, 1, 1)),
+        ("Carte d'électeur Nsimba.png", "contrat", date(2015, 1, 1)),
+        ("Extrait de casier judiciaire Nsimba.pdf", "contrat", date(2015, 1, 1)),
+    ],
+    "ARPTC/0004/2011": [
+        ("Décision d'affectation trésorerie.pdf", "affectation", date(2021, 7, 1)),
+    ],
+    "ARPTC/0005/2012": [
+        ("Décision de mutation Goma.pdf", "affectation", date(2019, 1, 1)),
+        ("Décision de mutation Goma.pdf", "classement", date(2019, 1, 1)),
+    ],
+}
+RETRAITS_APRES_LIENS = {
+    "Décision d'affectation trésorerie.pdf": "Version non signée : à remplacer par l'originale.",
+}
+EVENEMENT_DATE = {"contrat": "date_debut", "affectation": "date_effet", "classement": "date_effet"}
 
 
 def demo_file(recipe: tuple) -> bytes:
@@ -295,7 +335,9 @@ class Command(BaseCommand):
         ):
             call_command(command, stdout=self.stdout)
 
-        created = contacts = contracts = assignments = classifications = accounts = documents = 0
+        created = contacts = contracts = assignments = classifications = accounts = documents = (
+            links
+        ) = 0
         with transaction.atomic():
             for matricule, nom, postnom, prenom, sexe, naissance, lieu, *nationalite in AGENTS:
                 agent, new = Agent.objects.get_or_create(
@@ -374,14 +416,36 @@ class Command(BaseCommand):
                     accounts += int(new)
                 for code, nom, jour, recipe, motif in DOCUMENTS.get(matricule, []):
                     documents += self.document(agent, code, nom, jour, recipe, motif)
+                for nom, modele, jour in LIENS.get(matricule, []):
+                    links += self.lien(agent, nom, modele, jour)
+                for nom, motif in RETRAITS_APRES_LIENS.items():
+                    row = Document.objects.filter(agent=agent, nom_original=nom).first()
+                    if row is not None and not row.retire:
+                        row.retirer(motif)
 
         done = (
             f"Agents de démonstration prêts : {created} créés, "
             f"{contacts} fiches de coordonnées créées, {contracts} contrats créés, "
             f"{assignments} affectations créées, {classifications} classements créés, "
-            f"{accounts} comptes bancaires créés, {documents} pièces déposées."
+            f"{accounts} comptes bancaires créés, {documents} pièces déposées, "
+            f"{links} pièces jointes à des événements."
         )
         self.stdout.write(self.style.SUCCESS(done))
+
+    def lien(self, agent, nom, modele, jour) -> int:
+        """Attach a demo document to an event once (documents on events D25)."""
+        document = Document.objects.get(agent=agent, nom_original=nom)
+        model = {"contrat": Contrat, "affectation": Affectation, "classement": Classement}[modele]
+        evenement = model.objects.get(agent=agent, **{EVENEMENT_DATE[modele]: jour})
+        content_type = ContentType.objects.get_for_model(model)
+        if PieceJointe.objects.filter(
+            document=document, content_type=content_type, objet_id=evenement.pk
+        ).exists():
+            return 0
+        row = PieceJointe(document=document, content_type=content_type, objet_id=evenement.pk)
+        row.save()
+        self.stdout.write(f"créé  {row}")
+        return 1
 
     def document(self, agent, code, nom, jour, recipe, motif) -> int:
         """Upload one demo document through the real checks, once; retire it if asked."""
