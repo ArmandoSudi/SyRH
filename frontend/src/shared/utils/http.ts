@@ -54,24 +54,30 @@ function asMessages(value: unknown): string[] {
   return (Array.isArray(value) ? value : [value]).map(String)
 }
 
-async function toApiError(response: Response): Promise<ApiError> {
-  let message = `API responded with HTTP ${response.status}`
+/** An ApiError from a status and a parsed body (undefined when not JSON). */
+function apiErrorFrom(status: number, body: unknown): ApiError {
+  let message = `API responded with HTTP ${status}`
   const fieldErrors: FieldErrors = {}
-  try {
-    const body: unknown = await response.json()
-    if (body && typeof body === 'object' && !Array.isArray(body)) {
-      for (const [key, value] of Object.entries(body)) {
-        if (key === 'detail' || key === 'non_field_errors') {
-          message = asMessages(value)[0] ?? message
-        } else {
-          fieldErrors[key] = asMessages(value)
-        }
+  if (body && typeof body === 'object' && !Array.isArray(body)) {
+    for (const [key, value] of Object.entries(body)) {
+      if (key === 'detail' || key === 'non_field_errors') {
+        message = asMessages(value)[0] ?? message
+      } else {
+        fieldErrors[key] = asMessages(value)
       }
     }
+  }
+  return new ApiError(status, message, fieldErrors)
+}
+
+async function toApiError(response: Response): Promise<ApiError> {
+  let body: unknown
+  try {
+    body = await response.json()
   } catch {
     // Not JSON (proxy error page, empty body): keep the generic message.
   }
-  return new ApiError(response.status, message, fieldErrors)
+  return apiErrorFrom(response.status, body)
 }
 
 export async function request<T = void>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -101,4 +107,43 @@ export async function request<T = void>(path: string, options: RequestOptions = 
     return undefined as T
   }
   return response.json()
+}
+
+/**
+ * Sends a multipart form with upload progress (fetch reports none), with the same
+ * CSRF token, ApiError and lost-session behaviour as request().
+ * onProgress receives a fraction from 0 to 1.
+ */
+export async function upload<T>(
+  path: string,
+  form: FormData,
+  onProgress?: (fraction: number) => void,
+): Promise<T> {
+  const token = await csrfToken()
+  return new Promise<T>((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', path)
+    xhr.withCredentials = true
+    xhr.setRequestHeader('Accept', 'application/json')
+    xhr.setRequestHeader('X-CSRFToken', token)
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) onProgress(event.loaded / event.total)
+    }
+    xhr.onerror = () => reject(new ApiError(0, "Le serveur n'a pas pu être joint."))
+    xhr.onload = () => {
+      let body: unknown
+      try {
+        body = xhr.responseText ? JSON.parse(xhr.responseText) : undefined
+      } catch {
+        body = undefined
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(body as T)
+        return
+      }
+      if (xhr.status === 401) unauthorizedHandler?.()
+      reject(apiErrorFrom(xhr.status, body))
+    }
+    xhr.send(form)
+  })
 }
