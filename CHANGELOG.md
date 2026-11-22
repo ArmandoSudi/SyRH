@@ -31,7 +31,14 @@ the work is merged.
 - "Pièces des agents" gains an "Événements et pièces exigées" section to attach an existing or a
   new document, and remove links. Confidential pieces count for all but only their readers see
   them. Run `migrate`; open question Q39 (renewal and échelon pieces).
-<!-- commits: b53a19c ecef031 b3296b9 26b0823 dbca804 df86d0e 1b09f83 7a5db67 00b4be2 0775e62 d576192 5a743a3 89905ff 8258e2d e7dd806 09f803c 0427e87 d320dfc d773237 1cad5b4 c28c869 267db12 b8f15f7 3b4f811 bfdf633 -->
+- Agent list (roadmap 2.8): the Agents menu now opens a searchable list — matricule or name
+  (case and accents ignored), service with its sub-units, grade, function, status — at a chosen
+  date, 25 agents a page, filters kept in the address. A row opens the agent's documents.
+- An agent's status is computed from the contracts: En activité, À venir, Sans contrat en cours,
+  Sans contrat. The top-bar search opens the list; the Pièces picker searches as you type.
+- `/api/agents/` is now paginated and filterable (breaking for any other caller). Run `migrate`
+  (installs PostgreSQL `unaccent`); `create_load_agents` generates thousands of test agents.
+<!-- commits: b53a19c ecef031 b3296b9 26b0823 dbca804 df86d0e 1b09f83 7a5db67 00b4be2 0775e62 d576192 5a743a3 89905ff 8258e2d e7dd806 09f803c 0427e87 d320dfc d773237 1cad5b4 c28c869 267db12 b8f15f7 3b4f811 bfdf633 863f44c 507c39b 1b45e8c 215b51e ce3bb36 61da7ca 5fa455e 2416ec5 7358de5 -->
 
 ## 2026-11-21
 
