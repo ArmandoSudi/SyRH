@@ -1,11 +1,13 @@
 from django.db.models import Prefetch
 from django.utils import timezone
-from rest_framework import viewsets
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.accounts.permissions import HasModuleAccess
+from apps.core.mixins import request_author
 
+from .engagement import EngagementPermission, EngagementSerializer, engager
 from .models import Affectation, Agent, Classement, CompteBancaire, Contrat
 from .recherche import AgentPagination, RechercheSerializer, rechercher
 from .serializers import AgentDetailSerializer, AgentSerializer, ComptesBancairesSerializer
@@ -27,8 +29,24 @@ class AgentViewSet(viewsets.ReadOnlyModelViewSet):
     """
 
     queryset = Agent.objects.all()
-    permission_classes = [HasModuleAccess("agents")]
+    permission_classes = [HasModuleAccess("agents"), EngagementPermission]
     pagination_class = AgentPagination
+
+    def create(self, request, *args, **kwargs):
+        """POST /api/agents/: hire an agent, all or nothing (agent creation form D1 to D5)."""
+        data = EngagementSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        agent = engager(data.validated_data, request_author(request))
+        detail = self.get_queryset_for_detail().get(pk=agent.pk)
+        serializer = AgentDetailSerializer(detail, context=self.get_serializer_context())
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def get_queryset_for_detail(self):
+        action, self.action = self.action, "retrieve"
+        try:
+            return self.get_queryset()
+        finally:
+            self.action = action
 
     def get_serializer_class(self):
         return AgentDetailSerializer if self.action == "retrieve" else AgentSerializer
