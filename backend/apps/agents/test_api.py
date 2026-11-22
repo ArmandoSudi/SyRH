@@ -69,8 +69,8 @@ class AgentApiTests(TestCase):
                 expected = 200 if name in READERS else 403
                 self.assertEqual(self.client_for(name).get(AGENTS).status_code, expected)
 
-    def test_list_in_name_order_not_paginated(self):
-        rows = self.client_for().get(AGENTS).json()
+    def test_list_in_name_order(self):
+        rows = self.client_for().get(AGENTS).json()["results"]
         self.assertEqual(
             [row["id"] for row in rows], [self.ilunga.pk, self.kabila.pk, self.tshala.pk]
         )
@@ -90,6 +90,8 @@ class AgentApiTests(TestCase):
                 "date_naissance": "1985-03-14",
                 "lieu_naissance": "Kinshasa",
                 "nationalite": "Congolaise",
+                "statut": "sans_contrat",
+                "statut_libelle": "Sans contrat",
                 "affectation_actuelle": None,
                 "classement_actuel": None,
                 "cree_par": None,
@@ -162,7 +164,7 @@ class CoordonneesApiTests(TestCase):
         self.assertIsNone(response.json()["coordonnees"])
 
     def test_list_has_no_contact_details(self):
-        for row in self.client.get(AGENTS).json():
+        for row in self.client.get(AGENTS).json()["results"]:
             self.assertNotIn("coordonnees", row)
 
     def test_detail_runs_a_fixed_number_of_queries(self):
@@ -246,7 +248,7 @@ class ContratApiTests(TestCase):
         self.assertEqual((data["date_engagement"], data["contrats"]), (None, []))
 
     def test_list_is_unchanged(self):
-        for row in self.client.get(AGENTS).json():
+        for row in self.client.get(AGENTS).json()["results"]:
             self.assertNotIn("contrats", row)
             self.assertNotIn("date_engagement", row)
 
@@ -336,7 +338,7 @@ class PositionApiTests(TestCase):
 
     def current(self, day, target=None):
         with frozen_today(day):
-            rows = self.client.get(AGENTS).json()
+            rows = self.client.get(AGENTS).json()["results"]
         return next(row for row in rows if row["id"] == (target or self.agent).pk)
 
     def test_histories_in_date_order_with_every_field(self):
@@ -437,10 +439,10 @@ class PositionApiTests(TestCase):
             )
             Classement.objects.create(agent=other, echelon=self.a2e1, date_effet=date(2020, 3, 1))
         with CaptureQueriesContext(connection) as many:
-            rows = self.client.get(AGENTS).json()
+            rows = self.client.get(AGENTS).json()["results"]
         self.assertEqual(len(rows), 10)
-        # The agents, then their assignments and their classifications.
-        self.assertEqual((len(few), len(many)), (3, 3))
+        # The count, the page of agents, their assignments and their classifications.
+        self.assertEqual((len(few), len(many)), (4, 4))
 
     def test_histories_cannot_be_written(self):
         editor = APIClient()
