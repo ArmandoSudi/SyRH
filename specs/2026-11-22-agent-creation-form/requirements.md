@@ -106,3 +106,9 @@ follow from the cahier des charges, `missions.md`, `tech-stack.md` and earlier p
 
 | # | Decision | Reason |
 | --- | --- | --- |
+| D18 | The matricule is required **before saving**, not on step 1: it is proposed at the Contrat step, once the hiring year is known. Step 1 says so under the field. | Requiring it on step 1 forced HR to type one before the suggestion could come. |
+| D19 | An error leaves as soon as its field changes (the échelon's also when the grade changes). | Fixed fields kept showing their old error. |
+| D20 | `ApiError` flattens nested section errors with dotted keys (`contrat.date_fin`), for every caller of `request()`. | Section errors became "[object Object]". |
+| D21 | `POST /api/agents/` now hires; the old test that expected `405` on it checks only the agent detail. The suggestion and duplicate endpoints are actions of the agents viewset. | D10 keeps an agent itself read-only. |
+| D22 | The steps sit in one view (`AgentCreateView.vue`) with their rules in `components/engagement.ts`, rather than one component per step. | The steps share one form object and its errors; splitting added props for nothing. |
+| D23 | The hiring screenshots are taken by `docs/capture_screenshots.py` driving the whole form, which hires an agent: run them against the scratch servers only. | They double as an end-to-end run of the form. |

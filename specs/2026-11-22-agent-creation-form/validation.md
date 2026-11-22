@@ -92,12 +92,12 @@ Also check: French text with correct accents everywhere.
 
 ## 6. Definition of done
 
-- [ ] Parts 1 to 5 pass.
-- [ ] Nothing listed as out of scope slipped in: no correction form, no salary, no bank account,
+- [x] Parts 1 to 5 pass.
+- [x] Nothing listed as out of scope slipped in: no correction form, no salary, no bank account,
       no upload in the form, no validation status.
-- [ ] Any decision changed during implementation is recorded under "Found during
+- [x] Any decision changed during implementation is recorded under "Found during
       implementation" in `requirements.md`.
-- [ ] `tech-stack.md` names the hiring endpoint.
-- [ ] **2.9 Agent creation form** is ticked in `roadmap.md`.
-- [ ] `/changelog` has been run on the branch.
-- [ ] The branch is one reviewable change, per the roadmap's working rules.
+- [x] `tech-stack.md` names the hiring endpoint.
+- [x] **2.9 Agent creation form** is ticked in `roadmap.md`.
+- [x] `/changelog` has been run on the branch.
+- [x] The branch is one reviewable change, per the roadmap's working rules.
