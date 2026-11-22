@@ -5,8 +5,16 @@ from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from apps.agents.models import Affectation, Agent, Classement, Contrat, Coordonnees
+from apps.agents.models import (
+    Affectation,
+    Agent,
+    Classement,
+    CompteBancaire,
+    Contrat,
+    Coordonnees,
+)
 from apps.referentiels.models import (
+    Banque,
     Echelon,
     Fonction,
     Grade,
@@ -189,6 +197,37 @@ CLASSEMENTS = {
 }
 
 
+# Bank accounts by matricule (bank account D19): effective date, bank code, number,
+# the bank looked up among the rows open on that date. Fictional numbers in a few
+# shapes (Q36). Each agent with a contract is paid from their hiring date;
+# ARPTC/0012/2024 has none.
+COMPTES_BANCAIRES = {
+    "ARPTC/0001/2008": [(date(2015, 1, 1), "BCF", "05100 0001001")],
+    # A change of bank already announced, effective in 2027: not current yet.
+    "ARPTC/0002/2008": [
+        (date(2015, 1, 1), "BCF", "05100 0001002"),
+        (date(2027, 1, 1), "BIK", "BIK-2027-000102"),
+    ],
+    # The Kasaï bank merged on 1 January 2022: a new account at its successor.
+    "ARPTC/0003/2010": [
+        (date(2015, 1, 1), "UBK", "UBK 0300 1003"),
+        (date(2022, 1, 1), "UBK", "CD08 0003 0001 0000 0000 1003"),
+    ],
+    "ARPTC/0004/2011": [(date(2015, 1, 1), "CEQ", "1004-77-201500")],
+    # Paid in Goma after the transfer: a change of bank.
+    "ARPTC/0005/2012": [
+        (date(2015, 1, 1), "BCF", "05100 0001005"),
+        (date(2019, 3, 1), "CEQ", "1005-12-201903"),
+    ],
+    "ARPTC/0006/2014": [(date(2015, 1, 1), "TRC", "TRC0006")],
+    "ARPTC/0007/2015": [(date(2015, 3, 1), "BIK", "BIK-2015-000107")],
+    "ARPTC/0008/2016": [(date(2016, 2, 1), "CEQ", "1008-34-201602")],
+    "ARPTC/0009/2018": [(date(2018, 4, 1), "CPM", "CPM 09 2018")],
+    "ARPTC/0010/2020": [(date(2020, 9, 1), "BCF", "05100 0001010")],
+    "ARPTC/0011/2022": [(date(2022, 7, 1), "BIK", "BIK-2022-000111")],
+}
+
+
 class Command(BaseCommand):
     help = (
         "Charge des agents fictifs, pour la démonstration. "
@@ -202,17 +241,18 @@ class Command(BaseCommand):
                 "Cette commande est réservée au développement."
             )
 
-        # Contracts, assignments and classifications need the demo reference
+        # Contracts, positions and bank accounts need the demo reference
         # data; these commands are idempotent.
         for command in (
             "create_demo_types_contrat",
             "create_demo_organisation",
             "create_demo_fonctions",
             "create_demo_classification",
+            "create_demo_banques",
         ):
             call_command(command, stdout=self.stdout)
 
-        created = contacts = contracts = assignments = classifications = 0
+        created = contacts = contracts = assignments = classifications = accounts = 0
         with transaction.atomic():
             for matricule, nom, postnom, prenom, sexe, naissance, lieu, *nationalite in AGENTS:
                 agent, new = Agent.objects.get_or_create(
@@ -277,10 +317,23 @@ class Command(BaseCommand):
                     if new:
                         self.stdout.write(f"créé  {row}")
                     classifications += int(new)
+                for jour, banque, numero in COMPTES_BANCAIRES.get(matricule, []):
+                    row, new = CompteBancaire.objects.get_or_create(
+                        agent=agent,
+                        date_effet=jour,
+                        defaults={
+                            "banque": Banque.objects.ouvertes(jour).get(code=banque),
+                            "numero": numero,
+                        },
+                    )
+                    if new:
+                        self.stdout.write(f"créé  {row}")
+                    accounts += int(new)
 
         done = (
             f"Agents de démonstration prêts : {created} créés, "
             f"{contacts} fiches de coordonnées créées, {contracts} contrats créés, "
-            f"{assignments} affectations créées, {classifications} classements créés."
+            f"{assignments} affectations créées, {classifications} classements créés, "
+            f"{accounts} comptes bancaires créés."
         )
         self.stdout.write(self.style.SUCCESS(done))

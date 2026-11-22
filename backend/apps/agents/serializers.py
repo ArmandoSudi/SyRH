@@ -3,7 +3,7 @@ from rest_framework import serializers
 from apps.core.models import BASE_FIELDS
 from apps.core.serializers import BaseModelSerializer
 
-from .models import Affectation, Agent, Classement, Contrat, Coordonnees
+from .models import Affectation, Agent, Classement, CompteBancaire, Contrat, Coordonnees
 
 AFFECTATION_FIELDS = [
     "id",
@@ -176,3 +176,35 @@ class AgentDetailSerializer(AgentSerializer):
         except Coordonnees.DoesNotExist:
             return None
         return CoordonneesSerializer(coordonnees, context=self.context).data
+
+
+COMPTE_BANCAIRE_FIELDS = ["id", "banque", "banque_code", "banque_nom", "numero", "date_effet"]
+
+
+class CompteBancaireSerializer(BaseModelSerializer):
+    """One of an agent's bank accounts, with its bank (bank account D18)."""
+
+    banque_code = serializers.CharField(source="banque.code", read_only=True)
+    banque_nom = serializers.CharField(source="banque.nom", read_only=True)
+
+    class Meta:
+        model = CompteBancaire
+        fields = [*COMPTE_BANCAIRE_FIELDS, *BASE_FIELDS]
+
+
+class CompteActuelSerializer(CompteBancaireSerializer):
+    """The account pay goes to today, without the base fields (bank account D18)."""
+
+    class Meta(CompteBancaireSerializer.Meta):
+        fields = COMPTE_BANCAIRE_FIELDS
+
+
+class ComptesBancairesSerializer(serializers.Serializer):
+    """An agent's accounts in date order and the one in force today (bank account D18)."""
+
+    comptes = CompteBancaireSerializer(source="comptes_bancaires", many=True, read_only=True)
+    compte_actuel = serializers.SerializerMethodField()
+
+    def get_compte_actuel(self, agent):
+        row = agent.compte_bancaire_au(self.context["aujourdhui"])
+        return CompteActuelSerializer(row).data if row else None

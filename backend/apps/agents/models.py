@@ -140,6 +140,10 @@ class Agent(BaseModel):
         """The classification in force on a day, or None (position history D12)."""
         return self._au("classements", jour)
 
+    def compte_bancaire_au(self, jour: date) -> "CompteBancaire | None":
+        """The bank account pay goes to on a day, or None (bank account D11)."""
+        return self._au("comptes_bancaires", jour)
+
     def normalise(self) -> None:
         if self.matricule:
             self.matricule = self.matricule.strip().upper()
@@ -634,3 +638,105 @@ class Classement(BaseModel):
 
     def delete(self, *args, **kwargs):
         raise PermissionError(CLASSEMENT_NEVER_DELETED)
+
+
+# Capital letters, digits, spaces and dashes, 5 to 34 characters, starting and
+# ending with a letter or digit (bank account D7, Q36). Python and PostgreSQL
+# both read it.
+NUMERO_PATTERN = r"^[A-Z0-9][A-Z0-9 -]{3,32}[A-Z0-9]$"
+NUMERO_HELP = "Lettres, chiffres, espaces et tirets, de 5 à 34 caractères."
+NUMERO_PRIS = "Ce numéro de compte appartient déjà à un autre agent dans cette banque."
+COMPTE_DATE_PRISE = "Cet agent a déjà un compte bancaire à cette date."
+COMPTE_AGENT_FIXED = "Un compte bancaire ne peut pas passer à un autre agent."
+COMPTE_NEVER_DELETED = "Un compte bancaire n'est jamais supprimé : corrigez-le."
+BANQUE_FERMEE = "La banque « {ref} » n'est pas ouverte le {jour}."
+
+
+class CompteBancaire(BaseModel):
+    """The bank account an agent is paid into, from a date (bank account D1 to D5).
+
+    Only the effective date is stored: a row applies until the agent's next row
+    (D2). A bank and number belong to one agent only (D8). Pay data: its audit
+    entries are seen by the pay profiles only (D15).
+    """
+
+    module = "paie"
+
+    agent = models.ForeignKey(
+        Agent, verbose_name="agent", on_delete=models.PROTECT, related_name="comptes_bancaires"
+    )
+    banque = models.ForeignKey(
+        "referentiels.Banque", verbose_name="banque", on_delete=models.PROTECT, related_name="+"
+    )
+    # Wider than the 34 allowed, so that the format rule alone reports a long number.
+    numero = models.CharField("numéro de compte", max_length=40, help_text=NUMERO_HELP)
+    date_effet = models.DateField(
+        "date d'effet",
+        help_text="Premier jour où la paie est versée sur ce compte ; il court jusqu'au suivant.",
+    )
+
+    class Meta:
+        verbose_name = "compte bancaire"
+        verbose_name_plural = "comptes bancaires"
+        ordering = ["agent", "date_effet"]  # D5
+        default_permissions = NO_DELETE
+        constraints = [
+            models.UniqueConstraint(
+                fields=["agent", "date_effet"],
+                name="compte_bancaire_un_par_date",
+                violation_error_message=COMPTE_DATE_PRISE,
+            ),
+            models.CheckConstraint(
+                condition=Q(numero__regex=NUMERO_PATTERN),
+                name="compte_bancaire_numero_valide",
+                violation_error_message=NUMERO_HELP,
+            ),
+            ExclusionConstraint(
+                name="compte_bancaire_un_seul_agent",
+                expressions=[
+                    ("banque", RangeOperators.EQUAL),
+                    ("numero", RangeOperators.EQUAL),
+                    ("agent", RangeOperators.NOT_EQUAL),
+                ],
+                violation_error_message=NUMERO_PRIS,
+            ),
+        ]
+
+    def __str__(self):
+        banque = self.banque.code if self.banque_id else "?"
+        matricule = self.agent.matricule if self.agent_id else "?"
+        debut = fr(self.date_effet) if self.date_effet else "?"
+        return f"{banque} — {self.numero or '?'} depuis le {debut} — {matricule}"
+
+    def normalise(self) -> None:
+        if self.numero:
+            self.numero = self.numero.strip().upper()
+
+    def check_rules(self) -> None:
+        """Number format and owner, bank open on the date, agent fixed (D7 to D9, D13)."""
+        errors: dict[str, list[str]] = {}
+        if self.numero:
+            if not re.fullmatch(NUMERO_PATTERN, self.numero):
+                errors["numero"] = [NUMERO_HELP]
+            elif self.banque_id and self.agent_id:
+                held = type(self)._base_manager.filter(banque_id=self.banque_id, numero=self.numero)
+                if held.exclude(agent_id=self.agent_id).exists():
+                    errors["numero"] = [NUMERO_PRIS]
+        check_open(self, "banque", BANQUE_FERMEE, lambda banque: banque.code, errors)
+        if agent_change(self):
+            errors["agent"] = [COMPTE_AGENT_FIXED]
+        if errors:
+            raise ValidationError(errors)
+
+    def clean(self):
+        super().clean()
+        self.normalise()
+        self.check_rules()
+
+    def save(self, **kwargs):
+        self.normalise()
+        self.check_rules()
+        super().save(**kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise PermissionError(COMPTE_NEVER_DELETED)

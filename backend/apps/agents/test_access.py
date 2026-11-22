@@ -1,6 +1,7 @@
-"""Who edits agents, their contact details, contracts, assignments and
-classifications, and the Django admin (agent identity D14 to D16, contact details
-D15, D16, contract D16, D17, position history D17, D18)."""
+"""Who edits agents, their contact details, contracts, assignments,
+classifications and bank accounts, and the Django admin (agent identity D14 to
+D16, contact details D15, D16, contract D16, D17, position history D17, D18,
+bank account D16, D17)."""
 
 from datetime import date
 
@@ -12,12 +13,14 @@ from apps.accounts.roles import (
     AFFECTATION_EDIT_PERMISSIONS,
     AGENT_EDIT_PERMISSIONS,
     CLASSEMENT_EDIT_PERMISSIONS,
+    COMPTE_BANCAIRE_EDIT_PERMISSIONS,
     CONTRAT_EDIT_PERMISSIONS,
     COORDONNEES_EDIT_PERMISSIONS,
     sync_groups,
 )
 from apps.audit.models import EntreeAudit
 from apps.referentiels.models import (
+    Banque,
     Categorie,
     Echelon,
     Fonction,
@@ -29,21 +32,27 @@ from apps.referentiels.models import (
 
 from .models import (
     AFFECTATION_DATE_PRISE,
+    COMPTE_DATE_PRISE,
     CONTRAT_OVERLAP,
     ESSAI_INTERDIT,
     FIN_OBLIGATOIRE,
     HORS_CONTRAT,
     MATRICULE_TAKEN,
+    NUMERO_HELP,
+    NUMERO_PRIS,
     PHONE_HELP,
     URGENCE_PAIR,
     Affectation,
     Agent,
     Classement,
+    CompteBancaire,
     Contrat,
     Coordonnees,
 )
+from .test_affectations import D2015
 
 EDITORS = {"Gestion de carrière", "Chef de service — Gestion de carrière"}
+PAIE_EDITORS = {"Rémunération", "Chef de service — Rémunération"}
 
 
 def inline(initial=0, **row):
@@ -102,7 +111,9 @@ class PermissionTests(TestCase):
         self.assertEqual(len(AGENT_EDIT_PERMISSIONS), 3)
         for permission in AGENT_EDIT_PERMISSIONS:
             with self.subTest(permission):
-                self.assertEqual(holders(permission), EDITORS)
+                # Rémunération views the agents to pick one (bank account D16).
+                expected = EDITORS | PAIE_EDITORS if permission.endswith("view_agent") else EDITORS
+                self.assertEqual(holders(permission), expected)
 
     def test_nobody_deletes_and_the_administrator_has_nothing(self):
         self.assertFalse(Permission.objects.filter(codename="delete_agent").exists())
@@ -118,7 +129,9 @@ class PermissionTests(TestCase):
         sync_groups()
 
         self.assertEqual(holders("agents.change_agent"), EDITORS)
-        self.assertEqual(holders("agents.view_agent"), EDITORS | {"Administration du personnel"})
+        self.assertEqual(
+            holders("agents.view_agent"), EDITORS | PAIE_EDITORS | {"Administration du personnel"}
+        )
 
 
 class CoordonneesPermissionTests(TestCase):
@@ -257,11 +270,22 @@ class AgentAdminTests(TestCase):
         self.assertTrue(Agent.objects.filter(pk=self.kabila.pk).exists())
 
     def test_other_profiles_cannot_open_the_admin_pages(self):
-        for user in (self.remuneration, self.admin):
-            with self.subTest(user=user.username):
-                self.client.force_login(user)
-                self.assertEqual(self.client.get(self.AGENTS).status_code, 403)
-                self.assertEqual(self.client.get(f"{self.AGENTS}add/").status_code, 403)
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(self.AGENTS).status_code, 403)
+        self.assertEqual(self.client.get(f"{self.AGENTS}add/").status_code, 403)
+
+    def test_remuneration_sees_the_agents_read_only(self):
+        """Rémunération views agents to pick one for an account (bank account D16)."""
+        self.client.force_login(self.remuneration)
+        url = f"{self.AGENTS}{self.kabila.pk}/change/"
+        self.assertContains(self.client.get(self.AGENTS), "ARPTC/0001/2010")
+        page = self.client.get(url).content.decode()
+        self.assertNotIn('name="nom"', page)
+        self.assertEqual(self.client.get(f"{self.AGENTS}add/").status_code, 403)
+        response = self.client.post(url, {"nom": "Autre", **inline()})
+        self.assertEqual(response.status_code, 403)
+        self.kabila.refresh_from_db()
+        self.assertEqual(self.kabila.nom, "Kabila")
 
 
 class CoordonneesInlineTests(TestCase):
@@ -707,3 +731,144 @@ class PositionInlineTests(TestCase):
         response = self.client.get(self.url)
         self.assertNotContains(response, "affectations-TOTAL_FORMS")
         self.assertNotContains(response, "classements-TOTAL_FORMS")
+
+
+class CompteBancairePermissionTests(TestCase):
+    """Bank accounts (bank account D16)."""
+
+    def test_paie_editors_hold_view_add_change_and_nobody_deletes(self):
+        self.assertEqual(len(COMPTE_BANCAIRE_EDIT_PERMISSIONS), 3)
+        for permission in COMPTE_BANCAIRE_EDIT_PERMISSIONS:
+            with self.subTest(permission):
+                self.assertEqual(holders(permission), PAIE_EDITORS)
+        self.assertFalse(Permission.objects.filter(codename="delete_comptebancaire").exists())
+
+    def test_group_setup_regrants_and_keeps_hand_made_ones(self):
+        chef = Group.objects.get(name="Chef de service — Rémunération")
+        chef.permissions.remove(
+            *Permission.objects.filter(codename__in=["add_comptebancaire", "view_agent"])
+        )
+        direction = Group.objects.get(name="Direction RH")
+        direction.permissions.add(Permission.objects.get(codename="view_comptebancaire"))
+
+        sync_groups()
+
+        self.assertEqual(holders("agents.add_comptebancaire"), PAIE_EDITORS)
+        self.assertIn("Chef de service — Rémunération", holders("agents.view_agent"))
+        self.assertEqual(holders("agents.view_comptebancaire"), PAIE_EDITORS | {"Direction RH"})
+
+
+class CompteBancaireAdminTests(TestCase):
+    COMPTES = "/admin/agents/comptebancaire/"
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.remuneration = member("remuneration", "Rémunération", is_staff=True)
+        cls.chef = member("chef", "Chef de service — Rémunération", is_staff=True)
+        cls.bcf = Banque.objects.create(code="BCF", nom="Banque du Fleuve", date_ouverture=D2015)
+        cls.bik = Banque.objects.create(code="BIK", nom="Banque de Kinshasa", date_ouverture=D2015)
+        cls.closed = Banque.objects.create(
+            code="OLD", nom="Ancienne", date_ouverture=D2015, date_fermeture=date(2020, 1, 1)
+        )
+        cls.kabila = Agent.objects.create(
+            matricule="ARPTC/0001/2010", nom="Kabila", sexe="M",
+            date_naissance=date(1985, 3, 14), lieu_naissance="Kinshasa",
+        )  # fmt: skip
+        cls.lumbu = Agent.objects.create(
+            matricule="ARPTC/0002/2010", nom="Lumbu", sexe="F",
+            date_naissance=date(1988, 5, 2), lieu_naissance="Matadi",
+        )  # fmt: skip
+        cls.compte = CompteBancaire.objects.create(
+            agent=cls.kabila, banque=cls.bcf, numero="05100 0001234", date_effet=date(2021, 3, 1)
+        )
+
+    def setUp(self):
+        self.client.force_login(self.remuneration)
+
+    def add(self, agent=None, banque=None, numero="05100 0005678", jour="2022-01-01"):
+        return self.client.post(f"{self.COMPTES}add/", {
+            "agent": (agent or self.lumbu).pk, "banque": (banque or self.bcf).pk,
+            "numero": numero, "date_effet": jour,
+        })  # fmt: skip
+
+    def errors(self, response):
+        self.assertEqual(response.status_code, 200)
+        return response.context["adminform"].form.errors
+
+    def test_list_search_and_filter(self):
+        page = self.client.get(self.COMPTES)
+        self.assertContains(page, "ARPTC/0001/2010")
+        self.assertContains(page, "05100 0001234")
+        for query in ("q=0001%2F2010", "q=kabila", "q=0001234", f"banque__id__exact={self.bcf.pk}"):
+            with self.subTest(query):
+                self.assertContains(self.client.get(f"{self.COMPTES}?{query}"), "05100 0001234")
+        self.assertNotContains(
+            self.client.get(f"{self.COMPTES}?banque__id__exact={self.bik.pk}"), "05100 0001234"
+        )
+
+    def test_agent_is_picked_by_autocomplete(self):
+        url = (
+            "/admin/autocomplete/?app_label=agents&model_name=comptebancaire"
+            "&field_name=agent&term=lumbu"
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([r["text"] for r in response.json()["results"]],
+                         ["ARPTC/0002/2010 — Lumbu"])  # fmt: skip
+
+    def test_editors_add_an_account_and_are_its_author(self):
+        for user, jour in ((self.remuneration, "2022-01-01"), (self.chef, "2023-01-01")):
+            with self.subTest(user=user.username):
+                self.client.force_login(user)
+                self.assertEqual(self.add(numero=f" ab{jour[:4]} ", jour=jour).status_code, 302)
+                row = CompteBancaire.objects.get(agent=self.lumbu, date_effet=jour)
+                self.assertEqual((row.numero, row.cree_par), (f"AB{jour[:4]}", user))
+                entry = EntreeAudit.objects.get(table__model="comptebancaire", objet_id=row.pk)
+                self.assertEqual((entry.auteur, entry.module), (user, "paie"))
+
+    def test_rule_errors_show_next_to_their_field(self):
+        closed = "La banque « OLD » n'est pas ouverte le 01/01/2022."
+        cases = [
+            ("numero", self.add(numero="1234"), [NUMERO_HELP]),
+            ("numero", self.add(numero="05100 0001234"), [NUMERO_PRIS]),
+            ("banque", self.add(banque=self.closed), [closed]),
+        ]
+        for field, response, messages in cases:
+            with self.subTest(messages[0]):
+                errors = self.errors(response)
+                self.assertEqual(errors[field], messages)
+                self.assertNotIn("__all__", errors)
+        errors = self.errors(self.add(agent=self.kabila, numero="999999", jour="2021-03-01"))
+        self.assertEqual(errors["__all__"], [COMPTE_DATE_PRISE])
+        self.assertEqual(CompteBancaire.objects.count(), 1)
+
+    def test_correction_keeps_the_agent_and_is_stamped(self):
+        url = f"{self.COMPTES}{self.compte.pk}/change/"
+        self.assertNotIn('name="agent"', self.client.get(url).content.decode())
+        response = self.client.post(url, {
+            "agent": self.lumbu.pk, "banque": self.bik.pk, "numero": "05100 0009999",
+            "date_effet": "2021-03-01",
+        })  # fmt: skip
+        self.assertEqual(response.status_code, 302)
+        self.compte.refresh_from_db()
+        self.assertEqual(
+            (self.compte.agent, self.compte.banque, self.compte.numero, self.compte.modifie_par),
+            (self.kabila, self.bik, "05100 0009999", self.remuneration),
+        )
+
+    def test_nobody_can_delete_not_even_a_superuser(self):
+        superuser = get_user_model().objects.create_superuser("root", password="x")
+        for user in (self.remuneration, superuser):
+            with self.subTest(user=user.username):
+                self.client.force_login(user)
+                url = f"{self.COMPTES}{self.compte.pk}/delete/"
+                self.assertEqual(self.client.post(url, {"post": "yes"}).status_code, 403)
+                self.assertNotContains(self.client.get(self.COMPTES), "delete_selected")
+        self.assertTrue(CompteBancaire.objects.filter(pk=self.compte.pk).exists())
+
+    def test_other_profiles_cannot_open_the_page(self):
+        for name in ("Gestion de carrière", "Auditeur", "Administrateur système", "Direction RH"):
+            with self.subTest(name):
+                self.client.force_login(member(name.split()[0].lower(), name, is_staff=True))
+                self.assertEqual(self.client.get(self.COMPTES).status_code, 403)
+                self.assertNotContains(self.client.get("/admin/"), "Comptes bancaires")

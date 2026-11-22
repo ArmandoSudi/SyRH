@@ -161,6 +161,14 @@ CLASSEMENT_EDIT_PERMISSIONS = tuple(
     f"agents.{action}_classement" for action in ("view", "add", "change")
 )
 
+# Editing the agents' bank accounts on their own admin page, never deleted; pay
+# data, so Rémunération edits them and views the agents to pick one, read-only
+# (bank account D16, D17).
+COMPTE_BANCAIRE_EDIT_PERMISSIONS = tuple(
+    f"agents.{action}_comptebancaire" for action in ("view", "add", "change")
+)
+PAIE_RECORD_EDIT_PERMISSIONS = COMPTE_BANCAIRE_EDIT_PERMISSIONS + ("agents.view_agent",)
+
 # What the Gestion de carrière profiles edit on the agent record.
 AGENT_RECORD_EDIT_PERMISSIONS = (
     AGENT_EDIT_PERMISSIONS
@@ -180,8 +188,8 @@ EXTRA_PERMISSIONS: dict[str, tuple[str, ...]] = {
     "Chef de service — Gestion de carrière": (
         REFERENTIELS_EDIT_PERMISSIONS + AGENT_RECORD_EDIT_PERMISSIONS
     ),
-    "Rémunération": BANQUE_EDIT_PERMISSIONS,
-    "Chef de service — Rémunération": BANQUE_EDIT_PERMISSIONS,
+    "Rémunération": BANQUE_EDIT_PERMISSIONS + PAIE_RECORD_EDIT_PERMISSIONS,
+    "Chef de service — Rémunération": BANQUE_EDIT_PERMISSIONS + PAIE_RECORD_EDIT_PERMISSIONS,
 }
 
 

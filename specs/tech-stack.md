@@ -53,7 +53,8 @@ backend/            Django project
                     details (one row per agent, corrected in place), successive contracts
                     (never overlapping; they give the hiring date), assignments (unit and
                     function) and classifications (échelon), dated by their start only;
-                    read-only API
+                    bank accounts (also start-dated, audited under `paie` and read only by
+                    the pay profiles, through their own endpoint); read-only API
 frontend/           Vue application, organised by feature (see "Frontend folder layout")
 docs/               stakeholder input (French)
 specs/              this constitution

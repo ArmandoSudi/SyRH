@@ -1,5 +1,5 @@
 """create_demo_agents (agent identity D20, contact details D19, contract D20, position
-history D22)."""
+history D22, bank account D19)."""
 
 from datetime import date
 from io import StringIO
@@ -9,7 +9,7 @@ from django.test import TestCase, override_settings
 
 from apps.audit.models import EntreeAudit
 
-from .models import Affectation, Agent, Classement, Contrat, Coordonnees
+from .models import Affectation, Agent, Classement, CompteBancaire, Contrat, Coordonnees
 
 
 class DemoAgentsTests(TestCase):
@@ -156,3 +156,45 @@ class DemoAgentsTests(TestCase):
             (Affectation.objects.count(), Classement.objects.count(), EntreeAudit.objects.count()),
             before,
         )
+
+    @override_settings(DEBUG=True)
+    def test_loads_the_banks_then_valid_accounts_once(self):
+        self.assertIn("14 comptes bancaires créés", self.run_command())
+        for row in CompteBancaire.objects.all():
+            row.full_clean()  # format, bank open on the date, number held by one agent
+        numbers = CompteBancaire.objects.values_list("banque_id", "numero", "agent_id")
+        self.assertEqual(len({(b, n) for b, n, _ in numbers}), len(numbers))
+
+        for agent in Agent.objects.prefetch_related("contrats", "comptes_bancaires"):
+            with self.subTest(agent.matricule):
+                hired, comptes = agent.date_engagement, agent.comptes_bancaires.all()
+                if hired is None:  # ARPTC/0012/2024: no contract, no account
+                    self.assertEqual(agent.matricule, "ARPTC/0012/2024")
+                    self.assertFalse(comptes)
+                    continue
+                self.assertEqual(comptes[0].date_effet, hired)
+
+        def history(matricule):
+            agent = Agent.objects.get(matricule=matricule)
+            return [(row.banque.code, row.banque.nom, row.date_effet)
+                    for row in agent.comptes_bancaires.order_by("date_effet")]  # fmt: skip
+
+        # A change of bank.
+        self.assertEqual([code for code, _, _ in history("ARPTC/0005/2012")], ["BCF", "CEQ"])
+        # The same bank code, before and after its merger.
+        self.assertEqual(
+            [(code, nom) for code, nom, _ in history("ARPTC/0003/2010")],
+            [("UBK", "Union des Banques du Kasaï"), ("UBK", "Union Bank Kivu-Kasaï")],
+        )
+        # A future change is not current on the day this phase was written.
+        future = Agent.objects.get(matricule="ARPTC/0002/2008")
+        self.assertEqual(future.compte_bancaire_au(date(2026, 11, 22)).banque.code, "BCF")
+        self.assertEqual(future.compte_bancaire_au(date(2027, 1, 1)).banque.code, "BIK")
+
+        entries = EntreeAudit.objects.filter(table__model="comptebancaire")
+        self.assertEqual(set(entries.values_list("module", flat=True)), {"paie"})
+        self.assertFalse(entries.exclude(auteur=None).exists())
+
+        before = (CompteBancaire.objects.count(), EntreeAudit.objects.count())
+        self.assertIn("0 comptes bancaires créés", self.run_command())
+        self.assertEqual((CompteBancaire.objects.count(), EntreeAudit.objects.count()), before)

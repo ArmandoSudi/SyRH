@@ -145,6 +145,13 @@ En attendant, le MVP traite chaque point comme un **paramètre** ou applique l'h
   - Concerne : section 4.2 (coordonnées), roadmap 2.2.
   - Hypothèse en attendant : la Gestion de carrière et son chef de service les modifient ; tous
     les profils qui ouvrent le module Agents les lisent ; une seule personne à contacter.
+- [ ] **Q36 — Format des numéros de compte.** Quel est le format du numéro de compte de chaque
+  banque (longueur, chiffres seuls, clé de contrôle, RIB ou IBAN) ? Qui valide le compte d'un
+  agent, et la Gestion de carrière doit-elle le saisir à l'engagement ?
+  - Concerne : REM-20, REM-28, roadmap 2.5 et 2.11.
+  - Hypothèse en attendant : lettres majuscules, chiffres, espaces et tirets, de 5 à 34
+    caractères ; la Rémunération et son chef de service saisissent les comptes ; la validation
+    vient avec la roadmap 2.11.
 
 ## 6. Circuits de validation
 
