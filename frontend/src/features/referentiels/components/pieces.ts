@@ -12,6 +12,8 @@ import { normalise, type Branch } from '@/features/referentiels/components/tree'
  */
 export const EVENEMENTS: { value: Evenement; label: string }[] = [
   { value: 'engagement', label: 'Engagement' },
+  { value: 'renouvellement', label: 'Renouvellement de contrat' },
+  { value: 'avancement', label: "Avancement d'échelon" },
   { value: 'promotion', label: 'Promotion' },
   { value: 'mutation', label: 'Mutation ou changement de fonction' },
   { value: 'detachement', label: 'Détachement' },

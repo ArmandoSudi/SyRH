@@ -853,6 +853,9 @@ class Evenement(models.TextChoices):
     types D2). The screen lists them in this order; the frontend mirrors this list."""
 
     ENGAGEMENT = "engagement", "Engagement"
+    # Documents on events D11: a later contract, a classification keeping its grade.
+    RENOUVELLEMENT = "renouvellement", "Renouvellement de contrat"
+    AVANCEMENT = "avancement", "Avancement d'échelon"
     PROMOTION = "promotion", "Promotion"
     MUTATION = "mutation", "Mutation ou changement de fonction"
     DETACHEMENT = "detachement", "Détachement"

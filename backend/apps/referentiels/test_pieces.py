@@ -327,5 +327,7 @@ class EvenementMirrorTests(TestCase):
             Path(settings.BASE_DIR).parent
             / "frontend/src/features/referentiels/components/pieces.ts"
         ).read_text()
-        pairs = re.findall(r"\{ value: '([a-z_]+)', label: '([^']+)' \}", source)
+        # A label with an apostrophe is double-quoted (Prettier).
+        found = re.findall(r"\{ value: '([a-z_]+)', label: (?:'([^']+)'|\"([^\"]+)\") \}", source)
+        pairs = [(value, single or double) for value, single, double in found]
         self.assertEqual(pairs, [(value, str(label)) for value, label in E.choices])
