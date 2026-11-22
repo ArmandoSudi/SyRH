@@ -552,6 +552,59 @@ medical certificate to **Social**, its head of service and **Direction RH**.
 Which types are confidential, and for whom, is set by the administrator of the reference data in
 the administration site (`/admin/`, **Types de pièce**).
 
+### Events and their required pieces (Événements et pièces exigées)
+
+Below the documents, **Événements et pièces exigées** lists the agent's events, newest first:
+the hiring (**Engagement**, the first contract), each **Renouvellement de contrat**, each
+**Mutation ou changement de fonction** (a new assignment), each **Promotion** (a new grade) and
+each **Avancement d'échelon** (a new échelon in the same grade). An assignment or a
+classification dated on the hiring day shows **Engagement (inclus)**: its pieces are those of the
+contract.
+
+Each event lists the pieces it requires, as set in **Référentiels → Pièces justificatives**, with
+a tick when one is attached and an empty circle when it is missing. The tag at the top right says
+**Complet** or how many mandatory pieces are missing. Optional pieces never count as missing.
+When validation arrives in SyRH, an event with missing pieces will not be validated.
+
+![The hiring of an agent, missing the diploma](./screenshots/27-evenements.png)
+
+The pieces required are those in force **on the date of the event**, not today: someone hired in
+2015 still needs the criminal record extract that was required until 2024; someone hired in 2025
+does not.
+
+#### Attach a piece
+
+1. Click **Joindre** next to the missing piece.
+2. Pick one of the agent's documents: those of the right type come first. Documents already
+   attached to this event are not offered.
+3. Click **Joindre**. The tick appears and the tag updates.
+
+If the scan is not in the file yet, click **Déposer une nouvelle pièce**: the add dialog opens
+with the type already chosen, and the new document is attached as soon as it is added.
+
+![Attaching the diploma](./screenshots/28-evenements-joindre.png)
+
+**Joindre une autre pièce** attaches any other document to the event. One document can justify
+several events: a decision moving and promoting an agent on the same day counts for both.
+
+![One decision for a transfer and a promotion](./screenshots/29-evenements-mutation.png)
+
+#### Remove a link
+
+Click the cross next to an attached document to remove the link: the document stays in the
+agent's file and can be attached again. Retiring a document (above) also takes it off its events,
+which may become incomplete again.
+
+#### Confidential pieces
+
+A confidential piece counts for everyone, but only the profiles allowed to read it see the file.
+The others see **Pièce confidentielle fournie**.
+
+![A Formation user sees the identity document as provided, without the file](./screenshots/30-evenements-confidentielle.png)
+
+Attaching and removing are done by **Gestion de carrière** and **Administration du personnel**
+(and their heads of service); everyone who opens **Agents** sees the events and their status.
+
 ## 7. The audit log (Journal d'audit)
 
 The **Journal d'audit** records every change made in SyRH: who made it, when, on which record,

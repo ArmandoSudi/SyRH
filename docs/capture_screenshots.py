@@ -363,6 +363,39 @@ with sync_playwright() as p:
     page.wait_for_load_state("networkidle")
     shot(page, "26-pieces-confidentielle")
 
+    # --- Events and their required pieces (documents on events) -------------
+    def pick(matricule: str) -> None:
+        page.goto(f"{BASE}/agents/pieces")
+        page.locator("#agent-picker").fill(matricule)
+        page.get_by_role("option").first.click()
+        page.locator("[data-test=evenement]").first.wait_for()
+        page.wait_for_load_state("networkidle")
+
+    def section(name: str) -> None:
+        card = page.locator("[data-test=evenements]")
+        card.scroll_into_view_if_needed()
+        box = card.bounding_box()
+        viewport = page.viewport_size
+        clip = {"x": 0, "y": max(box["y"] - 20, 0), "width": viewport["width"],
+                "height": min(box["height"] + 40, viewport["height"] - max(box["y"] - 20, 0))}
+        shot(page, name, clip=clip)
+
+    logout(page)
+    login(page, "demo.carriere")
+    pick("0002/2008")
+    section("27-evenements")
+    page.locator("[data-test=piece-joindre]").first.click()
+    page.locator("[data-test=joindre-dialog]").wait_for()
+    page.wait_for_load_state("networkidle")
+    shot(page, "28-evenements-joindre")
+    page.keyboard.press("Escape")
+    pick("0005/2012")
+    section("29-evenements-mutation")
+    logout(page)
+    login(page, "demo.formation")
+    pick("0001/2008")
+    section("30-evenements-confidentielle")
+
     # --- Access denied (Social cannot open Paie) -----------------------------
     logout(page)
     login(page, "demo.social")
