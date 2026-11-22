@@ -37,6 +37,7 @@ class EtatPieces:
     pieces: list[EtatPiece]
     autres: list[Document]  # attached, matching no requirement, readable
     autres_confidentielles: int
+    liens: dict[int, int] = field(default_factory=dict)  # document id -> active link id
 
     @property
     def manquantes(self) -> list[str]:
@@ -63,7 +64,8 @@ def _exigences(evenements: list[EvenementAgent]) -> list[PieceRequise]:
 
 
 def _etat(evenement: EvenementAgent, exigences, lisibles: set[int] | None) -> EtatPieces:
-    documents = [lien.document for lien in evenement.liens_actifs() if not lien.document.retire]
+    actifs = evenement.liens_actifs()
+    documents = [lien.document for lien in actifs if not lien.document.retire]
     readable = (lambda doc: True) if lisibles is None else (lambda doc: doc.pk in lisibles)
     pieces, codes = [], set()
     if evenement.evenement:
@@ -91,6 +93,7 @@ def _etat(evenement: EvenementAgent, exigences, lisibles: set[int] | None) -> Et
         pieces=pieces,
         autres=[doc for doc in others if readable(doc)],
         autres_confidentielles=sum(1 for doc in others if not readable(doc)),
+        liens={lien.document_id: lien.pk for lien in actifs},
     )
 
 

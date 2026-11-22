@@ -280,3 +280,50 @@ class DocumentUploadSerializer(serializers.Serializer):
 
 class RetraitSerializer(serializers.Serializer):
     motif = serializers.CharField(allow_blank=True, trim_whitespace=True)
+
+
+def piece_json(document, liens: dict[int, int]) -> dict:
+    """A document as an event lists it, with the link that attaches it (documents on
+    events D21)."""
+    return {
+        "id": document.pk,
+        "lien": liens.get(document.pk),
+        "nom_original": document.nom_original,
+        "type_document_code": document.type_document.code,
+        "type_mime": document.type_mime,
+    }
+
+
+def etat_json(etat) -> dict:
+    """One event with its required pieces and status (documents on events D21)."""
+    evenement = etat.evenement
+    return {
+        "cle": evenement.cle,
+        "modele": evenement.modele,
+        "id": evenement.objet.pk,
+        "evenement": evenement.evenement,
+        "evenement_libelle": evenement.evenement_libelle,
+        "date": evenement.date.isoformat(),
+        "libelle": evenement.libelle,
+        "complet": etat.complet,
+        "manquantes": etat.manquantes,
+        "pieces": [
+            {
+                "code": piece.code,
+                "nom": piece.nom,
+                "obligatoire": piece.obligatoire,
+                "satisfaite": piece.satisfaite,
+                "documents": [piece_json(doc, etat.liens) for doc in piece.documents],
+                "confidentielles": piece.confidentielles,
+            }
+            for piece in etat.pieces
+        ],
+        "autres": [piece_json(doc, etat.liens) for doc in etat.autres],
+        "autres_confidentielles": etat.autres_confidentielles,
+    }
+
+
+class JoindreSerializer(serializers.Serializer):
+    document = serializers.IntegerField(
+        error_messages={"required": "Choisissez la pièce à joindre."}
+    )
