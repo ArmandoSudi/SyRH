@@ -42,10 +42,13 @@ async function mountForm() {
   const router = makeRouter()
   await router.push('/agents/nouveau')
   await router.isReady()
-  const wrapper = mount({ template: '<RouterView />' }, {
-    global: { plugins: [PrimeVue, ToastService, router], stubs: { teleport: true } },
-    attachTo: document.body,
-  })
+  const wrapper = mount(
+    { template: '<RouterView />' },
+    {
+      global: { plugins: [PrimeVue, ToastService, router], stubs: { teleport: true } },
+      attachTo: document.body,
+    },
+  )
   await flushPromises()
   return { wrapper, router }
 }
