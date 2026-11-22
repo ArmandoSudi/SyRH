@@ -109,12 +109,12 @@ class AgentApiTests(TestCase):
     def test_unknown_id_is_not_found(self):
         self.assertEqual(self.client_for().get(f"{AGENTS}999999/").status_code, 404)
 
-    def test_nobody_writes_not_even_the_editors(self):
+    def test_nobody_writes_an_agent_not_even_the_editors(self):
+        # POST /api/agents/ hires (agent creation form D1); an agent itself stays read-only (D10).
         detail = f"{AGENTS}{self.kabila.pk}/"
         for name in ("Gestion de carrière", "Direction RH"):
             with self.subTest(name):
                 client = self.client_for(name)
-                self.assertEqual(client.post(AGENTS, {}).status_code, 405)
                 self.assertEqual(client.put(detail, {}).status_code, 405)
                 self.assertEqual(client.patch(detail, {}).status_code, 405)
                 self.assertEqual(client.delete(detail).status_code, 405)
