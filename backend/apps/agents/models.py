@@ -423,6 +423,17 @@ class Contrat(BaseModel):
     def en_vigueur(self, jour: date) -> bool:
         return self.date_debut <= jour and (self.date_fin is None or jour <= self.date_fin)
 
+    @property
+    def evenement(self) -> str | None:
+        """The event kind of this row, from the agent's history (documents on events D7)."""
+        from .evenements import evenement_de
+
+        return evenement_de(self).evenement
+
+    @property
+    def date_evenement(self) -> date:
+        return self.date_debut
+
     def check_rules(self) -> None:
         """Rules on the dates and from the type (D3, D4, D6 to D8, D13).
 
@@ -550,6 +561,17 @@ class Affectation(BaseModel):
         debut = fr(self.date_effet) if self.date_effet else "?"
         return f"{unite} · {fonction} depuis le {debut} — {matricule}"
 
+    @property
+    def evenement(self) -> str | None:
+        """The event kind of this row, from the agent's history (documents on events D7)."""
+        from .evenements import evenement_de
+
+        return evenement_de(self).evenement
+
+    @property
+    def date_evenement(self) -> date:
+        return self.date_effet
+
     def check_rules(self) -> None:
         """References open on the date, date under contract, agent fixed (D9, D10, D14)."""
         errors: dict[str, list[str]] = {}
@@ -629,6 +651,17 @@ class Classement(BaseModel):
     @property
     def grade(self):
         return self.echelon.grade
+
+    @property
+    def evenement(self) -> str | None:
+        """The event kind of this row, from the agent's history (documents on events D7)."""
+        from .evenements import evenement_de
+
+        return evenement_de(self).evenement
+
+    @property
+    def date_evenement(self) -> date:
+        return self.date_effet
 
     def check_rules(self) -> None:
         """Échelon open on the date, date under contract, agent fixed (D9, D10, D14).
