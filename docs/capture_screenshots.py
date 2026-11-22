@@ -3,7 +3,7 @@
 Needs both dev servers running (backend on 8000, frontend on 5173), the demo data
 (create_demo_users, create_demo_organisation, create_demo_classification,
 create_demo_fonctions, create_demo_types_contrat, create_demo_pieces, create_demo_sorties,
-create_demo_banques, create_demo_parametres) and Google Chrome.
+create_demo_banques, create_demo_parametres, create_demo_agents) and Google Chrome.
 From the repository root:
 
     uv run --no-project --with playwright python docs/capture_screenshots.py
@@ -327,6 +327,41 @@ with sync_playwright() as p:
         shot(page, "14v-types-piece")
         logout(page)
         login(page, "demo.direction")
+
+    # --- Agents' documents (Gestion de carrière, then Social) ---------------
+    logout(page)
+    login(page, "demo.carriere")
+    page.goto(f"{BASE}/agents/pieces")
+    page.locator("#agent-picker").fill("0005")
+    page.get_by_role("option").first.click()
+    page.locator("[data-test=documents] tbody tr").first.wait_for()
+    page.wait_for_load_state("networkidle")
+    shot(page, "22-pieces-agent")
+    page.locator("[data-test=documents-retires] input").click()
+    page.wait_for_load_state("networkidle")
+    page.locator("[data-test=documents-motif]").wait_for()
+    shot(page, "23-pieces-retirees")
+    page.locator("[data-test=documents-retires] input").click()
+    page.locator("[data-test=documents-ajouter]").click()
+    page.locator("[data-test=ajout-dialog]").wait_for()
+    page.locator("[data-test=ajout-fichier]").set_input_files(
+        files=[{"name": "Lettre.docx", "mimeType": "application/octet-stream", "buffer": b"x"}]
+    )
+    shot(page, "24-pieces-ajouter")
+    page.keyboard.press("Escape")
+    page.locator("[data-test=documents-retirer]").first.click()
+    page.locator("[data-test=retrait-dialog]").wait_for()
+    page.locator("[data-test=retrait-motif]").fill("Déposée sur le mauvais agent")
+    shot(page, "25-pieces-retirer")
+    page.keyboard.press("Escape")
+    logout(page)
+    login(page, "demo.social")
+    page.goto(f"{BASE}/agents/pieces")
+    page.locator("#agent-picker").fill("0002/2008")
+    page.get_by_role("option").first.click()
+    page.locator("[data-test=documents] tbody tr").first.wait_for()
+    page.wait_for_load_state("networkidle")
+    shot(page, "26-pieces-confidentielle")
 
     # --- Access denied (Social cannot open Paie) -----------------------------
     logout(page)

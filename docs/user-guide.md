@@ -5,7 +5,7 @@ find your way around, and use the screens that are available today.
 
 > **Where the application stands (November 2026).** The foundations are in place: sign-in,
 > profiles, the audit log and the reference data (organisation, sites, classification, job
-> functions, contract types, supporting documents). The
+> functions, contract types, supporting documents), and the scanned documents of each agent. The
 > business modules (Agents, Carrière, Présences, Paie, Social, Formation) appear in the menu but
 > are not built yet. The dashboard shows demonstration figures only.
 
@@ -19,10 +19,11 @@ in **bold**.
 3. [Finding your way around](#3-finding-your-way-around)
 4. [Your account: password and signing out](#4-your-account-password-and-signing-out)
 5. [Reference data (Référentiels)](#5-reference-data-référentiels)
-6. [The audit log (Journal d'audit)](#6-the-audit-log-journal-daudit)
-7. [System status (Système)](#7-system-status-système)
-8. [Using SyRH on a smaller screen](#8-using-syrh-on-a-smaller-screen)
-9. [Common questions](#9-common-questions)
+6. [Agents' supporting documents (Pièces des agents)](#6-agents-supporting-documents-pièces-des-agents)
+7. [The audit log (Journal d'audit)](#7-the-audit-log-journal-daudit)
+8. [System status (Système)](#8-system-status-système)
+9. [Using SyRH on a smaller screen](#9-using-syrh-on-a-smaller-screen)
+10. [Common questions](#10-common-questions)
 
 ---
 
@@ -109,7 +110,8 @@ and Direction RH only.
 ### Modules that are not built yet
 
 Agents, Carrière, Présences, Paie, Social and Formation open a page that says
-**Ce module n'est pas encore développé** (this module is not built yet).
+**Ce module n'est pas encore développé** (this module is not built yet). Under Agents, only
+[Pièces des agents](#6-agents-supporting-documents-pièces-des-agents) is available so far.
 
 ![The Agents module: not built yet](./screenshots/06-module-upcoming.png)
 
@@ -482,9 +484,75 @@ Gestion de carrière.
 A reorganisation, a reform, a rename or a merger is recorded by closing the old row on a date and
 opening the new one, never by deleting it, so the history stays readable. The administration site
 (`/admin/`) still offers the same lists to the administrator, as a fallback. Every change is recorded in the
-[audit log](#6-the-audit-log-journal-daudit).
+[audit log](#7-the-audit-log-journal-daudit).
 
-## 6. The audit log (Journal d'audit)
+## 6. Agents' supporting documents (Pièces des agents)
+
+**Pièces des agents** keeps the scanned copy of each agent's supporting documents: signed
+contract, identity document, diploma, decisions, civil-status certificates. Files are PDF, JPEG
+or PNG, up to the size set in the **Paramètres** tab (10 Mo in the demonstration). They are stored
+encrypted on the server and can only be opened from SyRH, by a signed-in user.
+
+Who can see them: every profile that opens **Agents**. **Gestion de carrière** and
+**Administration du personnel** (and their heads of service) also add and retire documents.
+
+### Find an agent's documents
+
+Open **Pièces des agents** in the side menu. In the **Agent** field, type part of the matricule
+or of the name, then pick the agent in the list. Their documents show newest first, with the
+type, the file name and format, the date printed on the document, the size, and when and by whom
+it was added. The address of the page keeps the agent, so you can bookmark it or send it to a
+colleague.
+
+![The documents of an agent](./screenshots/22-pieces-agent.png)
+
+On each row:
+
+- the arrow-out-of-box icon opens the document in a new tab;
+- the arrow-down icon downloads it, with its original name;
+- the red eye icon retires it (see below), if your profile may.
+
+### Add a document
+
+1. Click **Ajouter une pièce**.
+2. Choose the **Type de pièce**. Only the types open today, and that your profile may read, are
+   offered.
+3. If you wish, give the **Date de la pièce**: the date printed on the document.
+4. Click **Choisir un fichier** and pick the scan.
+5. Click **Déposer**. A bar shows the progress, then **Pièce déposée** confirms it.
+
+SyRH refuses a file that is not a PDF, JPEG or PNG, an empty file, a file over the size limit,
+and the same file already added for this agent with this type. The reason shows under the field.
+A file renamed to `.pdf` without being one is refused too: SyRH reads its content, not its name.
+
+![A Word file refused](./screenshots/24-pieces-ajouter.png)
+
+### Retire a document added by mistake
+
+A document is never deleted. If one was added to the wrong agent, with the wrong type, or is
+unreadable, retire it: click the red eye icon, give the reason (10 characters at least), then
+**Retirer**. It leaves the list but stays on file. Add the right document again if needed.
+
+![Retiring a document](./screenshots/25-pieces-retirer.png)
+
+Switch on **Afficher les pièces retirées** to see retired documents, greyed, with the reason, who
+retired them and when. They still open. A retirement cannot be undone.
+
+![Retired documents shown, with their reason](./screenshots/23-pieces-retirees.png)
+
+### Confidential documents
+
+Some document types are confidential, for example the medical certificate or the identity
+document. A lock shows next to their type. Only the profiles chosen for that type see these
+documents at all: for the others, they are simply not in the list. The demonstration reserves the
+medical certificate to **Social**, its head of service and **Direction RH**.
+
+![A Social user sees the medical certificate, with its lock](./screenshots/26-pieces-confidentielle.png)
+
+Which types are confidential, and for whom, is set by the administrator of the reference data in
+the administration site (`/admin/`, **Types de pièce**).
+
+## 7. The audit log (Journal d'audit)
 
 The **Journal d'audit** records every change made in SyRH: who made it, when, on which record,
 and the values before and after. Nobody can change or delete an entry.
@@ -523,7 +591,7 @@ Passwords are always masked (••••••): the log only records that one 
 
 Close the panel with the cross at its top right, or press Échap (Escape).
 
-## 7. System status (Système)
+## 8. System status (Système)
 
 For the **Administrateur système** only. **Système** shows whether the application is running:
 the state of the API and the database version. If SyRH cannot reach its server, the page says
@@ -534,7 +602,7 @@ the state of the API and the database version. If SyRH cannot reach its server, 
 The **Design** entry, also for the system administrator, shows the colours and components SyRH is
 built with. End users do not need it.
 
-## 8. Using SyRH on a smaller screen
+## 9. Using SyRH on a smaller screen
 
 On a narrow window or a tablet, the side menu shrinks to icons. Hover over an icon to see the
 module's name. The agent search field is hidden, and the buttons of the Référentiels screen move
@@ -542,7 +610,7 @@ to their own line.
 
 ![Référentiels on a narrow screen: the side menu shows icons only](./screenshots/21-narrow-screen.png)
 
-## 9. Common questions
+## 10. Common questions
 
 **I forgot my password.**
 Ask the system administrator to set a new one, then change it from your account menu
