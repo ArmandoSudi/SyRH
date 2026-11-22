@@ -7,6 +7,7 @@ import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import * as api from '@/features/agents/api/agents'
 import type { AgentResume } from '@/features/agents/api/agents'
 import { useAgentListStore } from '@/features/agents/stores/agentList'
+import { useAuthStore } from '@/features/auth/stores/auth'
 import * as referentiels from '@/features/referentiels/api/referentiels'
 import { ApiError } from '@/shared/utils/http'
 
@@ -53,6 +54,7 @@ function makeRouter(): Router {
     routes: [
       { path: '/agents', name: 'agents', component: AgentListView },
       { path: '/agents/pieces', name: 'agents-pieces', component: { template: '<div />' } },
+      { path: '/agents/nouveau', name: 'agents-nouveau', component: { template: '<div />' } },
     ],
   })
 }
@@ -207,6 +209,23 @@ describe('AgentListView', () => {
     expect(lastCall()).toMatchObject({ page: 1 })
     expect(router.currentRoute.value.query).toEqual({})
     expect(wrapper.find('[data-test="agents-error"]').exists()).toBe(false)
+  })
+
+  it('shows "Nouvel agent" to those who may hire only', async () => {
+    let { wrapper } = await mountAt('/agents')
+    expect(wrapper.find('[data-test="agents-nouveau"]').exists()).toBe(false)
+    wrapper.unmount()
+    useAuthStore().user = {
+      id: 1,
+      username: 'carriere',
+      first_name: '',
+      last_name: '',
+      email: '',
+      groups: ['Gestion de carrière'],
+      permissions: ['accounts.access_agents', 'agents.add_agent'],
+    }
+    ;({ wrapper } = await mountAt('/agents'))
+    expect(wrapper.find('[data-test="agents-nouveau"]').attributes('href')).toBe('/agents/nouveau')
   })
 
   it('shows the empty and error states', async () => {

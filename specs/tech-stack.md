@@ -63,8 +63,10 @@ backend/            Django project
                     assignments, classifications with their computed kind) with each
                     event's required pieces (`pieces.py`); the agent search
                     (`recherche.py`: text, unit with its sub-units, grade, function and a
-                    status computed from the contracts, at a date, paginated); otherwise a
-                    read-only API
+                    status computed from the contracts, at a date, paginated); hiring
+                    (`engagement.py`: POST /api/agents/ creates identity, contact details,
+                    first contract, assignment and classification all or nothing, plus the
+                    matricule suggestion and duplicate check); agents themselves read-only
 frontend/           Vue application, organised by feature (see "Frontend folder layout")
 docs/               stakeholder input (French)
 specs/              this constitution

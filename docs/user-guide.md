@@ -536,6 +536,51 @@ Until careers are recorded in SyRH (exits, suspensions), the status comes from t
 The **Rechercher un agent…** box at the top of every page opens this list: type a name or a
 matricule and press Entrée.
 
+### Hire an agent (Engager un agent)
+
+For **Gestion de carrière** and its head of service. On the Agents list, click **Nouvel agent**.
+The form has five steps; **Suivant** moves on once the step's required fields are filled, and
+**Précédent** goes back without losing anything.
+
+1. **Identité**: nom, postnom, prénom, sexe, date and place of birth, nationality.
+
+   ![Step 1, Identité](./screenshots/34-engager-identite.png)
+
+2. **Coordonnées**: address, phones, email, the person to contact in an emergency. Optional:
+   leave it empty to enter it later.
+3. **Contrat**: the first day of the contract and its type. A fixed-term contract asks for its
+   last day; a type with probation offers the end of the probation period. Once the start date
+   is set, SyRH proposes the **matricule** on step 1 (the next number, with the hiring year, as on
+   the payslip); you may change it.
+
+   ![Step 3, Contrat](./screenshots/35-engager-contrat.png)
+
+4. **Poste**: the service (in the organisation tree), the function, the grade and the échelon.
+   Only what is open on the contract's first day is offered; changing that date clears a choice no
+   longer open. The assignment and the classification start on the contract's first day.
+
+   ![Step 4, Poste](./screenshots/36-engager-poste.png)
+
+5. **Récapitulatif**: everything entered, and the hiring pieces to attach next. If an agent
+   already has the same name and date of birth, SyRH shows them with a link: check it is not the
+   same person, then tick **Il s'agit bien d'un autre agent**.
+
+   ![The summary, with a possible duplicate](./screenshots/37-engager-recap.png)
+
+Click **Engager l'agent**. SyRH saves everything at once, or nothing: if something is refused (a
+matricule already taken, a contract date that does not fit its type…), the form goes back to the
+step concerned and shows the reason under the field.
+
+![A matricule already taken](./screenshots/38-engager-erreur.png)
+
+Once saved, the agent's documents page opens: its **Engagement** card lists the hiring pieces
+still missing. Attach them with **Joindre** (see [Events and their required pieces](#events-and-their-required-pieces-événements-et-pièces-exigées)).
+
+![The new agent, with the hiring pieces to attach](./screenshots/39-engager-pieces.png)
+
+Corrections to an agent, later contracts and new posts are still made in the administration site
+(`/admin/`) for now.
+
 ## 7. Agents' supporting documents (Pièces des agents)
 
 **Pièces des agents** keeps the scanned copy of each agent's supporting documents: signed

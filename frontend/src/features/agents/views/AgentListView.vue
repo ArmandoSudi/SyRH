@@ -31,6 +31,7 @@ import {
   type Fonction,
   type Grade,
 } from '@/features/referentiels/api/referentiels'
+import { useAuthStore } from '@/features/auth/stores/auth'
 import { localDate, parseDate } from '@/shared/utils/dates'
 import { ApiError } from '@/shared/utils/http'
 
@@ -42,6 +43,7 @@ import { ApiError } from '@/shared/utils/http'
 const route = useRoute()
 const router = useRouter()
 const store = useAgentListStore()
+const auth = useAuthStore()
 
 const agents = ref<AgentResume[]>([])
 const total = ref(0)
@@ -288,6 +290,14 @@ function noms(agent: AgentResume): string {
           @update:model-value="(v: FiltresAgents['tri']) => appliquer({ tri: v })"
         />
       </label>
+      <RouterLink
+        v-if="auth.can('agents.add_agent')"
+        :to="{ name: 'agents-nouveau' }"
+        class="p-button nouveau"
+        data-test="agents-nouveau"
+      >
+        <i class="pi pi-user-plus" /> Nouvel agent
+      </RouterLink>
       <Button
         v-if="filtre"
         label="Effacer les filtres"
@@ -416,6 +426,13 @@ function noms(agent: AgentResume): string {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sy-space-3);
+}
+
+.nouveau {
+  order: 10;
+  margin-left: auto;
+  gap: var(--sy-space-2);
+  text-decoration: none;
 }
 
 .lien {

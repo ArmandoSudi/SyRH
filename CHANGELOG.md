@@ -38,7 +38,14 @@ the work is merged.
   Sans contrat. The top-bar search opens the list; the Pièces picker searches as you type.
 - `/api/agents/` is now paginated and filterable (breaking for any other caller). Run `migrate`
   (installs PostgreSQL `unaccent`); `create_load_agents` generates thousands of test agents.
-<!-- commits: b53a19c ecef031 b3296b9 26b0823 dbca804 df86d0e 1b09f83 7a5db67 00b4be2 0775e62 d576192 5a743a3 89905ff 8258e2d e7dd806 09f803c 0427e87 d320dfc d773237 1cad5b4 c28c869 267db12 b8f15f7 3b4f811 bfdf633 863f44c 507c39b 1b45e8c 215b51e ce3bb36 61da7ca 5fa455e 2416ec5 7358de5 -->
+- Agent creation form (roadmap 2.9): Gestion de carrière hires an agent from "Nouvel agent" on
+  the list — identity, optional contact details, first contract, assignment and classification —
+  saved all at once or not at all, every refusal shown under its field.
+- The form proposes the next matricule (ARPTC/<n>/<year>, editable), warns about an agent with
+  the same name and birth date, then opens the new agent's Pièces page on the hiring pieces.
+- `POST /api/agents/` now hires (agents themselves stay read-only); nested API errors reach the
+  screen as `section.field`.
+<!-- commits: b53a19c ecef031 b3296b9 26b0823 dbca804 df86d0e 1b09f83 7a5db67 00b4be2 0775e62 d576192 5a743a3 89905ff 8258e2d e7dd806 09f803c 0427e87 d320dfc d773237 1cad5b4 c28c869 267db12 b8f15f7 3b4f811 bfdf633 863f44c 507c39b 1b45e8c 215b51e ce3bb36 61da7ca 5fa455e 2416ec5 7358de5 fa7cd57 200c792 62b118e 5a3d3bb 16ce196 3f2c6b2 8bcc1ce f46aa14 -->
 
 ## 2026-11-21
 

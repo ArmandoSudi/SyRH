@@ -84,6 +84,28 @@ describe('request', () => {
     expect(apiError.fieldErrors).toEqual({ new_password: ['Trop court.', 'Trop courant.'] })
   })
 
+  it('flattens the errors of nested sections with dotted keys', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<FetchMock>().mockResolvedValue(
+        jsonResponse(400, {
+          matricule: ['Déjà pris.'],
+          contrat: { date_fin: ['Obligatoire.'], periode: { debut: ['Trop tôt.'] } },
+        }),
+      ),
+    )
+
+    const error = (await request('/api/thing/', { method: 'POST' }).catch(
+      (e: unknown) => e,
+    )) as ApiError
+
+    expect(error.fieldErrors).toEqual({
+      matricule: ['Déjà pris.'],
+      'contrat.date_fin': ['Obligatoire.'],
+      'contrat.periode.debut': ['Trop tôt.'],
+    })
+  })
+
   it('calls the unauthorised handler on 401', async () => {
     const handler = vi.fn<() => void>()
     setUnauthorizedHandler(handler)
