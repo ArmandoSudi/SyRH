@@ -152,3 +152,21 @@ class PieceJointeTests(Base):
             self.assertEqual(entry.module, "agents")
             self.assertEqual(entry.auteur, self.carriere)
             self.assertEqual(entry.objet_libelle, f"CTR — contrat.pdf → {self.cdd}")
+
+
+class PieceJointeAdminTests(Base):
+    LIENS = "/admin/agents/piecejointe/"
+
+    def test_read_only_and_confidential_links_hidden(self):
+        self.joindre(self.doc("CTR", nom="contrat.pdf"), self.cdd)
+        self.joindre(self.doc("CNI", nom="carte.pdf"), self.cdd)
+        personnel = member("personnel", "Administration du personnel", is_staff=True)
+        self.client.force_login(personnel)
+        page = self.client.get(self.LIENS)
+        self.assertContains(page, "contrat.pdf")
+        self.assertNotContains(page, "carte.pdf")
+        self.assertEqual(self.client.get(f"{self.LIENS}add/").status_code, 403)
+        self.carriere.is_staff = True
+        self.carriere.save()
+        self.client.force_login(self.carriere)
+        self.assertContains(self.client.get(self.LIENS), "carte.pdf")

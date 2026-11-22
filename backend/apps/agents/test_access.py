@@ -17,6 +17,7 @@ from apps.accounts.roles import (
     COMPTE_BANCAIRE_EDIT_PERMISSIONS,
     CONTRAT_EDIT_PERMISSIONS,
     COORDONNEES_EDIT_PERMISSIONS,
+    PIECE_JOINTE_EDIT_PERMISSIONS,
     sync_groups,
 )
 from apps.audit.models import EntreeAudit
@@ -957,3 +958,25 @@ class DocumentAdminTests(TestCase):
         formation = member("formation", "Formation", is_staff=True)
         self.client.force_login(formation)
         self.assertEqual(self.client.get(self.DOCUMENTS).status_code, 403)
+
+
+class PieceJointePermissionTests(TestCase):
+    """Links between documents and events (documents on events D20)."""
+
+    def test_editors_hold_view_add_change_and_nobody_deletes(self):
+        self.assertEqual(len(PIECE_JOINTE_EDIT_PERMISSIONS), 3)
+        for permission in PIECE_JOINTE_EDIT_PERMISSIONS:
+            with self.subTest(permission):
+                self.assertEqual(holders(permission), DOCUMENT_EDITORS)
+        self.assertFalse(Permission.objects.filter(codename="delete_piecejointe").exists())
+
+    def test_group_setup_regrants_and_keeps_hand_made_ones(self):
+        chef = Group.objects.get(name="Chef de service — Gestion de carrière")
+        chef.permissions.remove(Permission.objects.get(codename="add_piecejointe"))
+        direction = Group.objects.get(name="Direction RH")
+        direction.permissions.add(Permission.objects.get(codename="view_piecejointe"))
+
+        sync_groups()
+
+        self.assertEqual(holders("agents.add_piecejointe"), DOCUMENT_EDITORS)
+        self.assertEqual(holders("agents.view_piecejointe"), DOCUMENT_EDITORS | {"Direction RH"})

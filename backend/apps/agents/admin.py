@@ -11,6 +11,7 @@ from .models import (
     Contrat,
     Coordonnees,
     Document,
+    PieceJointe,
 )
 
 
@@ -186,6 +187,47 @@ class DocumentAdmin(BaseModelAdmin, admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).lisibles_par(request.user)
+
+    def get_readonly_fields(self, request, obj=None):
+        return [*self.fields, *super().get_readonly_fields(request, obj)]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(PieceJointe)
+class PieceJointeAdmin(BaseModelAdmin, admin.ModelAdmin):
+    """Documents attached to events, read-only (documents on events D20).
+
+    Links are made and removed through the API, where every rule runs. Links to a
+    confidential document are hidden from those outside its type's groups (D18).
+    """
+
+    list_display = ["matricule", "document", "evenement", "date_creation", "date_retrait"]
+    list_filter = [("date_retrait", admin.EmptyFieldListFilter), "content_type"]
+    list_select_related = ["document__agent", "document__type_document", "content_type"]
+    search_fields = ["document__agent__matricule", "document__agent__nom",
+                     "document__nom_original"]  # fmt: skip
+    fields = ["document", "content_type", "objet_id", "date_retrait", "retire_par"]
+    ordering = ["-date_creation"]
+
+    @admin.display(description="matricule", ordering="document__agent__matricule")
+    def matricule(self, obj):
+        return obj.document.agent.matricule
+
+    @admin.display(description="événement")
+    def evenement(self, obj):
+        return obj.evenement_objet
+
+    def get_queryset(self, request):
+        lisibles = Document.objects.lisibles_par(request.user).values("pk")
+        return super().get_queryset(request).filter(document__in=lisibles)
 
     def get_readonly_fields(self, request, obj=None):
         return [*self.fields, *super().get_readonly_fields(request, obj)]
