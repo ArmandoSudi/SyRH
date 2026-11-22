@@ -166,6 +166,14 @@ En attendant, le MVP traite chaque point comme un **paramètre** ou applique l'h
   - Hypothèse en attendant : aucune analyse dans SyRH ; seuls les PDF, JPEG et PNG, reconnus à
     leur contenu, sont acceptés, et ils ne sont jamais servis sous un autre type.
 
+- [ ] **Q39 — Pièces d'un renouvellement et d'un avancement.** Quelles pièces exige le
+  renouvellement d'un contrat ? Et l'avancement d'échelon dans le même grade : faut-il toujours
+  une décision ? Un simple changement de fonction dans la même unité exige-t-il les mêmes pièces
+  qu'une mutation ?
+  - Concerne : SOC-04, CAR-02, CAR-06, CAR-08, roadmap 2.7.
+  - Hypothèse en attendant : renouvellement, contrat signé obligatoire ; avancement, décision
+    facultative ; changement de fonction et mutation, un seul événement.
+
 ## 6. Circuits de validation
 
 À trancher avant la phase 2.11 de la feuille de route (circuit de validation). Le principe retenu :

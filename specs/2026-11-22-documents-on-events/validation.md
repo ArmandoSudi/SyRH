@@ -114,13 +114,13 @@ Also check: French text with correct accents everywhere.
 
 ## 6. Definition of done
 
-- [ ] Parts 1 to 5 pass.
-- [ ] Nothing listed as out of scope slipped in: no validation status, no dependants, no
+- [x] Parts 1 to 5 pass.
+- [x] Nothing listed as out of scope slipped in: no validation status, no dependants, no
       Milestone 3 event, no blocking on save.
-- [ ] Any decision changed during implementation is recorded under "Found during
+- [x] Any decision changed during implementation is recorded under "Found during
       implementation" in `requirements.md`.
-- [ ] `tech-stack.md` names the links, the events protocol and `pieces_manquantes`.
-- [ ] `Q39` is in `docs/questions-ouvertes.md`.
-- [ ] **2.7 Documents on events** is ticked in `roadmap.md`.
-- [ ] `/changelog` has been run on the branch.
-- [ ] The branch is one reviewable change, per the roadmap's working rules.
+- [x] `tech-stack.md` names the links, the events protocol and `pieces_manquantes`.
+- [x] `Q39` is in `docs/questions-ouvertes.md`.
+- [x] **2.7 Documents on events** is ticked in `roadmap.md`.
+- [x] `/changelog` has been run on the branch.
+- [x] The branch is one reviewable change, per the roadmap's working rules.

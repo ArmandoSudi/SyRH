@@ -136,3 +136,9 @@ follow from the cahier des charges, `missions.md`, `tech-stack.md` and earlier p
 
 | # | Decision | Reason |
 | --- | --- | --- |
+| D26 | A link's label is `TYPE — nom_original → <event label>`: the event's own label already ends with the matricule. | No matricule written twice. |
+| D27 | The protocol's `evenement` and `date_evenement` are properties of the three models; `evenement` reads the agent's whole history (`evenement_de()`, a few queries). Lists go through `etats_pieces()` on an agent from `prefetch_evenements()`. | A kind depends on the other rows (D12). |
+| D28 | A classification after the hiring with no earlier row has no kind (it belongs to the hiring), like one dated on the hiring day. Events of one day sort contract, assignment, classification; a row without kind shows "Engagement (inclus)". | Position history allows a first classification after the contract start. |
+| D29 | "Joindre une autre pièce" is offered only on events with a kind; the API gives each listed document its link id (`lien`) so the screen can remove it. | A row included in the hiring has no pieces of its own (D9, D10). |
+| D30 | Both panels share `useDocumentReferences()` (types and size limit); the page passes each panel a `version` it bumps when the other changed the documents. | Upload-and-attach adds a document; retiring one changes events. |
+| D31 | The event kinds' mirror test accepts double-quoted labels. | Prettier double-quotes "Avancement d'échelon". |
