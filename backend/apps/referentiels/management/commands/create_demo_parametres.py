@@ -17,6 +17,7 @@ PARAMETRES = [
     (Cle.ENFANTS_MAX, 6, CHANGEMENT, None),
     (Cle.AGE_RETRAITE, 65),
     (Cle.DUREE_CARRIERE, 30),
+    (Cle.TAILLE_MAX_PIECE, 10),  # document storage D12
 ]
 
 

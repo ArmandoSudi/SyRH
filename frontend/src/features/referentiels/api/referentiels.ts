@@ -84,6 +84,10 @@ export interface TypeContrat extends Periode {
 export interface TypeDocument extends Periode {
   code: string
   nom: string
+  /** Read only by the groups below (document storage D13); edited in Django admin. */
+  confidentiel: boolean
+  groupes_autorises: number[]
+  groupes_autorises_noms: string[]
 }
 
 /** Event kinds that rest on a document, in the order of the agent's life (document types D2). */
@@ -144,7 +148,12 @@ export interface Banque extends Periode {
 }
 
 /** The general parameters later phases read (general parameters D2). */
-export type CleParametre = 'age_limite_enfant' | 'enfants_max' | 'age_retraite' | 'duree_carriere'
+export type CleParametre =
+  | 'age_limite_enfant'
+  | 'enfants_max'
+  | 'age_retraite'
+  | 'duree_carriere'
+  | 'taille_max_piece'
 
 /** A dated value of one general parameter (general parameters D17). */
 export interface Parametre extends Periode {

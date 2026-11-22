@@ -1,6 +1,7 @@
 from datetime import date
 
 from django.conf import settings
+from django.contrib.auth.models import Group
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
@@ -25,6 +26,19 @@ TYPES = [
     ("DRT", "Décision de retraite"),  # for exit reasons, create_demo_sorties
     ("LDM", "Lettre de démission"),
 ]
+
+# Confidential types and the groups that read them (document storage D13, Q37).
+CHEFS = "Chef de service — "
+CONFIDENTIELS = {
+    "CMD": ("Social", f"{CHEFS}Social", "Direction RH"),
+    "CNI": (
+        "Gestion de carrière",
+        f"{CHEFS}Gestion de carrière",
+        "Administration du personnel",
+        f"{CHEFS}Administration du personnel",
+        "Direction RH",
+    ),
+}
 
 E = Evenement
 DECISION = (E.PROMOTION, E.MUTATION, E.DETACHEMENT, E.DISPONIBILITE, E.REPRISE, E.INTERIM,
@@ -70,6 +84,9 @@ class Command(BaseCommand):
                 )
                 created += self.report(types[code], new)
 
+            for code, noms in CONFIDENTIELS.items():
+                self.make_confidential(types[code], noms)
+
             for evenement, code, obligatoire, *dates in PIECES:
                 debut, fin = (*dates, None)[:2] if dates else (OUVERTURE, None)
                 piece, new = PieceRequise.objects.get_or_create(
@@ -82,6 +99,18 @@ class Command(BaseCommand):
 
         done = f"Pièces de démonstration prêtes : {created} créées."
         self.stdout.write(self.style.SUCCESS(done))
+
+    def make_confidential(self, type_document: TypeDocument, noms: tuple[str, ...]) -> None:
+        """Flag the type and set its groups, writing nothing when already so."""
+        groupes = list(Group.objects.filter(name__in=noms))
+        if len(groupes) != len(noms):
+            raise CommandError("Profils manquants : lancez d'abord « migrate ».")
+        if not type_document.confidentiel:
+            type_document.confidentiel = True
+            type_document.save()
+        if set(type_document.groupes_autorises.all()) != set(groupes):
+            type_document.set_groupes(groupes)
+            self.stdout.write(f"confidentiel  {type_document}")
 
     def report(self, obj, new: bool) -> int:
         if new:

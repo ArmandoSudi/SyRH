@@ -51,7 +51,16 @@ describe('EditionDialog', () => {
       })),
     )
     vi.mocked(api.fetchTypesDocument).mockResolvedValue([
-      { id: 2, code: 'DEC', nom: 'Décision', date_ouverture: '2015-01-01', date_fermeture: null },
+      {
+        id: 2,
+        code: 'DEC',
+        nom: 'Décision',
+        confidentiel: false,
+        groupes_autorises: [],
+        groupes_autorises_noms: [],
+        date_ouverture: '2015-01-01',
+        date_fermeture: null,
+      },
     ])
   })
 

@@ -1,3 +1,4 @@
+from django.contrib.auth.models import Group
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -133,9 +134,61 @@ class TypeContratSerializer(ModelRulesSerializerMixin, BaseModelSerializer):
 
 
 class TypeDocumentSerializer(ModelRulesSerializerMixin, BaseModelSerializer):
+    """A kind of supporting document, with its confidentiality (document storage D13).
+
+    The allowed groups are a many-to-many: they are kept out of the model's
+    full_clean(), checked here, and saved with an audit entry of their own.
+    """
+
+    groupes_autorises = serializers.PrimaryKeyRelatedField(
+        queryset=Group.objects.all(), many=True, required=False
+    )
+    groupes_autorises_noms = serializers.SlugRelatedField(
+        source="groupes_autorises", slug_field="name", many=True, read_only=True
+    )
+
     class Meta:
         model = TypeDocument
-        fields = ["id", "code", "nom", "date_ouverture", "date_fermeture", *BASE_FIELDS]
+        fields = [
+            "id",
+            "code",
+            "nom",
+            "confidentiel",
+            "groupes_autorises",
+            "groupes_autorises_noms",
+            "date_ouverture",
+            "date_fermeture",
+            *BASE_FIELDS,
+        ]
+
+    def validate(self, attrs):
+        groupes = attrs.pop("groupes_autorises", None)
+        attrs = super().validate(attrs)
+        instance = self.instance
+        confidentiel = attrs.get("confidentiel", instance.confidentiel if instance else False)
+        effective = groupes
+        if effective is None:
+            effective = list(instance.groupes_autorises.all()) if instance else []
+        errors = TypeDocument.check_groupes(confidentiel, effective)
+        if errors:
+            raise serializers.ValidationError(errors)
+        if groupes is not None:
+            attrs["groupes_autorises"] = groupes
+        return attrs
+
+    def create(self, validated_data):
+        groupes = validated_data.pop("groupes_autorises", None)
+        instance = super().create(validated_data)
+        if groupes:
+            instance.set_groupes(groupes, auteur=instance.cree_par)
+        return instance
+
+    def update(self, instance, validated_data):
+        groupes = validated_data.pop("groupes_autorises", None)
+        instance = super().update(instance, validated_data)
+        if groupes is not None:
+            instance.set_groupes(groupes, auteur=instance.modifie_par)
+        return instance
 
 
 class PieceRequiseSerializer(ModelRulesSerializerMixin, BaseModelSerializer):
