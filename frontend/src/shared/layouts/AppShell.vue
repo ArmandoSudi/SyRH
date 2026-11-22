@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { RouterLink, RouterView, useRoute } from 'vue-router'
+import { computed, ref } from 'vue'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import InputText from 'primevue/inputtext'
 
 import ThemeToggle from '@/shared/ui/ThemeToggle.vue'
@@ -78,6 +78,14 @@ const visibleMain = computed(() => mainNav.filter((item) => auth.can(item.permis
 const visibleAdmin = computed(() => adminNav.filter((item) => auth.can(item.permission)))
 const allowed = computed(() => auth.can(route.meta.permission))
 const title = computed(() => (route.meta.title as string | undefined) ?? 'SyRH')
+
+// Entrée opens the agent list filtered on the text, from any page (agent list D16).
+const router = useRouter()
+const recherche = ref('')
+function rechercher() {
+  const q = recherche.value.trim()
+  void router.push({ path: '/agents', query: q ? { q } : {} })
+}
 </script>
 
 <template>
@@ -107,9 +115,15 @@ const title = computed(() => (route.meta.title as string | undefined) ?? 'SyRH')
     <div class="main">
       <header class="topbar">
         <h1>{{ title }}</h1>
-        <label class="search">
+        <label v-if="auth.can(MODULE_PERMISSIONS.agents)" class="search">
           <i class="pi pi-search" aria-hidden="true" />
-          <InputText placeholder="Rechercher un agent…" aria-label="Rechercher un agent" />
+          <InputText
+            v-model="recherche"
+            placeholder="Rechercher un agent…"
+            aria-label="Rechercher un agent"
+            data-test="topbar-search"
+            @keydown.enter="rechercher"
+          />
         </label>
         <ThemeToggle />
         <button type="button" class="round" aria-label="Notifications" title="Notifications">

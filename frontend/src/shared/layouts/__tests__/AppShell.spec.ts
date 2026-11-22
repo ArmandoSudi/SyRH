@@ -109,3 +109,25 @@ describe('AppShell', () => {
     expect(wrapper.find('[data-test="access-denied"]').exists()).toBe(false)
   })
 })
+
+describe('AppShell top-bar search', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    setActivePinia(createPinia())
+  })
+
+  it('opens the agent list filtered on the text', async () => {
+    const { wrapper, router } = await mountAs([MODULE_PERMISSIONS.agents])
+    const input = wrapper.find('[data-test="topbar-search"]')
+    await input.setValue('  mukendi ')
+    await input.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/agents')
+    expect(router.currentRoute.value.query).toEqual({ q: 'mukendi' })
+  })
+
+  it('is hidden without the Agents module', async () => {
+    const { wrapper } = await mountAs([MODULE_PERMISSIONS.referentiels])
+    expect(wrapper.find('[data-test="topbar-search"]').exists()).toBe(false)
+  })
+})
