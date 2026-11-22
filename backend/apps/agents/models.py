@@ -6,6 +6,7 @@ Contracts: specs/2026-11-21-contract.
 Assignments and classifications: specs/2026-11-21-position-history.
 Bank accounts: specs/2026-11-21-bank-account.
 Documents: specs/2026-11-22-document-storage.
+Documents on events: specs/2026-11-22-documents-on-events.
 
 Rules that only read the row itself are database constraints; rules that read
 other rows or today's date live in check_rules(), called by clean() and save().
@@ -18,6 +19,7 @@ import uuid
 from datetime import date
 
 from django.conf import settings
+from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.postgres.constraints import ExclusionConstraint
 from django.contrib.postgres.fields import RangeOperators
 from django.core.exceptions import ValidationError
@@ -373,6 +375,9 @@ class Contrat(BaseModel):
         blank=True,
         help_text="Dernier jour de la période d'essai, si le type en comporte une.",
     )
+    pieces_jointes = GenericRelation(
+        "agents.PieceJointe", content_type_field="content_type", object_id_field="objet_id"
+    )  # documents on events D6
 
     class Meta:
         verbose_name = "contrat"
@@ -521,6 +526,9 @@ class Affectation(BaseModel):
         "date d'effet",
         help_text="Premier jour où l'affectation s'applique ; elle court jusqu'à la suivante.",
     )
+    pieces_jointes = GenericRelation(
+        "agents.PieceJointe", content_type_field="content_type", object_id_field="objet_id"
+    )  # documents on events D6
 
     class Meta:
         verbose_name = "affectation"
@@ -595,6 +603,9 @@ class Classement(BaseModel):
         "date d'effet",
         help_text="Premier jour où le classement s'applique ; il court jusqu'au suivant.",
     )
+    pieces_jointes = GenericRelation(
+        "agents.PieceJointe", content_type_field="content_type", object_id_field="objet_id"
+    )  # documents on events D6
 
     class Meta:
         verbose_name = "classement"
@@ -920,3 +931,146 @@ class Document(BaseModel):
 
     def delete(self, *args, **kwargs):
         raise PermissionError(DOCUMENT_NEVER_DELETED)
+
+
+# Documents attached to the events they justify (documents on events D1 to D5).
+# The event models wired so far; later phases add theirs (D7).
+MODELES_EVENEMENT = ("contrat", "affectation", "classement")
+LIEN_DOUBLON = "Cette pièce est déjà jointe à cet événement."
+LIEN_AUTRE_AGENT = "Cette pièce appartient au dossier d'un autre agent."
+LIEN_PIECE_RETIREE = "Une pièce retirée ne peut pas être jointe."
+LIEN_EVENEMENT_INCONNU = "Cet enregistrement n'est pas un événement qui porte des pièces."
+LIEN_FIXE = "Un lien ne peut pas être modifié : retirez-le et joignez la bonne pièce."
+LIEN_DEJA_RETIRE = "Ce lien est déjà retiré."
+LIEN_NEVER_DELETED = "Un lien n'est jamais supprimé : retirez-le."
+
+
+class PieceJointe(BaseModel):
+    """A document of the agent's file attached to one of their events (documents on
+    events D1 to D5).
+
+    The event is any model of MODELES_EVENEMENT, through a generic key; one
+    document can justify several events. A wrong link is removed (date_retrait),
+    never deleted (D4); only active links count (D14).
+    """
+
+    module = "agents"
+
+    document = models.ForeignKey(
+        Document, verbose_name="pièce", on_delete=models.PROTECT, related_name="liens"
+    )
+    content_type = models.ForeignKey(
+        "contenttypes.ContentType",
+        verbose_name="type d'événement",
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    objet_id = models.PositiveBigIntegerField("événement")
+    evenement_objet = GenericForeignKey("content_type", "objet_id")
+    date_retrait = models.DateTimeField("date du retrait", null=True, blank=True)
+    retire_par = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="retiré par",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+
+    class Meta:
+        verbose_name = "pièce jointe à un événement"
+        verbose_name_plural = "pièces jointes aux événements"
+        ordering = ["content_type", "objet_id", "date_creation", "id"]
+        default_permissions = NO_DELETE
+        indexes = [models.Index(fields=["content_type", "objet_id"], name="piecejointe_evenement")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["document", "content_type", "objet_id"],
+                condition=Q(date_retrait__isnull=True),
+                name="piecejointe_un_lien_actif",
+                violation_error_message=LIEN_DOUBLON,
+            ),
+            models.CheckConstraint(
+                condition=Q(retire_par__isnull=True) | Q(date_retrait__isnull=False),
+                name="piecejointe_retrait_date",
+                violation_error_message="Un lien retiré a une date de retrait.",
+            ),
+        ]
+
+    def __str__(self):
+        if self.document_id:
+            piece = f"{self.document.type_document.code} — {self.document.nom_original}"
+        else:
+            piece = "?"
+        evenement = self.evenement_objet if self.content_type_id and self.objet_id else "?"
+        return f"{piece} → {evenement}"
+
+    @property
+    def actif(self) -> bool:
+        return self.date_retrait is None
+
+    def check_rules(self) -> None:
+        """Event of a known model and of the document's agent, document not retired, no
+        duplicate active link; nothing changes once saved but the removal (D2 to D4)."""
+        errors: dict[str, list[str]] = {}
+        if self.pk is None:
+            if self.content_type_id and (
+                self.content_type.app_label != "agents"
+                or self.content_type.model not in MODELES_EVENEMENT
+            ):
+                errors["content_type"] = [LIEN_EVENEMENT_INCONNU]
+            elif self.content_type_id and self.objet_id:
+                evenement = self.evenement_objet
+                if evenement is None:
+                    errors["objet_id"] = [LIEN_EVENEMENT_INCONNU]
+                elif self.document_id and evenement.agent_id != self.document.agent_id:
+                    errors["document"] = [LIEN_AUTRE_AGENT]
+            if self.document_id and "document" not in errors:
+                if self.document.retire:
+                    errors["document"] = [LIEN_PIECE_RETIREE]
+                elif (
+                    self.content_type_id
+                    and self.objet_id
+                    and type(self)
+                    ._base_manager.filter(
+                        document_id=self.document_id,
+                        content_type_id=self.content_type_id,
+                        objet_id=self.objet_id,
+                        date_retrait__isnull=True,
+                    )
+                    .exists()
+                ):
+                    errors["document"] = [LIEN_DOUBLON]
+        else:
+            old = (
+                type(self)
+                ._base_manager.filter(pk=self.pk)
+                .values("document_id", "content_type_id", "objet_id")
+                .first()
+            )
+            if old is not None:
+                for name, value in old.items():
+                    if getattr(self, name) != value:
+                        errors.setdefault(name.removesuffix("_id"), []).append(LIEN_FIXE)
+        if errors:
+            raise ValidationError(errors)
+
+    def clean(self):
+        super().clean()
+        self.check_rules()
+
+    def save(self, **kwargs):
+        self.check_rules()
+        super().save(**kwargs)
+
+    def retirer(self, auteur=None) -> None:
+        """Remove the link once; the row and the document stay (D4)."""
+        if self.date_retrait is not None:
+            raise ValidationError({"lien": [LIEN_DEJA_RETIRE]})
+        self.date_retrait = timezone.now()
+        self.retire_par = auteur
+        self.modifie_par = auteur
+        self.save()
+
+    def delete(self, *args, **kwargs):
+        raise PermissionError(LIEN_NEVER_DELETED)
