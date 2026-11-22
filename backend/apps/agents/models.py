@@ -24,7 +24,7 @@ from django.contrib.postgres.constraints import ExclusionConstraint
 from django.contrib.postgres.fields import RangeOperators
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import F, Min, Q, Value
+from django.db.models import Case, Exists, F, Min, OuterRef, Q, Value, When
 from django.db.models.functions import Upper
 from django.utils import timezone
 
@@ -39,6 +39,40 @@ MATRICULE_FIXED = "Le matricule ne peut pas être modifié."
 NEVER_DELETED = "Un agent n'est jamais supprimé : son matricule ne doit pas être réutilisé."
 BIRTH_FUTURE = "La date de naissance ne peut pas être dans le futur."
 EARLIEST_BIRTH = date(1900, 1, 1)
+
+
+class StatutAgent(models.TextChoices):
+    """An agent's status at a date, computed from their contracts, never stored (agent
+    list D1, D2). Milestone 3 adds Détaché, En disponibilité and Sorti, which take
+    precedence over En activité. The frontend mirrors this list."""
+
+    ACTIF = "actif", "En activité"
+    A_VENIR = "a_venir", "À venir"
+    INACTIF = "inactif", "Sans contrat en cours"
+    SANS_CONTRAT = "sans_contrat", "Sans contrat"
+
+
+class AgentQuerySet(BaseQuerySet):
+    def with_statut(self, jour: date) -> "AgentQuerySet":
+        """Annotate `statut` on a day, in SQL, so the list can filter on it (agent list D3).
+
+        Agent.statut_au() gives the same answer from prefetched contracts.
+        """
+        contrats = Contrat.objects.filter(agent=OuterRef("pk"))
+        en_cours = contrats.filter(date_debut__lte=jour).filter(
+            Q(date_fin__isnull=True) | Q(date_fin__gte=jour)
+        )
+        return self.annotate(
+            statut=Case(
+                When(Exists(en_cours), then=Value(StatutAgent.ACTIF)),
+                When(
+                    Exists(contrats.filter(date_debut__lte=jour)), then=Value(StatutAgent.INACTIF)
+                ),
+                When(Exists(contrats.filter(date_debut__gt=jour)), then=Value(StatutAgent.A_VENIR)),
+                default=Value(StatutAgent.SANS_CONTRAT),
+                output_field=models.CharField(),
+            )
+        )
 
 
 class Agent(BaseModel):
@@ -63,6 +97,8 @@ class Agent(BaseModel):
     date_naissance = models.DateField("date de naissance")
     lieu_naissance = models.CharField("lieu de naissance", max_length=150)
     nationalite = models.CharField("nationalité", max_length=100, default="Congolaise")
+
+    objects = AgentQuerySet.as_manager()
 
     class Meta:
         verbose_name = "agent"
@@ -138,6 +174,19 @@ class Agent(BaseModel):
             dated = [row for row in prefetched if row.date_effet <= jour]
             return max(dated, key=lambda row: row.date_effet, default=None)
         return getattr(self, name).filter(date_effet__lte=jour).order_by("-date_effet").first()
+
+    def statut_au(self, jour: date) -> str:
+        """The agent's status on a day (agent list D1), from prefetched contracts when
+        present; the same rule as AgentQuerySet.with_statut()."""
+        prefetched = self._prefetched("contrats")
+        contrats = list(prefetched) if prefetched is not None else list(self.contrats.all())
+        if any(c.en_vigueur(jour) for c in contrats):
+            return StatutAgent.ACTIF
+        if any(c.date_debut <= jour for c in contrats):
+            return StatutAgent.INACTIF
+        if contrats:
+            return StatutAgent.A_VENIR
+        return StatutAgent.SANS_CONTRAT
 
     def affectation_au(self, jour: date) -> "Affectation | None":
         """The assignment in force on a day, or None (position history D12)."""
